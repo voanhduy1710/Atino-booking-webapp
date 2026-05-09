@@ -4,6 +4,7 @@ import QRCode from 'qrcode'
 import { useRef } from 'react'
 import { Navbar } from '@/shared/components/Navbar'
 import { formatDateDisplay } from '@/shared/lib/dateUtils'
+import { SUPPLIER_TABS } from './BookingForm'
 
 interface BookingResult {
   booking_code: string
@@ -34,7 +35,7 @@ export default function BookingConfirmationPage() {
   if (!result) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Navbar />
+        <Navbar tabs={SUPPLIER_TABS} activeTab="my-bookings" />
         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-[#888888]">
           <p>Không tìm thấy thông tin booking.</p>
           <Link to="/booking/new" className="btn-outline">
@@ -58,7 +59,7 @@ export default function BookingConfirmationPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
-      <Navbar />
+      <Navbar tabs={SUPPLIER_TABS} activeTab="my-bookings" />
 
       <main className="flex-1 flex items-start justify-center px-4 py-10">
         <div className="bg-white border border-[#E0E0E0] rounded-lg w-full max-w-lg p-8 text-center">
