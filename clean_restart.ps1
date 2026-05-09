@@ -14,9 +14,9 @@ Write-Host "[1/4] Killing node.exe processes..." -ForegroundColor Cyan
 Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force
 Write-Host "      Done."
 
-# 2. Clear ports 5173 and 5174
-Write-Host "[2/4] Clearing ports 5173/5174..." -ForegroundColor Cyan
-$ports = @(5173, 5174)
+# 2. Clear ports 5173, 5174, 3001
+Write-Host "[2/4] Clearing ports 5173/5174/3001..." -ForegroundColor Cyan
+$ports = @(5173, 5174, 3001)
 foreach ($port in $ports) {
     $procs = netstat -ano | Select-String ":$port " | ForEach-Object {
         ($_ -split "\s+")[-1]

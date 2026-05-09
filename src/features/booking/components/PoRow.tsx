@@ -10,6 +10,7 @@ interface Props {
   register: UseFormRegister<BookingFormData>
   errors: FieldErrors<BookingFormData>
   sessionId: string
+  supplierCode: string
   onRemove?: () => void
   setValue: UseFormSetValue<BookingFormData>
   watch: UseFormWatch<BookingFormData>
@@ -17,9 +18,9 @@ interface Props {
 
 const DELIVERY_ROUND_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-export function PoRow({ index, register, errors, sessionId, onRemove, setValue, watch }: Props) {
-  const { files: slipFiles, upload: uploadSlip, remove: removeSlip, isUploading: slipUploading } = usePhotoUpload(sessionId)
-  const { files: vatFiles, upload: uploadVat, remove: removeVat } = usePhotoUpload(sessionId)
+export function PoRow({ index, register, errors, sessionId, supplierCode, onRemove, setValue, watch }: Props) {
+  const { files: slipFiles, upload: uploadSlip, remove: removeSlip, isUploading: slipUploading } = usePhotoUpload(sessionId, supplierCode)
+  const { files: vatFiles, upload: uploadVat, remove: removeVat } = usePhotoUpload(sessionId, supplierCode)
 
   const slipInputRef = useRef<HTMLInputElement>(null)
   const vatInputRef = useRef<HTMLInputElement>(null)

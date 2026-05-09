@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { GuideTabs } from './GuideTabs'
 
 export default function GuideReceiving() {
   useEffect(() => {
@@ -14,6 +15,8 @@ export default function GuideReceiving() {
         </Link>
         <img src="/Atino Logo.svg" alt="Atino" className="h-6 w-auto" />
       </div>
+
+      <GuideTabs />
 
       <div className="max-w-3xl mx-auto px-6 py-10">
         <h1 className="text-2xl font-bold mb-2">Quy trình giao nhận hàng</h1>

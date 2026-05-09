@@ -1,19 +1,25 @@
 import { useRef, useCallback, useState } from 'react'
-import { supabase } from '@/shared/lib/supabase'
 
 export interface UploadedFileEntry {
   file: File
+  /** The full GCS path, e.g. duy_booking_images/temp/{sessionId}/slip_0_1.jpg */
   tempPath: string
+  /** Public GCS URL — https://storage.googleapis.com/atino-media/{tempPath} */
+  publicUrl: string
   status: 'uploading' | 'done' | 'error'
   progress: number
   errorMsg?: string
 }
 
-const BUCKET = 'booking-attachments'
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
 const MAX_MB = 10
 
-export function usePhotoUpload(sessionId: string) {
+// In production: nginx proxies /api/* → Express on port 3001 (same origin)
+// In local dev:  VITE_API_URL=http://localhost:3001 overrides the base
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const GCS_UPLOAD_URL = `${API_BASE}/api/upload/gcs`
+
+export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
   const [files, setFiles] = useState<UploadedFileEntry[]>([])
   const countRef = useRef(0)
 
@@ -24,43 +30,64 @@ export function usePhotoUpload(sessionId: string) {
   }
 
   const upload = useCallback(
-    async (file: File, prefix: string): Promise<string | null> => {
+    async (file: File, _prefix: string): Promise<string | null> => {
       const validationError = validate(file)
       if (validationError) return null
 
       countRef.current += 1
       const ext = file.name.split('.').pop() ?? 'jpg'
-      const tempPath = `temp/${sessionId}/${prefix}_${countRef.current}.${ext}`
+      // e.g. temp/{sessionId}/GC01_1.jpg  or  temp/{sessionId}/GC01_2_vat.jpg
+      const relativePath = `temp/${sessionId}/${supplierCode}_${countRef.current}.${ext}`
 
-      const entry: UploadedFileEntry = { file, tempPath, status: 'uploading', progress: 0 }
+      const entry: UploadedFileEntry = {
+        file,
+        tempPath: relativePath,
+        publicUrl: '',
+        status: 'uploading',
+        progress: 0,
+      }
       setFiles((prev) => [...prev, entry])
 
-      const { error } = await supabase.storage.from(BUCKET).upload(tempPath, file, {
-        upsert: false,
-        cacheControl: '3600',
-      })
+      try {
+        const form = new FormData()
+        form.append('file', file)
+        form.append('path', relativePath)
 
-      if (error) {
+        const res = await fetch(GCS_UPLOAD_URL, {
+          method: 'POST',
+          body: form,
+        })
+
+        const result = await res.json() as { url?: string; error?: string }
+
+        if (!res.ok || !result.url) {
+          throw new Error(result.error ?? 'Upload thất bại')
+        }
+
         setFiles((prev) =>
           prev.map((f) =>
-            f.tempPath === tempPath ? { ...f, status: 'error', errorMsg: error.message } : f
+            f.tempPath === relativePath
+              ? { ...f, publicUrl: result.url!, status: 'done', progress: 100 }
+              : f
+          )
+        )
+        return relativePath
+      } catch (err) {
+        const msg = (err as Error).message
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.tempPath === relativePath ? { ...f, status: 'error', errorMsg: msg } : f
           )
         )
         return null
       }
-
-      setFiles((prev) =>
-        prev.map((f) => (f.tempPath === tempPath ? { ...f, status: 'done', progress: 100 } : f))
-      )
-
-      return tempPath
     },
     [sessionId]
   )
 
   const remove = useCallback((tempPath: string) => {
+    // Remove from local state only — GCS temp files are cleaned up server-side
     setFiles((prev) => prev.filter((f) => f.tempPath !== tempPath))
-    void supabase.storage.from(BUCKET).remove([tempPath])
   }, [])
 
   const retry = useCallback(

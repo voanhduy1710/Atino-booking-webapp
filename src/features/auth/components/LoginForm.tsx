@@ -26,6 +26,7 @@ const roleRouteMap: Record<string, string> = {
 export function LoginForm() {
   const navigate = useNavigate()
   const [serverError, setServerError] = useState<string | null>(null)
+  const [showPw, setShowPw] = useState(false)
 
   const {
     register,
@@ -58,15 +59,26 @@ export function LoginForm() {
         {...register('username')}
       />
 
-      <Input
-        label="Mật khẩu"
-        id="login-password"
-        type="password"
-        autoComplete="current-password"
-        placeholder="Nhập mật khẩu"
-        error={errors.password?.message}
-        {...register('password')}
-      />
+      <div className="relative">
+        <Input
+          label="Mật khẩu"
+          id="login-password"
+          type={showPw ? 'text' : 'password'}
+          autoComplete="current-password"
+          placeholder="Nhập mật khẩu"
+          error={errors.password?.message}
+          {...register('password')}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPw((v) => !v)}
+          className="absolute right-3 top-8 text-[#888888] hover:text-black transition-colors"
+          tabIndex={-1}
+          aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+        >
+          {showPw ? '🙈' : '👁'}
+        </button>
+      </div>
 
       {serverError && (
         <p className="text-sm text-[#CC0000] border border-[#CC0000] rounded px-3 py-2">

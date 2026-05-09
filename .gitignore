@@ -37,3 +37,7 @@ test-results/
 
 # Supabase local dev (if used)
 supabase/.temp/
+
+# Service account keys — NEVER commit these
+secrets/
+*.json.key

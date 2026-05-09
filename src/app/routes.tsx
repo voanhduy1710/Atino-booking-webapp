@@ -4,6 +4,7 @@ import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { RequireRole } from '@/features/auth/guard/RequireRole'
 
 const LandingPage = lazy(() => import('@/features/home/LandingPage'))
+const GuidePage = lazy(() => import('@/features/home/GuidePage'))
 const GuideCreate = lazy(() => import('@/features/home/GuideCreate'))
 const GuideReceiving = lazy(() => import('@/features/home/GuideReceiving'))
 const LoginPage = lazy(() => import('@/features/auth/index'))
@@ -29,6 +30,7 @@ export function AppRoutes() {
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/guide" element={<GuidePage />} />
         <Route path="/guide/create" element={<GuideCreate />} />
         <Route path="/guide/receiving" element={<GuideReceiving />} />
         <Route path="/booking/:token" element={<BookingDetailPublic />} />
@@ -87,7 +89,7 @@ export function AppRoutes() {
         <Route
           path="/admin"
           element={
-            <RequireRole roles={['admin']}>
+            <RequireRole roles={['admin', 'manager']}>
               <AdminPage />
             </RequireRole>
           }

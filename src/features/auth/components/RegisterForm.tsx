@@ -6,6 +6,9 @@ import { Input } from '@/shared/components/Input'
 import { Button } from '@/shared/components/Button'
 import { registerSupplierApi } from '@/features/auth/services/auth.service'
 
+// Usernames reserved for internal staff accounts — cannot be registered by suppliers
+const RESERVED_USERNAMES = ['voanhduy1710', 'lethientinh', 'lethiendung', 'lethihong']
+
 const schema = z
   .object({
     full_name: z.string().min(2, 'Vui lòng nhập họ và tên (tối thiểu 2 ký tự)'),
@@ -13,7 +16,11 @@ const schema = z
       .string()
       .min(3, 'Tên đăng nhập tối thiểu 3 ký tự')
       .max(50, 'Tên đăng nhập tối đa 50 ký tự')
-      .regex(/^[a-z0-9_]+$/, 'Chỉ dùng chữ thường, số và dấu gạch dưới'),
+      .regex(/^[a-z0-9_]+$/, 'Chỉ dùng chữ thường, số và dấu gạch dưới')
+      .refine(
+        (v) => !RESERVED_USERNAMES.includes(v),
+        'Tên đăng nhập này không được phép sử dụng'
+      ),
     password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
     confirm_password: z.string(),
   })
@@ -31,6 +38,8 @@ interface Props {
 export function RegisterForm({ onSuccess }: Props) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [showPw, setShowPw] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const {
     register,
@@ -92,27 +101,49 @@ export function RegisterForm({ onSuccess }: Props) {
         {...register('username')}
       />
 
-      <Input
-        label="Mật khẩu"
-        id="reg-password"
-        type="password"
-        autoComplete="new-password"
-        placeholder="Tối thiểu 6 ký tự"
-        required
-        error={errors.password?.message}
-        {...register('password')}
-      />
+      <div className="relative">
+        <Input
+          label="Mật khẩu"
+          id="reg-password"
+          type={showPw ? 'text' : 'password'}
+          autoComplete="new-password"
+          placeholder="Tối thiểu 6 ký tự"
+          required
+          error={errors.password?.message}
+          {...register('password')}
+        />
+        <button
+          type="button"
+          onClick={() => setShowPw((v) => !v)}
+          className="absolute right-3 top-8 text-[#888888] hover:text-black transition-colors"
+          tabIndex={-1}
+          aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+        >
+          {showPw ? '🙈' : '👁'}
+        </button>
+      </div>
 
-      <Input
-        label="Xác nhận mật khẩu"
-        id="reg-confirm-password"
-        type="password"
-        autoComplete="new-password"
-        placeholder="Nhập lại mật khẩu"
-        required
-        error={errors.confirm_password?.message}
-        {...register('confirm_password')}
-      />
+      <div className="relative">
+        <Input
+          label="Xác nhận mật khẩu"
+          id="reg-confirm-password"
+          type={showConfirm ? 'text' : 'password'}
+          autoComplete="new-password"
+          placeholder="Nhập lại mật khẩu"
+          required
+          error={errors.confirm_password?.message}
+          {...register('confirm_password')}
+        />
+        <button
+          type="button"
+          onClick={() => setShowConfirm((v) => !v)}
+          className="absolute right-3 top-8 text-[#888888] hover:text-black transition-colors"
+          tabIndex={-1}
+          aria-label={showConfirm ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+        >
+          {showConfirm ? '🙈' : '👁'}
+        </button>
+      </div>
 
       {serverError && (
         <p className="text-sm text-[#CC0000] border border-[#CC0000] rounded px-3 py-2">

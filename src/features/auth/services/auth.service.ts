@@ -154,7 +154,15 @@ export async function registerSupplierApi(payload: {
   if (error) throw new Error('Lỗi hệ thống, vui lòng thử lại')
 
   const result = data as { error?: string; success?: boolean }
-  if (result?.error) throw new Error(result.error)
+  if (result?.error) {
+    // The RPC returns ASCII-only strings — map to proper Vietnamese with diacritics
+    const RPC_ERROR_MAP: Record<string, string> = {
+      'Ten dang nhap da ton tai': 'Tên đăng nhập đã tồn tại',
+      'Vui long dien day du thong tin': 'Vui lòng điền đầy đủ thông tin',
+      'Loi he thong': 'Lỗi hệ thống, vui lòng thử lại',
+    }
+    throw new Error(RPC_ERROR_MAP[result.error] ?? result.error)
+  }
 
   return { message: 'Đăng ký thành công. Vui lòng chờ admin xác nhận.' }
 }

@@ -74,6 +74,23 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+# Read server env vars from .env
+$envContent = Get-Content ".env" | Where-Object { $_ -match "^[^#]" }
+$envVars = @{}
+foreach ($line in $envContent) {
+    if ($line -match "^(.+?)=(.*)$") {
+        $envVars[$Matches[1].Trim()] = $Matches[2].Trim()
+    }
+}
+
+$SUPABASE_SERVICE_ROLE_KEY = $envVars["SUPABASE_SERVICE_ROLE_KEY"]
+$GCS_JSON = $envVars["GCS_SERVICE_ACCOUNT_JSON"]
+
+if (-not $SUPABASE_SERVICE_ROLE_KEY -or $SUPABASE_SERVICE_ROLE_KEY -eq "FILL_IN_YOUR_SERVICE_ROLE_KEY_HERE") {
+    Write-Host "[ERROR] SUPABASE_SERVICE_ROLE_KEY is not set in .env" -ForegroundColor Red
+    exit 1
+}
+
 gcloud run deploy $SERVICE_NAME `
     --project $GCP_PROJECT `
     --region $GCP_REGION `
@@ -86,7 +103,7 @@ gcloud run deploy $SERVICE_NAME `
     --max-instances 3 `
     --timeout 60s `
     --port 8080 `
-    --set-env-vars "VITE_SUPABASE_URL=https://deuuuibkqletkkbrsmxd.supabase.co"
+    --set-env-vars "^|^SUPABASE_URL=https://deuuuibkqletkkbrsmxd.supabase.co|SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY|GCS_SERVICE_ACCOUNT_JSON=$GCS_JSON"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Cloud Run deploy failed." -ForegroundColor Red

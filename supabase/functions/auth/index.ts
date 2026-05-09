@@ -1,4 +1,4 @@
-﻿import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -30,7 +30,7 @@ async function makeJWT(p: JWTPayload): Promise<string> {
   const inp = `${hdr}.${bdy}`;
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(JWT_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(inp));
-  return `${inp}.${b64u(String.fromCharCode(...new Uint8Array(sig)))}`;
+  return `${inp}.${b64u(String.fromCharCode(...Array.from(new Uint8Array(sig))))}`;
 }
 
 const CORS = { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" };
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
       const { username, password } = body;
       if (!username || !password) return json({ error: "Thieu thong tin dang nhap" }, 400);
       let staff = DEFAULT_STAFF;
-      if (AUTH_USERS_RAW) { try { const p = JSON.parse(AUTH_USERS_RAW); if (Array.isArray(p) && p.length) staff = p; } catch {} }
+      if (AUTH_USERS_RAW) { try { const p = JSON.parse(AUTH_USERS_RAW); if (Array.isArray(p) && p.length) staff = p; } catch (_) { /* ignore */ } }
       const su = staff.find(u => u.username === username);
       if (su) {
         if (!(await verify(password, su.password_hash))) return json({ error: "Sai ten dang nhap hoac mat khau" }, 401);
@@ -69,15 +69,15 @@ Deno.serve(async (req) => {
       if (ex) return json({ error: "Ten dang nhap da ton tai" }, 409);
       const { error: ie } = await sb.from("supplier_accounts").insert({ username, password_hash: await sha256(password), full_name, status: "pending" });
       if (ie) return json({ error: "Loi he thong" }, 500);
-      await sb.from("notifications").insert({ recipient_type: "staff", recipient_id: "voanhduy1710", event_type: "account_pending", message: `NCC moi dang ky: ${full_name}` });
-      return json({ message: "Dang ky thanh cong. Vui long cho admin xac nhan." }, 201);
+      await sb.from("notifications").insert({ recipient_type: "staff", recipient_id: "voanhduy1710", event_type: "account_pending", message: `NCC m\u1edbi \u0111\u0103ng k\u00fd: ${full_name}` });
+      return json({ message: "\u0110\u0103ng k\u00fd th\u00e0nh c\u00f4ng. Vui l\u00f2ng ch\u1edd admin x\u00e1c nh\u1eadn." }, 201);
     }
 
     if (body.action === "approve-supplier") {
       if (!req.headers.get("Authorization")?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
       await sb.from("supplier_accounts").update({ status: "active", supplier_id: body.supplier_id || null, approved_at: new Date().toISOString() }).eq("id", body.supplier_account_id);
-      await sb.from("notifications").insert({ recipient_type: "supplier_account", recipient_id: body.supplier_account_id, event_type: "account_approved", message: "Tai khoan da duoc kich hoat." });
-      return json({ message: "Da phe duyet tai khoan" });
+      await sb.from("notifications").insert({ recipient_type: "supplier_account", recipient_id: body.supplier_account_id, event_type: "account_approved", message: "T\u00e0i kho\u1ea3n \u0111\u00e3 \u0111\u01b0\u1ee3c k\u00edch ho\u1ea1t." });
+      return json({ message: "\u0110\u00e3 ph\u00ea duy\u1ec7t t\u00e0i kho\u1ea3n" });
     }
 
     if (body.action === "reject-supplier") {
