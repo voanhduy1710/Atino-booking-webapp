@@ -1,0 +1,137 @@
+import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/shared/lib/supabase'
+import { getCurrentUser } from '@/shared/lib/auth'
+import { Navbar } from '@/shared/components/Navbar'
+import { StatusBadge } from '@/shared/components/StatusBadge'
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
+import { formatDateDisplay } from '@/shared/lib/dateUtils'
+import { TIME_SLOT_LABELS, type BookingStatus, type TimeSlot } from '@/shared/types/domain'
+import { Link } from 'react-router-dom'
+
+interface MyBooking {
+  id: string
+  booking_code: string
+  booking_token: string
+  delivery_date: string
+  time_slot: TimeSlot
+  status: BookingStatus
+  submitted_at: string
+  warehouse_name: string
+  warehouse_code: string
+}
+
+export default function MyBookingsPage() {
+  const user = getCurrentUser()
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
+
+  useEffect(() => {
+    document.title = 'Lịch sử đăng ký — Atino Booking'
+  }, [])
+
+  const { data: bookings = [], isLoading } = useQuery({
+    queryKey: ['my-bookings', user?.supplier_account_id, statusFilter],
+    queryFn: async () => {
+      if (!user?.supplier_account_id) return []
+      const q = supabase
+        .from('bookings')
+        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, warehouses!inner(name, code)')
+        .eq('supplier_account_id', user.supplier_account_id)
+        .order('submitted_at', { ascending: false })
+        .limit(100)
+
+      if (statusFilter !== 'all') {
+        q.eq('status', statusFilter)
+      }
+
+      const { data, error } = await q
+      if (error) throw error
+
+      return (data ?? []).map((b: any) => ({
+        id: b.id,
+        booking_code: b.booking_code,
+        booking_token: b.booking_token,
+        delivery_date: b.delivery_date,
+        time_slot: b.time_slot,
+        status: b.status,
+        submitted_at: b.submitted_at,
+        warehouse_name: b.warehouses?.name ?? '',
+        warehouse_code: b.warehouses?.code ?? '',
+      })) as MyBooking[]
+    },
+    enabled: !!user?.supplier_account_id,
+  })
+
+  const STATUS_TABS: { label: string; value: BookingStatus | 'all' }[] = [
+    { label: 'Tất cả', value: 'all' },
+    { label: 'Chờ xác nhận', value: 'pending' },
+    { label: 'Đã xác nhận', value: 'confirmed' },
+    { label: 'Đã nhận hàng', value: 'received' },
+    { label: 'Đã từ chối', value: 'rejected' },
+  ]
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+      <Navbar />
+
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-bold">Lịch sử đăng ký giao hàng</h1>
+          <Link to="/booking/new" className="btn-primary" id="new-booking-btn">
+            + Đăng ký mới
+          </Link>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setStatusFilter(tab.value)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                statusFilter === tab.value
+                  ? 'bg-black text-white border-black'
+                  : 'bg-white text-[#888888] border-[#E0E0E0] hover:border-black hover:text-black'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* List */}
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : bookings.length === 0 ? (
+          <div className="bg-white border border-[#E0E0E0] rounded-lg p-16 text-center text-[#888888]">
+            <p className="text-2xl mb-2">📦</p>
+            <p>Chưa có đăng ký nào</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {bookings.map((b) => (
+              <Link
+                key={b.id}
+                to={`/booking/${b.booking_token}`}
+                className="block bg-white border border-[#E0E0E0] rounded-lg px-5 py-4 hover:border-black transition-colors"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="font-mono text-sm font-bold">{b.booking_code}</p>
+                    <p className="text-xs text-[#888888] mt-0.5">
+                      {b.warehouse_name} • Giao ngày {formatDateDisplay(b.delivery_date)} •{' '}
+                      {TIME_SLOT_LABELS[b.time_slot]}
+                    </p>
+                  </div>
+                  <StatusBadge status={b.status} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}

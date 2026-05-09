@@ -1,0 +1,40 @@
+# Dependencies — reinstalled during Docker build via npm ci
+node_modules/
+
+# Build artifacts — rebuilt inside Docker
+dist/
+dist-ssr/
+
+# Environment variables — injected at runtime, never baked into image
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+
+# Editor & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+# Test files — not needed in production image
+coverage/
+playwright-report/
+test-results/
+playwright.config.ts
+vitest.config.ts
+
+# Docs — not needed in image
+docs/
+*.md
+
+# Code analysis tool
+.code-review-graph/
+
+# TypeScript build info
+*.tsbuildinfo
