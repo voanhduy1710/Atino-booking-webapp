@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
-import { Navbar } from '@/shared/components/Navbar'
+import { Navbar, type NavTab } from '@/shared/components/Navbar'
 import { Button } from '@/shared/components/Button'
 import { Select } from '@/shared/components/Select'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
@@ -12,6 +12,12 @@ import { PoRow } from './PoRow'
 import { TIME_SLOT_LABELS, STANDARD_DELIVERY_NOTE, type TimeSlot } from '@/shared/types/domain'
 import { computeDeliveryDatePreview, formatDateDisplay } from '@/shared/lib/dateUtils'
 import { getToken } from '@/shared/lib/auth'
+
+export const SUPPLIER_TABS: NavTab[] = [
+  { id: 'new-booking',  label: '📝 Tạo đơn',       href: '/booking/new' },
+  { id: 'my-bookings',  label: '📋 Đơn của tôi',   href: '/my-bookings' },
+  { id: 'guide',        label: '🏭 Nhận hàng',      href: '/guide/receiving' },
+]
 
 const SESSION_ID = crypto.randomUUID()
 // In production: nginx proxies /api/* → Express (same origin)
@@ -192,7 +198,7 @@ export function BookingForm() {
   if (warehousesLoading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Navbar />
+        <Navbar tabs={SUPPLIER_TABS} activeTab="new-booking" />
         <div className="flex-1 flex items-center justify-center">
           <LoadingSpinner size="lg" />
         </div>
@@ -202,7 +208,7 @@ export function BookingForm() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
-      <Navbar />
+      <Navbar tabs={SUPPLIER_TABS} activeTab="new-booking" />
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
         <h1 className="text-xl font-bold tracking-wider uppercase text-center mb-4">
