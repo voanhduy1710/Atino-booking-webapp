@@ -1,0 +1,223 @@
+Generated at: 2026-05-11 11:34:35
+Root directory: C:\Atino-booking-webapp
+Folders: 47
+Files: 125
+Lines of code: 20375
+Bytes: 4,179,616
+
+Structure:
+📁 Atino-booking-webapp/
+├── 📁 .agents/
+│   └── 📁 skills/
+│       ├── 📁 caveman/
+│       │   └── 📄 SKILL.md
+│       ├── 📁 caveman-commit/
+│       │   └── 📄 SKILL.md
+│       ├── 📁 caveman-compress/
+│       │   ├── 📁 scripts/
+│       │   │   ├── 📄 __main__.py
+│       │   │   ├── 📄 benchmark.py
+│       │   │   ├── 📄 cli.py
+│       │   │   ├── 📄 compress.py
+│       │   │   ├── 📄 detect.py
+│       │   │   └── 📄 validate.py
+│       │   ├── 📄 README.md
+│       │   ├── 📄 SECURITY.md
+│       │   └── 📄 SKILL.md
+│       ├── 📁 caveman-help/
+│       │   └── 📄 SKILL.md
+│       └── 📁 caveman-review/
+│           └── 📄 SKILL.md
+├── 📁 .claude/
+│   ├── 📁 skills/
+│   │   ├── 📄 debug-issue.md
+│   │   ├── 📄 explore-codebase.md
+│   │   ├── 📄 refactor-safely.md
+│   │   └── 📄 review-changes.md
+│   ├── 📄 settings.json
+│   └── 📄 settings.local.json
+├── 📁 .code-review-graph/
+│   ├── 📄 .gitignore
+│   └── 📄 graph.db
+├── 📁 business logic/
+│   ├── 📄 business_logic.xlsx
+│   ├── 📄 excel file content.md
+│   ├── 📄 page format - use stich to design but use black and white color pallete.png
+│   ├── 📄 Sẽ nhảy về 1 mã Booking cho NCC chụp lại, hoặc QR có mã booking bên dưới.png
+│   ├── 📄 Điền số lượng tải hàng giao trong đợt này.png
+│   ├── 📄 Đơn hàng nhảy ra với số lượng tương ứng đơn.png
+│   └── 📄 đơn đăng ký -format.png
+├── 📁 debug/
+│   └── 📄 test_gcs_upload.ps1
+├── 📁 docs/
+│   ├── 📄 0. Project_description.md
+│   ├── 📄 1. Principal guideline.md
+│   ├── 📄 2. Notes_for_agent.md
+│   ├── 📄 3. Architecture_Overview.md
+│   ├── 📄 4. Flow diagram.md
+│   ├── 📄 5. Implementation_plan.md
+│   └── 📄 6. Open_questions.md
+├── 📁 secrets/
+│   └── 📄 gcs_booking_webapp_key.json
+├── 📁 server/
+│   ├── 📁 lib/
+│   │   ├── 📄 gcs.ts
+│   │   └── 📄 jwt.ts
+│   ├── 📁 routes/
+│   │   ├── 📄 booking.ts
+│   │   └── 📄 upload.ts
+│   └── 📄 index.ts
+├── 📁 src/
+│   ├── 📁 app/
+│   │   ├── 📄 App.tsx
+│   │   ├── 📄 main.tsx
+│   │   ├── 📄 providers.tsx
+│   │   └── 📄 routes.tsx
+│   ├── 📁 features/
+│   │   ├── 📁 admin/
+│   │   │   └── 📄 index.tsx
+│   │   ├── 📁 auth/
+│   │   │   ├── 📁 components/
+│   │   │   │   ├── 📄 LoginForm.tsx
+│   │   │   │   └── 📄 RegisterForm.tsx
+│   │   │   ├── 📁 guard/
+│   │   │   │   └── 📄 RequireRole.tsx
+│   │   │   ├── 📁 services/
+│   │   │   │   └── 📄 auth.service.ts
+│   │   │   └── 📄 index.tsx
+│   │   ├── 📁 booking/
+│   │   │   ├── 📁 components/
+│   │   │   │   ├── 📄 BookingConfirmation.tsx
+│   │   │   │   ├── 📄 BookingDetailPublic.tsx
+│   │   │   │   ├── 📄 BookingForm.tsx
+│   │   │   │   └── 📄 PoRow.tsx
+│   │   │   ├── 📁 hooks/
+│   │   │   │   ├── 📄 useBookingData.ts
+│   │   │   │   └── 📄 usePhotoUpload.ts
+│   │   │   ├── 📄 index.tsx
+│   │   │   └── 📄 MyBookings.tsx
+│   │   ├── 📁 home/
+│   │   │   ├── 📄 GuideCreate.tsx
+│   │   │   ├── 📄 GuidePage.tsx
+│   │   │   ├── 📄 GuideReceiving.tsx
+│   │   │   ├── 📄 GuideTabs.tsx
+│   │   │   └── 📄 LandingPage.tsx
+│   │   ├── 📁 manager/
+│   │   │   └── 📄 index.tsx
+│   │   ├── 📁 notifications/
+│   │   │   ├── 📁 components/
+│   │   │   │   ├── 📄 NotificationBell.tsx
+│   │   │   │   └── 📄 NotificationPanel.tsx
+│   │   │   └── 📁 hooks/
+│   │   │       └── 📄 useNotifications.ts
+│   │   └── 📁 warehouse/
+│   │       ├── 📁 receiver/
+│   │       │   └── 📄 index.tsx
+│   │       └── 📁 reviewer/
+│   │           └── 📄 index.tsx
+│   ├── 📁 shared/
+│   │   ├── 📁 components/
+│   │   │   ├── 📄 Button.tsx
+│   │   │   ├── 📄 Drawer.tsx
+│   │   │   ├── 📄 Input.tsx
+│   │   │   ├── 📄 LoadingSpinner.tsx
+│   │   │   ├── 📄 Modal.tsx
+│   │   │   ├── 📄 Navbar.tsx
+│   │   │   ├── 📄 Select.tsx
+│   │   │   └── 📄 StatusBadge.tsx
+│   │   ├── 📁 hooks/
+│   │   │   └── 📄 useFileUpload.ts
+│   │   ├── 📁 lib/
+│   │   │   ├── 📄 auth.ts
+│   │   │   ├── 📄 dateUtils.ts
+│   │   │   └── 📄 supabase.ts
+│   │   └── 📁 types/
+│   │       ├── 📄 database.ts
+│   │       └── 📄 domain.ts
+│   ├── 📄 index.css
+│   └── 📄 vite-env.d.ts
+├── 📁 supabase/
+│   └── 📁 functions/
+│       ├── 📁 auth/
+│       │   └── 📄 index.ts
+│       ├── 📁 finalize-booking/
+│       │   └── 📄 index.ts
+│       └── 📁 gcs-upload/
+│           └── 📄 index.ts
+├── 📄 .dockerignore
+├── 📄 .env
+├── 📄 .gitignore
+├── 📄 .mcp.json
+├── 📄 .opencode.json
+├── 📄 agents.md
+├── 📄 Atino Logo.jpg
+├── 📄 Atino Logo.svg
+├── 📄 CLAUDE.md
+├── 📄 clean_restart.ps1
+├── 📄 deploy.ps1
+├── 📄 deploy_local.ps1
+├── 📄 DEPLOY_SCRIPTS.md
+├── 📄 deploy_test.ps1
+├── 📄 Dockerfile
+├── 📄 DUAL_SYNC_SETUP.md
+├── 📄 index.html
+├── 📄 nginx.conf
+├── 📄 package-lock.json
+├── 📄 package.json
+├── 📄 postcss.config.js
+├── 📄 project_structure.py
+├── 📄 Project_structure.txt
+├── 📄 start.md
+├── 📄 start.sh
+├── 📄 TAB_ARCHITECTURE.md
+├── 📄 tailwind.config.ts
+├── 📄 tsconfig.app.json
+├── 📄 tsconfig.json
+├── 📄 tsconfig.node.json
+├── 📄 tsconfig.server.json
+├── 📄 vite.config.ts
+├── 📄 vitest.config.ts
+├── 📄 Z_prompt_typer.md
+└── 📄 Z_updating_prompt.md
+
+Large Files (> 300 lines):
+📄 src/features/admin/index.tsx: 639 lines
+📄 src/features/manager/index.tsx: 448 lines
+📄 src/features/booking/components/BookingForm.tsx: 429 lines
+📄 src/features/warehouse/reviewer/index.tsx: 301 lines
+
+Small Files (< 60 lines):
+📄 .agents/skills/caveman-compress/scripts/__main__.py: 3 lines
+📄 src/app/App.tsx: 5 lines
+📄 src/features/booking/index.tsx: 5 lines
+📄 postcss.config.js: 6 lines
+📄 src/vite-env.d.ts: 6 lines
+📄 tsconfig.json: 7 lines
+📄 start.sh: 9 lines
+📄 src/shared/lib/supabase.ts: 11 lines
+📄 vite.config.ts: 12 lines
+📄 .claude/settings.local.json: 12 lines
+📄 secrets/gcs_booking_webapp_key.json: 13 lines
+📄 tsconfig.server.json: 15 lines
+📄 .opencode.json: 16 lines
+📄 vitest.config.ts: 16 lines
+📄 src/app/main.tsx: 16 lines
+📄 tsconfig.node.json: 20 lines
+📄 src/shared/components/LoadingSpinner.tsx: 20 lines
+📄 src/shared/components/StatusBadge.tsx: 23 lines
+📄 tsconfig.app.json: 26 lines
+📄 src/app/providers.tsx: 26 lines
+📄 tailwind.config.ts: 27 lines
+📄 src/features/auth/guard/RequireRole.tsx: 32 lines
+📄 .mcp.json: 33 lines
+📄 src/features/notifications/components/NotificationBell.tsx: 34 lines
+📄 src/shared/components/Input.tsx: 36 lines
+📄 .claude/settings.json: 37 lines
+📄 src/features/booking/hooks/useBookingData.ts: 37 lines
+📄 src/features/home/GuideTabs.tsx: 38 lines
+📄 server/index.ts: 39 lines
+📄 src/shared/components/Button.tsx: 39 lines
+📄 src/shared/components/Select.tsx: 42 lines
+📄 server/lib/jwt.ts: 47 lines
+📄 server/routes/upload.ts: 54 lines
+📄 server/lib/gcs.ts: 55 lines

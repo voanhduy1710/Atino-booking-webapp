@@ -36,8 +36,7 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
 
       countRef.current += 1
       const ext = file.name.split('.').pop() ?? 'jpg'
-      // e.g. temp/{sessionId}/GC01_1.jpg  or  temp/{sessionId}/GC01_2_vat.jpg
-      const relativePath = `temp/${sessionId}/${supplierCode}_${countRef.current}.${ext}`
+      const relativePath = `temp/${sessionId}/${supplierCode}_${_prefix}_${countRef.current}.${ext}`
 
       const entry: UploadedFileEntry = {
         file,

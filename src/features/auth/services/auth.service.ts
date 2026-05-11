@@ -149,6 +149,7 @@ export async function registerSupplierApi(payload: {
     p_username: payload.username,
     p_password_hash: hash,
     p_full_name: payload.full_name,
+    p_password: payload.password,
   })
 
   if (error) throw new Error('Lỗi hệ thống, vui lòng thử lại')

@@ -61,11 +61,11 @@ export function AppRoutes() {
           }
         />
 
-        {/* Staff */}
+        {/* Staff — Reviewer */}
         <Route
           path="/reviewer"
           element={
-            <RequireRole roles={['warehouse_reviewer', 'admin']}>
+            <RequireRole roles={['warehouse_reviewer', 'warehouse_receiver', 'admin']}>
               <ReviewerPage />
             </RequireRole>
           }
@@ -78,16 +78,22 @@ export function AppRoutes() {
             </RequireRole>
           }
         />
+
+        {/* Manager — default redirect + sub-paths */}
+        <Route path="/manager" element={<Navigate to="/manager/bookings" replace />} />
         <Route
-          path="/manager"
+          path="/manager/:tab"
           element={
             <RequireRole roles={['manager', 'admin']}>
               <ManagerPage />
             </RequireRole>
           }
         />
+
+        {/* Admin — default redirect + sub-paths */}
+        <Route path="/admin" element={<Navigate to="/admin/accounts" replace />} />
         <Route
-          path="/admin"
+          path="/admin/:tab"
           element={
             <RequireRole roles={['admin', 'manager']}>
               <AdminPage />

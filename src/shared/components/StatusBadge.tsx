@@ -6,6 +6,7 @@ const statusConfig: Record<BookingStatus, { label: string; className: string }> 
   confirmed: { label: 'Đã xác nhận', className: 'status-confirmed' },
   rejected: { label: 'Đã từ chối', className: 'status-rejected' },
   received: { label: 'Đã nhận hàng', className: 'status-confirmed' },
+  cancelled: { label: 'Đã huỷ', className: 'status-cancelled' },
 }
 
 interface Props {

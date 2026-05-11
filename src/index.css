@@ -75,7 +75,11 @@
   }
 
   .status-confirmed {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-black text-white;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-[#1a7a3e] text-white;
+  }
+
+  .status-cancelled {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium border border-[#888888] text-[#888888] bg-[#F5F5F5] line-through;
   }
 
   .status-rejected {
@@ -83,7 +87,7 @@
   }
 
   .status-received {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-black text-white;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-[#1a7a3e] text-white;
   }
 
   .section-header {

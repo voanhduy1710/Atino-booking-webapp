@@ -1,7 +1,7 @@
 // Domain types and enums — hand-written (not generated from Supabase)
 
 export type AccountStatus = 'pending' | 'active' | 'rejected'
-export type BookingStatus = 'pending' | 'confirmed' | 'rejected' | 'received'
+export type BookingStatus = 'pending' | 'confirmed' | 'rejected' | 'received' | 'cancelled'
 export type BookingItemStatus = 'pending' | 'confirmed' | 'rejected'
 export type TimeSlot = '07-09' | '09-11' | '13-15' | '15-17'
 export type PhotoType = 'delivery_slip' | 'discrepancy'
@@ -20,6 +20,7 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   confirmed: 'Đã xác nhận — chờ giao hàng',
   rejected: 'Đã từ chối',
   received: 'Đã nhận hàng',
+  cancelled: 'Đã huỷ',
 }
 
 export const STANDARD_DELIVERY_NOTE =

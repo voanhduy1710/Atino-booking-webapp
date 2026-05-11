@@ -20,7 +20,7 @@ export function RequireRole({ roles, children }: Props) {
     const roleRouteMap: Record<string, string> = {
       supplier: '/my-bookings',
       warehouse_reviewer: '/reviewer',
-      warehouse_receiver: '/receiver',
+      warehouse_receiver: '/reviewer',
       manager: '/manager',
       admin: '/admin',
     }

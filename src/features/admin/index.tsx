@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { Navbar } from '@/shared/components/Navbar'
@@ -8,25 +9,32 @@ import { Modal } from '@/shared/components/Modal'
 import { formatDateTimeDisplay } from '@/shared/lib/dateUtils'
 import { approveSupplierApi, rejectSupplierApi } from '@/features/auth/services/auth.service'
 import type { SupplierAccount, AccountStatus } from '@/shared/types/domain'
+import type { NavTab } from '@/shared/components/Navbar'
 
 const ReviewerPage = lazy(() => import('@/features/warehouse/reviewer/index'))
-const ReceiverPage = lazy(() => import('@/features/warehouse/receiver/index'))
 const ManagerPage = lazy(() => import('@/features/manager/index'))
 
-type Tab = 'accounts' | 'warehouses' | 'suppliers'
-type ViewAs = null | 'reviewer' | 'receiver' | 'manager'
+async function sha256(str: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str))
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+type AdminTab = 'accounts' | 'warehouses' | 'suppliers' | 'reviewbookings' | 'manageviews'
+type ManageViewsTab = 'reviewer' | 'manager'
+
+const ADMIN_TABS: NavTab[] = [
+  { id: 'accounts',       label: 'Tài khoản NCC',    href: '/admin/accounts' },
+  { id: 'warehouses',     label: 'Kho hàng',          href: '/admin/warehouses' },
+  { id: 'suppliers',      label: 'Nhà cung cấp',      href: '/admin/suppliers' },
+  { id: 'reviewbookings', label: 'Xác nhận booking',  href: '/admin/reviewbookings' },
+  { id: 'manageviews',    label: 'Manage views',       href: '/admin/manageviews' },
+]
+
+const VALID_TABS: AdminTab[] = ['accounts', 'warehouses', 'suppliers', 'reviewbookings', 'manageviews']
 
 interface Supplier { id: string; code: string; name: string; active: boolean }
 interface Warehouse { id: string; code: string; name: string; active: boolean }
-
-// ── tiny helpers ──────────────────────────────────────────────────────────────
-function GreenBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
-  return (
-    <button onClick={onClick} disabled={disabled} className="btn-green">
-      {children}
-    </button>
-  )
-}
+interface SupplierAccountWithPw extends SupplierAccount { password?: string }
 
 function LinkBtn({ onClick, danger, children }: { onClick: () => void; danger?: boolean; children: React.ReactNode }) {
   return (
@@ -39,15 +47,45 @@ function LinkBtn({ onClick, danger, children }: { onClick: () => void; danger?: 
   )
 }
 
-export default function AdminPage() {
-  const [tab, setTab] = useState<Tab>('accounts')
-  const [viewAs, setViewAs] = useState<ViewAs>(null)
+const EyeIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+)
 
-  // Approve modal
-  const [selectedAccount, setSelectedAccount] = useState<SupplierAccount | null>(null)
+const EyeOffIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>
+  </svg>
+)
+
+export default function AdminPage() {
+  const { pathname } = useLocation()
+
+  const activeTab: AdminTab = (() => {
+    for (const t of VALID_TABS) {
+      if (pathname.includes(`/admin/${t}`)) return t
+    }
+    return 'accounts'
+  })()
+
+  // Accounts
+  const [selectedAccount, setSelectedAccount] = useState<SupplierAccountWithPw | null>(null)
   const [selectedSupplierId, setSelectedSupplierId] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [statusFilter, setStatusFilter] = useState<AccountStatus | 'all'>('pending')
+  const [revealedPws, setRevealedPws] = useState<Set<string>>(new Set())
+
+  // Password reset modal
+  const [pwAccountId, setPwAccountId] = useState<string | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwError, setPwError] = useState<string | null>(null)
+
+  // Manageviews internal sub-tab
+  const [manageViewsTab, setManageViewsTab] = useState<ManageViewsTab>('reviewer')
 
   // Warehouse add/edit
   const [addingWarehouse, setAddingWarehouse] = useState(false)
@@ -61,13 +99,21 @@ export default function AdminPage() {
   const [newSpCode, setNewSpCode] = useState('')
   const [newSpName, setNewSpName] = useState('')
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
+  const [editSpCode, setEditSpCode] = useState('')
   const [editSpName, setEditSpName] = useState('')
 
   const queryClient = useQueryClient()
 
   useEffect(() => { document.title = 'Admin — Atino' }, [])
 
-  // ── Queries ─────────────────────────────────────────────────────────────────
+  const togglePwReveal = (id: string) =>
+    setRevealedPws(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+
+  // ── Queries ──────────────────────────────────────────────────────────────────
 
   const { data: accounts = [], isLoading: accountsLoading } = useQuery({
     queryKey: ['admin-accounts', statusFilter],
@@ -79,9 +125,9 @@ export default function AdminPage() {
       if (statusFilter !== 'all') q = q.eq('status', statusFilter)
       const { data, error } = await q
       if (error) throw error
-      return data as SupplierAccount[]
+      return data as SupplierAccountWithPw[]
     },
-    enabled: tab === 'accounts',
+    enabled: activeTab === 'accounts',
   })
 
   const { data: warehouses = [] } = useQuery({
@@ -91,10 +137,9 @@ export default function AdminPage() {
       if (error) throw error
       return data as Warehouse[]
     },
-    enabled: tab === 'warehouses',
+    enabled: activeTab === 'warehouses',
   })
 
-  // Always fetch — also needed for approve modal dropdown
   const { data: suppliers = [] } = useQuery({
     queryKey: ['admin-suppliers'],
     queryFn: async () => {
@@ -104,7 +149,6 @@ export default function AdminPage() {
     },
   })
 
-  // Pre-select matching supplier when approve modal opens
   useEffect(() => {
     if (!selectedAccount) { setSelectedSupplierId(''); return }
     const match = suppliers.find((s) => s.code === selectedAccount.supplier_code_requested)
@@ -132,7 +176,6 @@ export default function AdminPage() {
     },
   })
 
-  // Warehouse mutations
   const addWarehouseMutation = useMutation({
     mutationFn: async ({ code, name }: { code: string; name: string }) => {
       const { error } = await supabase.from('warehouses').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true })
@@ -155,15 +198,6 @@ export default function AdminPage() {
     },
   })
 
-  const toggleWarehouseActive = useMutation({
-    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const { error } = await supabase.from('warehouses').update({ active: !active }).eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['admin-warehouses'] }),
-  })
-
-  // Supplier mutations
   const addSupplierMutation = useMutation({
     mutationFn: async ({ code, name }: { code: string; name: string }) => {
       const { error } = await supabase.from('suppliers').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true })
@@ -176,8 +210,8 @@ export default function AdminPage() {
   })
 
   const editSupplierMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      const { error } = await supabase.from('suppliers').update({ name: name.trim() }).eq('id', id)
+    mutationFn: async ({ id, code, name }: { id: string; code: string; name: string }) => {
+      const { error } = await supabase.from('suppliers').update({ code: code.trim().toUpperCase(), name: name.trim() }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
@@ -186,15 +220,56 @@ export default function AdminPage() {
     },
   })
 
-  const toggleSupplierActive = useMutation({
-    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const { error } = await supabase.from('suppliers').update({ active: !active }).eq('id', id)
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('supplier_accounts').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['admin-accounts'] }),
+  })
+
+  const deleteWarehouseMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('warehouses').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['admin-warehouses'] }),
+  })
+
+  const deleteSupplierMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('suppliers').delete().eq('id', id)
       if (error) throw error
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['admin-suppliers'] }),
   })
 
-  // ── Status helpers ───────────────────────────────────────────────────────────
+  const confirmDelete = (label: string, onConfirm: () => void) => {
+    if (window.confirm(`Xóa ${label}? Hành động này không thể hoàn tác.`)) onConfirm()
+  }
+
+  const handlePasswordReset = async () => {
+    if (!pwAccountId || !newPassword.trim()) return
+    setPwSaving(true); setPwError(null)
+    try {
+      const plaintext = newPassword.trim()
+      const hash = await sha256(plaintext)
+      const { error } = await supabase.rpc('admin_reset_supplier_password' as any, {
+        p_account_id: pwAccountId,
+        p_password_hash: hash,
+        p_plaintext_password: plaintext,
+      } as any)
+      if (error) throw error
+      setPwAccountId(null); setNewPassword('')
+      void queryClient.invalidateQueries({ queryKey: ['admin-accounts'] })
+    } catch (err) {
+      setPwError((err as Error).message)
+    } finally {
+      setPwSaving(false)
+    }
+  }
+
+  // ── Status helpers ────────────────────────────────────────────────────────────
 
   const STATUS_COLORS: Record<AccountStatus, string> = {
     pending: 'status-pending',
@@ -207,448 +282,400 @@ export default function AdminPage() {
     rejected: 'Đã từ chối',
   }
 
+  const FILTER_OPTIONS: { value: AccountStatus | 'all'; label: string }[] = [
+    { value: 'pending',  label: 'Chờ xác nhận' },
+    { value: 'active',   label: 'Đang hoạt động' },
+    { value: 'rejected', label: 'Đã từ chối' },
+    { value: 'all',      label: 'Tất cả' },
+  ]
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
-      <Navbar />
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold">Quản trị hệ thống</h1>
+      <Navbar tabs={ADMIN_TABS} activeTab={activeTab} />
 
-          {/* View as quick-switch */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-[#888888] mr-1">Xem với vai trò:</span>
-            {(['reviewer', 'receiver', 'manager'] as ViewAs[]).map((role) => (
-              <button
-                key={role as string}
-                onClick={() => setViewAs(viewAs === role ? null : role)}
-                className={`text-xs px-2.5 py-1 rounded border transition-colors ${
-                  viewAs === role
-                    ? 'bg-black text-white border-black'
-                    : 'bg-white text-[#888888] border-[#E0E0E0] hover:border-black hover:text-black'
-                }`}
-              >
-                {role === 'reviewer' ? '🔍 Reviewer' : role === 'receiver' ? '🏭 Receiver' : '📊 Manager'}
-              </button>
-            ))}
-            {viewAs && (
-              <button
-                onClick={() => setViewAs(null)}
-                className="text-xs text-[#888888] hover:text-black underline ml-1"
-              >
-                ← Admin
-              </button>
-            )}
-          </div>
-        </div>
+      {/* Reviewer view */}
+      {activeTab === 'reviewbookings' && (
+        <Suspense fallback={<div className="flex justify-center py-16"><LoadingSpinner /></div>}>
+          <ReviewerPage embedded canDelete />
+        </Suspense>
+      )}
 
-        {/* ── Embedded role view ── */}
-        {viewAs && (
-          <div className="mb-6 border border-[#E0E0E0] rounded-lg overflow-hidden">
-            <div className="bg-[#F5F5F5] px-4 py-2 border-b border-[#E0E0E0] flex items-center justify-between">
-              <span className="text-xs font-medium text-[#888888] uppercase tracking-wider">
-                Đang xem: /{viewAs}
-              </span>
-              <button onClick={() => setViewAs(null)} className="text-[#888888] hover:text-black text-lg">
-                ×
-              </button>
-            </div>
-            <div className="overflow-y-auto max-h-[70vh]">
-              <Suspense fallback={<div className="flex justify-center py-16"><LoadingSpinner /></div>}>
-                {viewAs === 'reviewer' && <ReviewerPage />}
-                {viewAs === 'receiver' && <ReceiverPage />}
-                {viewAs === 'manager' && <ManagerPage />}
-              </Suspense>
-            </div>
-          </div>
-        )}
-
-        {/* ── Admin data tabs (hidden when viewing a role) ── */}
-        {!viewAs && (
-          <>
-        {/* Tabs */}
-        <div className="flex border-b border-[#E0E0E0] mb-6">
-          {([['accounts', 'Tài khoản NCC'], ['warehouses', 'Kho hàng'], ['suppliers', 'Nhà cung cấp']] as [Tab, string][]).map(([t, label]) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-                tab === t ? 'border-black text-black' : 'border-transparent text-[#888888] hover:text-black'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Accounts tab ── */}
-        {tab === 'accounts' && (
-          <>
-            <div className="flex gap-2 mb-4">
-              {(['pending', 'active', 'rejected', 'all'] as (AccountStatus | 'all')[]).map((s) => (
+      {/* Manageviews — sub-tab switcher */}
+      {activeTab === 'manageviews' && (
+        <div className="flex flex-col flex-1">
+          <div className="flex justify-end border-b border-[#E0E0E0] bg-white px-4">
+            {(['reviewer', 'manager'] as ManageViewsTab[]).map((t) => {
+              const labels: Record<ManageViewsTab, string> = {
+                reviewer: 'Reviewer',
+                manager: 'Manager',
+              }
+              return (
                 <button
-                  key={s}
-                  onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    statusFilter === s ? 'bg-black text-white border-black' : 'bg-white border-[#E0E0E0] text-[#888888] hover:border-black hover:text-black'
+                  key={t}
+                  onClick={() => setManageViewsTab(t)}
+                  className={`px-4 py-3 text-sm font-medium transition-colors ${
+                    manageViewsTab === t ? 'bg-black text-white' : 'text-[#888888] hover:text-black'
                   }`}
                 >
-                  {s === 'all' ? 'Tất cả' : STATUS_LABELS[s]}
+                  {labels[t]}
                 </button>
-              ))}
-            </div>
+              )
+            })}
+          </div>
+          <Suspense fallback={<div className="flex justify-center py-16"><LoadingSpinner /></div>}>
+            {manageViewsTab === 'reviewer' && <ReviewerPage embedded />}
+            {manageViewsTab === 'manager' && <ManagerPage embedded />}
+          </Suspense>
+        </div>
+      )}
 
-            {accountsLoading ? <LoadingSpinner className="mx-auto" /> : (
+      {/* Data tabs */}
+      {(activeTab === 'accounts' || activeTab === 'warehouses' || activeTab === 'suppliers') && (
+        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+
+          {/* ── Accounts ── */}
+          {activeTab === 'accounts' && (
+            <>
+              <div className="flex gap-2 mb-4 flex-wrap">
+                {FILTER_OPTIONS.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setStatusFilter(value)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      statusFilter === value
+                        ? 'bg-black text-white border-black'
+                        : 'bg-white border-[#E0E0E0] text-[#888888] hover:border-black hover:text-black'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {accountsLoading ? <LoadingSpinner className="mx-auto" /> : (
+                <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-[#F5F5F5]">
+                        <th className="table-header">Họ tên</th>
+                        <th className="table-header">Username</th>
+                        <th className="table-header">Mật khẩu</th>
+                        <th className="table-header">Mã NCC</th>
+                        <th className="table-header">Đăng ký lúc</th>
+                        <th className="table-header">Trạng thái</th>
+                        <th className="table-header w-32">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accounts.map((a) => (
+                        <tr key={a.id} className="border-t border-[#E0E0E0]">
+                          <td className="table-cell">{a.full_name}</td>
+                          <td className="table-cell font-mono">{a.username}</td>
+                          <td className="table-cell">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-sm">
+                                {revealedPws.has(a.id)
+                                  ? (a.password
+                                      ? a.password
+                                      : <span className="text-[#BBBBBB] text-xs not-italic">Chưa có</span>)
+                                  : '●●●●●●'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => togglePwReveal(a.id)}
+                                className="text-[#888888] hover:text-black transition-colors flex-shrink-0"
+                                aria-label={revealedPws.has(a.id) ? 'Ẩn' : 'Hiện'}
+                              >
+                                {revealedPws.has(a.id) ? <EyeOffIcon /> : <EyeIcon />}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="table-cell font-mono font-medium">
+                            {a.supplier_code_requested ?? <span className="text-[#BBBBBB]">—</span>}
+                          </td>
+                          <td className="table-cell text-xs">{formatDateTimeDisplay(a.created_at)}</td>
+                          <td className="table-cell">
+                            <span className={STATUS_COLORS[a.status]}>{STATUS_LABELS[a.status]}</span>
+                          </td>
+                          <td className="table-cell">
+                            <div className="flex gap-2 flex-wrap">
+                              {a.status === 'pending' && (
+                                <LinkBtn onClick={() => setSelectedAccount(a)}>Xét duyệt</LinkBtn>
+                              )}
+                              <LinkBtn onClick={() => { setPwAccountId(a.id); setNewPassword(''); setPwError(null) }}>
+                                Đặt lại MK
+                              </LinkBtn>
+                              <LinkBtn danger onClick={() => confirmDelete(`tài khoản "${a.username}"`, () => deleteAccountMutation.mutate(a.id))}>
+                                Xóa
+                              </LinkBtn>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {accounts.length === 0 && (
+                        <tr><td colSpan={7} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Warehouses ── */}
+          {activeTab === 'warehouses' && (
+            <div>
+              <div className="flex justify-end mb-3">
+                <button onClick={() => { setAddingWarehouse(true); setNewWhCode(''); setNewWhName('') }} className="btn-green">
+                  + Thêm kho
+                </button>
+              </div>
               <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-[#F5F5F5]">
-                      <th className="table-header">Họ tên</th>
-                      <th className="table-header">Username</th>
-                      <th className="table-header">Mã NCC</th>
-                      <th className="table-header">Đăng ký lúc</th>
+                      <th className="table-header">Mã kho</th>
+                      <th className="table-header">Tên kho</th>
                       <th className="table-header">Trạng thái</th>
-                      <th className="table-header w-24">Thao tác</th>
+                      <th className="table-header w-32">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {accounts.map((a) => (
-                      <tr key={a.id} className="border-t border-[#E0E0E0]">
-                        <td className="table-cell">{a.full_name}</td>
-                        <td className="table-cell font-mono">{a.username}</td>
-                        <td className="table-cell font-mono font-medium">
-                          {a.supplier_code_requested ?? <span className="text-[#BBBBBB]">—</span>}
-                        </td>
-                        <td className="table-cell">{formatDateTimeDisplay(a.created_at)}</td>
+                    {warehouses.map((w) => (
+                      <tr key={w.id} className="border-t border-[#E0E0E0]">
+                        <td className="table-cell font-mono">{w.code}</td>
                         <td className="table-cell">
-                          <span className={STATUS_COLORS[a.status]}>{STATUS_LABELS[a.status]}</span>
+                          {editingWarehouse?.id === w.id ? (
+                            <input autoFocus value={editWhName} onChange={(e) => setEditWhName(e.target.value)} className="input-field py-1 text-xs" />
+                          ) : w.name}
                         </td>
                         <td className="table-cell">
-                          {a.status === 'pending' && (
-                            <button
-                              onClick={() => setSelectedAccount(a)}
-                              className="text-xs text-[#888888] hover:text-black underline"
-                            >
-                              Xét duyệt
-                            </button>
-                          )}
+                          {w.active ? <span className="status-confirmed">Hoạt động</span> : <span className="status-rejected">Ngừng</span>}
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex gap-3">
+                            {editingWarehouse?.id === w.id ? (
+                              <>
+                                <LinkBtn onClick={() => editWarehouseMutation.mutate({ id: w.id, name: editWhName })}>{editWarehouseMutation.isPending ? 'Lưu...' : 'Lưu'}</LinkBtn>
+                                <LinkBtn onClick={() => setEditingWarehouse(null)}>Hủy</LinkBtn>
+                              </>
+                            ) : (
+                              <>
+                                <LinkBtn onClick={() => { setEditingWarehouse(w); setEditWhName(w.name) }}>Sửa</LinkBtn>
+                                <LinkBtn danger onClick={() => confirmDelete(`kho "${w.name}"`, () => deleteWarehouseMutation.mutate(w.id))}>Xóa</LinkBtn>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
-                    {accounts.length === 0 && (
-                      <tr><td colSpan={6} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
+
+                    {addingWarehouse && (
+                      <tr className="border-t border-[#E0E0E0] bg-[#FAFAFA]">
+                        <td className="table-cell"><input autoFocus value={newWhCode} onChange={(e) => setNewWhCode(e.target.value.toUpperCase())} placeholder="VD: THL" className="input-field py-1 text-xs font-mono w-28" /></td>
+                        <td className="table-cell"><input value={newWhName} onChange={(e) => setNewWhName(e.target.value)} placeholder="Tên kho..." className="input-field py-1 text-xs" /></td>
+                        <td className="table-cell text-[#888888] text-xs">Hoạt động</td>
+                        <td className="table-cell">
+                          <div className="flex gap-3">
+                            <LinkBtn onClick={() => addWarehouseMutation.mutate({ code: newWhCode, name: newWhName })}>{addWarehouseMutation.isPending ? 'Lưu...' : 'Lưu'}</LinkBtn>
+                            <LinkBtn onClick={() => setAddingWarehouse(false)}>Hủy</LinkBtn>
+                          </div>
+                          {addWarehouseMutation.isError && <p className="text-xs text-[#CC0000] mt-1">{(addWarehouseMutation.error as Error).message}</p>}
+                        </td>
+                      </tr>
+                    )}
+                    {warehouses.length === 0 && !addingWarehouse && (
+                      <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            )}
-          </>
-        )}
-
-        {/* ── Warehouses tab ── */}
-        {tab === 'warehouses' && (
-          <div>
-            <div className="flex justify-end mb-3">
-              <GreenBtn onClick={() => { setAddingWarehouse(true); setNewWhCode(''); setNewWhName('') }}>
-                + Thêm kho
-              </GreenBtn>
             </div>
-            <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-[#F5F5F5]">
-                    <th className="table-header">Mã kho</th>
-                    <th className="table-header">Tên kho</th>
-                    <th className="table-header">Trạng thái</th>
-                    <th className="table-header w-32">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {warehouses.map((w) => (
-                    <tr key={w.id} className="border-t border-[#E0E0E0]">
-                      <td className="table-cell font-mono">{w.code}</td>
-                      <td className="table-cell">
-                        {editingWarehouse?.id === w.id ? (
-                          <input
-                            // eslint-disable-next-line jsx-a11y/no-autofocus
-                            autoFocus
-                            value={editWhName}
-                            onChange={(e) => setEditWhName(e.target.value)}
-                            className="input-field py-1 text-xs"
-                          />
-                        ) : w.name}
-                      </td>
-                      <td className="table-cell">
-                        {w.active
-                          ? <span className="status-confirmed">Hoạt động</span>
-                          : <span className="status-rejected">Ngừng</span>}
-                      </td>
-                      <td className="table-cell">
-                        <div className="flex gap-3">
-                          {editingWarehouse?.id === w.id ? (
-                            <>
-                              <LinkBtn onClick={() => editWarehouseMutation.mutate({ id: w.id, name: editWhName })}>
-                                {editWarehouseMutation.isPending ? 'Lưu...' : 'Lưu'}
-                              </LinkBtn>
-                              <LinkBtn onClick={() => setEditingWarehouse(null)}>Hủy</LinkBtn>
-                            </>
-                          ) : (
-                            <>
-                              <LinkBtn onClick={() => { setEditingWarehouse(w); setEditWhName(w.name) }}>Sửa</LinkBtn>
-                              <LinkBtn
-                                danger={w.active}
-                                onClick={() => toggleWarehouseActive.mutate({ id: w.id, active: w.active })}
-                              >
-                                {w.active ? 'Ngừng' : 'Kích hoạt'}
-                              </LinkBtn>
-                            </>
-                          )}
-                        </div>
-                      </td>
+          )}
+
+          {/* ── Suppliers ── */}
+          {activeTab === 'suppliers' && (
+            <div>
+              <div className="flex justify-end mb-3">
+                <button onClick={() => { setAddingSupplier(true); setNewSpCode(''); setNewSpName('') }} className="btn-green">
+                  + Thêm NCC
+                </button>
+              </div>
+              <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-[#F5F5F5]">
+                      <th className="table-header">Mã NCC</th>
+                      <th className="table-header">Tên NCC</th>
+                      <th className="table-header">Trạng thái</th>
+                      <th className="table-header w-32">Thao tác</th>
                     </tr>
-                  ))}
-
-                  {/* Inline add row */}
-                  {addingWarehouse && (
-                    <tr className="border-t border-[#E0E0E0] bg-[#FAFAFA]">
-                      <td className="table-cell">
-                        <input
-                          // eslint-disable-next-line jsx-a11y/no-autofocus
-                          autoFocus
-                          value={newWhCode}
-                          onChange={(e) => setNewWhCode(e.target.value.toUpperCase())}
-                          placeholder="VD: THL"
-                          className="input-field py-1 text-xs font-mono w-28"
-                        />
-                      </td>
-                      <td className="table-cell">
-                        <input
-                          value={newWhName}
-                          onChange={(e) => setNewWhName(e.target.value)}
-                          placeholder="Tên kho..."
-                          className="input-field py-1 text-xs"
-                        />
-                      </td>
-                      <td className="table-cell text-[#888888] text-xs">Hoạt động</td>
-                      <td className="table-cell">
-                        <div className="flex gap-3">
-                          <LinkBtn
-                            onClick={() => addWarehouseMutation.mutate({ code: newWhCode, name: newWhName })}
-                          >
-                            {addWarehouseMutation.isPending ? 'Lưu...' : 'Lưu'}
-                          </LinkBtn>
-                          <LinkBtn onClick={() => setAddingWarehouse(false)}>Hủy</LinkBtn>
-                        </div>
-                        {addWarehouseMutation.isError && (
-                          <p className="text-xs text-[#CC0000] mt-1">{(addWarehouseMutation.error as Error).message}</p>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-
-                  {warehouses.length === 0 && !addingWarehouse && (
-                    <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ── Suppliers tab ── */}
-        {tab === 'suppliers' && (
-          <div>
-            <div className="flex justify-end mb-3">
-              <GreenBtn onClick={() => { setAddingSupplier(true); setNewSpCode(''); setNewSpName('') }}>
-                + Thêm NCC
-              </GreenBtn>
-            </div>
-            <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-[#F5F5F5]">
-                    <th className="table-header">Mã NCC</th>
-                    <th className="table-header">Tên NCC</th>
-                    <th className="table-header">Trạng thái</th>
-                    <th className="table-header w-32">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {suppliers.map((s) => (
-                    <tr key={s.id} className="border-t border-[#E0E0E0]">
-                      <td className="table-cell font-mono">{s.code}</td>
-                      <td className="table-cell">
-                        {editingSupplier?.id === s.id ? (
-                          <input
-                            // eslint-disable-next-line jsx-a11y/no-autofocus
-                            autoFocus
-                            value={editSpName}
-                            onChange={(e) => setEditSpName(e.target.value)}
-                            className="input-field py-1 text-xs"
-                          />
-                        ) : s.name}
-                      </td>
-                      <td className="table-cell">
-                        {s.active
-                          ? <span className="status-confirmed">Hoạt động</span>
-                          : <span className="status-rejected">Ngừng</span>}
-                      </td>
-                      <td className="table-cell">
-                        <div className="flex gap-3">
+                  </thead>
+                  <tbody>
+                    {suppliers.map((s) => (
+                      <tr key={s.id} className="border-t border-[#E0E0E0]">
+                        <td className="table-cell font-mono">
                           {editingSupplier?.id === s.id ? (
-                            <>
-                              <LinkBtn onClick={() => editSupplierMutation.mutate({ id: s.id, name: editSpName })}>
-                                {editSupplierMutation.isPending ? 'Lưu...' : 'Lưu'}
-                              </LinkBtn>
-                              <LinkBtn onClick={() => setEditingSupplier(null)}>Hủy</LinkBtn>
-                            </>
-                          ) : (
-                            <>
-                              <LinkBtn onClick={() => { setEditingSupplier(s); setEditSpName(s.name) }}>Sửa</LinkBtn>
-                              <LinkBtn
-                                danger={s.active}
-                                onClick={() => toggleSupplierActive.mutate({ id: s.id, active: s.active })}
-                              >
-                                {s.active ? 'Ngừng' : 'Kích hoạt'}
-                              </LinkBtn>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            <input autoFocus value={editSpCode} onChange={(e) => setEditSpCode(e.target.value.toUpperCase())} className="input-field py-1 text-xs font-mono w-28" />
+                          ) : s.code}
+                        </td>
+                        <td className="table-cell">
+                          {editingSupplier?.id === s.id ? (
+                            <input value={editSpName} onChange={(e) => setEditSpName(e.target.value)} className="input-field py-1 text-xs" />
+                          ) : s.name}
+                        </td>
+                        <td className="table-cell">
+                          {s.active ? <span className="status-confirmed">Hoạt động</span> : <span className="status-rejected">Ngừng</span>}
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex gap-3">
+                            {editingSupplier?.id === s.id ? (
+                              <>
+                                <LinkBtn onClick={() => editSupplierMutation.mutate({ id: s.id, code: editSpCode, name: editSpName })}>{editSupplierMutation.isPending ? 'Lưu...' : 'Lưu'}</LinkBtn>
+                                <LinkBtn onClick={() => setEditingSupplier(null)}>Hủy</LinkBtn>
+                              </>
+                            ) : (
+                              <>
+                                <LinkBtn onClick={() => { setEditingSupplier(s); setEditSpCode(s.code); setEditSpName(s.name) }}>Sửa</LinkBtn>
+                                <LinkBtn danger onClick={() => confirmDelete(`NCC "${s.name}"`, () => deleteSupplierMutation.mutate(s.id))}>Xóa</LinkBtn>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
 
-                  {/* Inline add row */}
-                  {addingSupplier && (
-                    <tr className="border-t border-[#E0E0E0] bg-[#FAFAFA]">
-                      <td className="table-cell">
-                        <input
-                          // eslint-disable-next-line jsx-a11y/no-autofocus
-                          autoFocus
-                          value={newSpCode}
-                          onChange={(e) => setNewSpCode(e.target.value.toUpperCase())}
-                          placeholder="VD: GC01"
-                          className="input-field py-1 text-xs font-mono w-28"
-                        />
-                      </td>
-                      <td className="table-cell">
-                        <input
-                          value={newSpName}
-                          onChange={(e) => setNewSpName(e.target.value)}
-                          placeholder="Tên nhà cung cấp..."
-                          className="input-field py-1 text-xs"
-                        />
-                      </td>
-                      <td className="table-cell text-[#888888] text-xs">Hoạt động</td>
-                      <td className="table-cell">
-                        <div className="flex gap-3">
-                          <LinkBtn
-                            onClick={() => addSupplierMutation.mutate({ code: newSpCode, name: newSpName })}
-                          >
-                            {addSupplierMutation.isPending ? 'Lưu...' : 'Lưu'}
-                          </LinkBtn>
-                          <LinkBtn onClick={() => setAddingSupplier(false)}>Hủy</LinkBtn>
-                        </div>
-                        {addSupplierMutation.isError && (
-                          <p className="text-xs text-[#CC0000] mt-1">{(addSupplierMutation.error as Error).message}</p>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-
-                  {suppliers.length === 0 && !addingSupplier && (
-                    <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ── Approve modal ── */}
-        <Modal
-          isOpen={!!selectedAccount}
-          onClose={() => { setSelectedAccount(null); setRejectReason('') }}
-          title="Xét duyệt tài khoản"
-          size="md"
-        >
-          {selectedAccount && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-xs text-[#888888]">Họ tên</p><p className="font-medium">{selectedAccount.full_name}</p></div>
-                <div><p className="text-xs text-[#888888]">Username</p><p className="font-mono">{selectedAccount.username}</p></div>
-                <div>
-                  <p className="text-xs text-[#888888]">Mã NCC yêu cầu</p>
-                  <p className="font-mono font-bold">{selectedAccount.supplier_code_requested ?? <span className="text-[#BBBBBB]">Chưa có</span>}</p>
-                </div>
-                <div><p className="text-xs text-[#888888]">Đăng ký lúc</p><p>{formatDateTimeDisplay(selectedAccount.created_at)}</p></div>
-              </div>
-
-              <div>
-                <label className="text-xs text-[#888888] block mb-1">
-                  Liên kết Nhà cung cấp <span className="text-[#CC0000]">*</span>
-                </label>
-                <select
-                  value={selectedSupplierId}
-                  onChange={(e) => setSelectedSupplierId(e.target.value)}
-                  className="input-field"
-                >
-                  <option value="">— Chọn NCC —</option>
-                  {suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>[{s.code}] {s.name}</option>
-                  ))}
-                </select>
-                {suppliers.length === 0 && (
-                  <p className="text-xs text-[#888888] mt-1">
-                    Chưa có NCC nào. Thêm NCC trong tab &quot;Nhà cung cấp&quot; trước.
-                  </p>
-                )}
-              </div>
-
-              <Button
-                fullWidth
-                loading={approveMutation.isPending}
-                disabled={!selectedSupplierId}
-                onClick={() => {
-                  if (!selectedSupplierId) return
-                  approveMutation.mutate({ accountId: selectedAccount.id, supplierId: selectedSupplierId })
-                }}
-              >
-                ✅ Phê duyệt
-              </Button>
-
-              {approveMutation.isError && (
-                <p className="text-xs text-[#CC0000]">{(approveMutation.error as Error).message}</p>
-              )}
-
-              <div>
-                <p className="text-sm font-medium mb-2 text-[#CC0000]">Hoặc từ chối:</p>
-                <textarea
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  rows={2}
-                  className="input-field resize-none mb-2"
-                  placeholder="Lý do từ chối..."
-                />
-                <Button
-                  variant="danger-outline"
-                  fullWidth
-                  loading={rejectMutation.isPending}
-                  disabled={!rejectReason.trim()}
-                  onClick={() => rejectMutation.mutate({ accountId: selectedAccount.id, reason: rejectReason })}
-                >
-                  ❌ Từ chối tài khoản
-                </Button>
+                    {addingSupplier && (
+                      <tr className="border-t border-[#E0E0E0] bg-[#FAFAFA]">
+                        <td className="table-cell"><input autoFocus value={newSpCode} onChange={(e) => setNewSpCode(e.target.value.toUpperCase())} placeholder="VD: GC01" className="input-field py-1 text-xs font-mono w-28" /></td>
+                        <td className="table-cell"><input value={newSpName} onChange={(e) => setNewSpName(e.target.value)} placeholder="Tên nhà cung cấp..." className="input-field py-1 text-xs" /></td>
+                        <td className="table-cell text-[#888888] text-xs">Hoạt động</td>
+                        <td className="table-cell">
+                          <div className="flex gap-3">
+                            <LinkBtn onClick={() => addSupplierMutation.mutate({ code: newSpCode, name: newSpName })}>{addSupplierMutation.isPending ? 'Lưu...' : 'Lưu'}</LinkBtn>
+                            <LinkBtn onClick={() => setAddingSupplier(false)}>Hủy</LinkBtn>
+                          </div>
+                          {addSupplierMutation.isError && <p className="text-xs text-[#CC0000] mt-1">{(addSupplierMutation.error as Error).message}</p>}
+                        </td>
+                      </tr>
+                    )}
+                    {suppliers.length === 0 && !addingSupplier && (
+                      <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
-        </Modal>
 
-      </> )} {/* end !viewAs */}
+          {/* ── Approve modal ── */}
+          <Modal
+            isOpen={!!selectedAccount}
+            onClose={() => { setSelectedAccount(null); setRejectReason('') }}
+            title="Xét duyệt tài khoản"
+            size="md"
+          >
+            {selectedAccount && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><p className="text-xs text-[#888888]">Họ tên</p><p className="font-medium">{selectedAccount.full_name}</p></div>
+                  <div><p className="text-xs text-[#888888]">Username</p><p className="font-mono">{selectedAccount.username}</p></div>
+                  <div>
+                    <p className="text-xs text-[#888888]">Mã NCC yêu cầu</p>
+                    <p className="font-mono font-bold">{selectedAccount.supplier_code_requested ?? <span className="text-[#BBBBBB]">Chưa có</span>}</p>
+                  </div>
+                  <div><p className="text-xs text-[#888888]">Đăng ký lúc</p><p>{formatDateTimeDisplay(selectedAccount.created_at)}</p></div>
+                </div>
 
-      </main>
+                <div>
+                  <label className="text-xs text-[#888888] block mb-1">
+                    Liên kết Nhà cung cấp <span className="text-[#CC0000]">*</span>
+                  </label>
+                  <select value={selectedSupplierId} onChange={(e) => setSelectedSupplierId(e.target.value)} className="input-field">
+                    <option value="">— Chọn NCC —</option>
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>[{s.code}] {s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <Button
+                  variant="success"
+                  fullWidth
+                  loading={approveMutation.isPending}
+                  disabled={!selectedSupplierId}
+                  onClick={() => {
+                    if (!selectedSupplierId) return
+                    approveMutation.mutate({ accountId: selectedAccount.id, supplierId: selectedSupplierId })
+                  }}
+                >
+                  Phê duyệt
+                </Button>
+
+                {approveMutation.isError && (
+                  <p className="text-xs text-[#CC0000]">{(approveMutation.error as Error).message}</p>
+                )}
+
+                <div>
+                  <p className="text-sm font-medium mb-2 text-[#CC0000]">Hoặc từ chối:</p>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    rows={2}
+                    className="input-field resize-none mb-2"
+                    placeholder="Lý do từ chối..."
+                  />
+                  <Button
+                    variant="danger-outline"
+                    fullWidth
+                    loading={rejectMutation.isPending}
+                    disabled={!rejectReason.trim()}
+                    onClick={() => rejectMutation.mutate({ accountId: selectedAccount.id, reason: rejectReason })}
+                  >
+                    Từ chối tài khoản
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Modal>
+
+          {/* ── Reset password modal ── */}
+          <Modal
+            isOpen={!!pwAccountId}
+            onClose={() => { setPwAccountId(null); setNewPassword(''); setPwError(null) }}
+            title="Đặt lại mật khẩu"
+            size="sm"
+          >
+            <div className="space-y-4">
+              <p className="text-sm text-[#888888]">Nhập mật khẩu mới:</p>
+              <input
+                type="text"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mật khẩu mới..."
+                className="input-field"
+                autoFocus
+              />
+              {pwError && <p className="text-xs text-[#CC0000]">{pwError}</p>}
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setPwAccountId(null)} className="flex-1">Hủy</Button>
+                <Button
+                  variant="success"
+                  loading={pwSaving}
+                  disabled={!newPassword.trim()}
+                  onClick={() => void handlePasswordReset()}
+                  className="flex-1"
+                >
+                  Lưu
+                </Button>
+              </div>
+            </div>
+          </Modal>
+
+        </main>
+      )}
     </div>
   )
 }
-

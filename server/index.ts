@@ -23,6 +23,10 @@ const PORT = process.env.PORT ?? 3001
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.use(cors())
 app.use(express.json())
+app.use((req, _res, next) => {
+  console.log(`${req.method} ${req.path}`)
+  next()
+})
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 app.use('/api/upload/gcs', uploadRouter)

@@ -23,7 +23,7 @@ export default function BookingConfirmationPage() {
 
   useEffect(() => {
     if (result?.booking_token && canvasRef.current) {
-      const qrData = `ATINO:${result.booking_code}:${result.booking_token}`
+      const qrData = `${window.location.origin}/booking/${result.booking_token}`
       void QRCode.toCanvas(canvasRef.current, qrData, {
         width: 240,
         margin: 2,
@@ -85,6 +85,13 @@ export default function BookingConfirmationPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
+            <Link
+              to={`/booking/${result.booking_token}`}
+              className="btn-outline flex-1 text-center"
+              id="view-booking-detail"
+            >
+              Xem chi tiết
+            </Link>
             <button onClick={handleDownloadQR} className="btn-outline flex-1" id="download-qr">
               Tải QR Code
             </button>

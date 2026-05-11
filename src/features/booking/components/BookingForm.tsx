@@ -14,9 +14,10 @@ import { computeDeliveryDatePreview, formatDateDisplay } from '@/shared/lib/date
 import { getToken } from '@/shared/lib/auth'
 
 export const SUPPLIER_TABS: NavTab[] = [
-  { id: 'new-booking',  label: '📝 Tạo đơn',       href: '/booking/new' },
-  { id: 'my-bookings',  label: '📋 Đơn của tôi',   href: '/my-bookings' },
-  { id: 'guide',        label: '🏭 Nhận hàng',      href: '/guide/receiving' },
+  { id: 'new-booking',   label: 'Đăng ký',             href: '/booking/new' },
+  { id: 'my-bookings',   label: 'Đơn của tôi',         href: '/my-bookings' },
+  { id: 'guide-create',  label: 'Quy trình đăng ký',   href: '/guide/create' },
+  { id: 'guide',         label: 'Quy trình nhận hàng', href: '/guide/receiving' },
 ]
 
 const SESSION_ID = crypto.randomUUID()
@@ -67,7 +68,7 @@ function GuidePanel() {
                   tab === t ? 'border-black text-black' : 'border-transparent text-[#888888] hover:text-black'
                 }`}
               >
-                {t === 'create' ? '📝 Tạo đơn' : '🏭 Nhận hàng'}
+                {t === 'create' ? 'Quy trình đăng ký' : 'Quy trình nhận hàng'}
               </button>
             ))}
           </div>
@@ -214,8 +215,6 @@ export function BookingForm() {
         <h1 className="text-xl font-bold tracking-wider uppercase text-center mb-4">
           ĐƠN ĐĂNG KÝ — GIAO THEO ĐƠN HÀNG
         </h1>
-
-        <GuidePanel />
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           {/* Section I */}

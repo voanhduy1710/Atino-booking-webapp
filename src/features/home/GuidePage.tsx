@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import GuideCreate from './GuideCreate'
-import GuideReceiving from './GuideReceiving'
 
 type GuideTab = 'create' | 'receiving'
 
@@ -37,7 +35,7 @@ export default function GuidePage() {
                 : 'border-transparent text-[#888888] hover:text-black'
             }`}
           >
-            📝 Hướng dẫn tạo đơn
+            Quy trình đăng ký
           </button>
           <button
             onClick={() => setTab('receiving')}
@@ -47,7 +45,7 @@ export default function GuidePage() {
                 : 'border-transparent text-[#888888] hover:text-black'
             }`}
           >
-            🏭 Hướng dẫn nhận hàng
+            Quy trình nhận hàng
           </button>
         </div>
       </div>

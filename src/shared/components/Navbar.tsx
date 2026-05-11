@@ -39,10 +39,10 @@ export function Navbar({
       {tabs && tabs.length > 0 && (
         <div className="flex items-stretch h-full gap-0 mx-4">
           {tabs.map((tab) => {
-            const cls = `px-4 text-sm font-medium border-b-2 transition-colors h-full flex items-center ${
+            const cls = `px-4 text-sm font-medium transition-colors h-full flex items-center ${
               activeTab === tab.id
-                ? 'border-black text-black'
-                : 'border-transparent text-[#888888] hover:text-black'
+                ? 'bg-black text-white'
+                : 'text-[#888888] hover:text-black'
             }`
             return tab.href ? (
               <Link key={tab.id} id={`nav-tab-${tab.id}`} to={tab.href} className={cls}>
