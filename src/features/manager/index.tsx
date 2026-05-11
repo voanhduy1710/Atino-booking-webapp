@@ -4,33 +4,30 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { Navbar } from '@/shared/components/Navbar'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
-import { StatusBadge } from '@/shared/components/StatusBadge'
-import { FilterDatePicker } from '@/shared/components/FilterDatePicker'
-import { formatDateDisplay } from '@/shared/lib/dateUtils'
-import { TIME_SLOT_LABELS, type TimeSlot, type BookingStatus } from '@/shared/types/domain'
 import type { NavTab } from '@/shared/components/Navbar'
 
 const ReviewerPage = lazy(() => import('@/features/warehouse/reviewer/index'))
+const ReportPage = lazy(() => import('@/features/admin/ReportPage'))
 
-type ManagerTab = 'bookings' | 'reviewer' | 'warehouses' | 'suppliers'
+type ManagerTab = 'reviewer' | 'warehouses' | 'suppliers' | 'report'
 
-const VALID_MANAGER_TABS: ManagerTab[] = ['bookings', 'reviewer', 'warehouses', 'suppliers']
+const VALID_MANAGER_TABS: ManagerTab[] = ['reviewer', 'warehouses', 'suppliers', 'report']
 
 const MANAGER_TABS: NavTab[] = [
-  { id: 'bookings',   label: 'Quản lý booking', href: '/manager/bookings' },
-  { id: 'reviewer',  label: 'Xác nhận booking', href: '/manager/reviewer' },
-  { id: 'warehouses', label: 'Kho hàng',        href: '/manager/warehouses' },
-  { id: 'suppliers',  label: 'Nhà cung cấp',    href: '/manager/suppliers' },
+  { id: 'reviewer',   label: 'Xác nhận booking', href: '/manager/reviewer' },
+  { id: 'warehouses', label: 'Kho hàng',          href: '/manager/warehouses' },
+  { id: 'suppliers',  label: 'Nhà cung cấp',      href: '/manager/suppliers' },
+  { id: 'report',     label: 'Báo cáo',            href: '/manager/report' },
 ]
 
 interface Supplier { id: string; code: string; name: string; active: boolean }
 interface Warehouse { id: string; code: string; name: string; active: boolean }
 
-function LinkBtn({ onClick, danger, children }: { onClick: () => void; danger?: boolean; children: React.ReactNode }) {
+function LinkBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`text-xs underline ${danger ? 'text-[#CC0000] hover:text-[#990000]' : 'text-[#888888] hover:text-black'}`}
+      className="text-xs underline text-[#888888] hover:text-black"
     >
       {children}
     </button>
@@ -43,7 +40,7 @@ interface Props {
 
 export default function ManagerPage({ embedded = false }: Props) {
   const { pathname } = useLocation()
-  const [internalTab, setInternalTab] = useState<ManagerTab>('bookings')
+  const [internalTab, setInternalTab] = useState<ManagerTab>('reviewer')
 
   const activeTab: ManagerTab = embedded
     ? internalTab
@@ -51,11 +48,8 @@ export default function ManagerPage({ embedded = false }: Props) {
         for (const t of VALID_MANAGER_TABS) {
           if (pathname.includes(`/manager/${t}`)) return t
         }
-        return 'bookings'
+        return 'reviewer'
       })()
-  const [dateFrom, setDateFrom] = useState<string>('')
-  const [dateTo, setDateTo] = useState<string>('')
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
 
   // Warehouse edit
   const [addingWarehouse, setAddingWarehouse] = useState(false)
@@ -78,47 +72,7 @@ export default function ManagerPage({ embedded = false }: Props) {
     if (!embedded) document.title = 'Quản lý — Atino'
   }, [embedded])
 
-  // ── Queries ──────────────────────────────────────────────────────────────────
-
-  const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ['manager-bookings', dateFrom, dateTo, statusFilter],
-    queryFn: async () => {
-      let q = supabase
-        .from('bookings')
-        .select('id, booking_code, delivery_date, time_slot, status, submitted_at, suppliers!inner(name), warehouses!inner(name), booking_items(id)')
-        .order('delivery_date', { ascending: false })
-      if (dateFrom) q = q.gte('delivery_date', dateFrom)
-      if (dateTo) q = q.lte('delivery_date', dateTo)
-      if (statusFilter !== 'all') q = q.eq('status', statusFilter)
-      const { data, error } = await q
-      if (error) throw error
-      return (data ?? []).map((b: any) => ({
-        id: b.id,
-        booking_code: b.booking_code,
-        delivery_date: b.delivery_date,
-        time_slot: b.time_slot,
-        status: b.status,
-        submitted_at: b.submitted_at,
-        supplier_name: b.suppliers?.name ?? '—',
-        warehouse_name: b.warehouses?.name ?? '—',
-        items_count: b.booking_items?.length ?? 0,
-      }))
-    },
-    enabled: activeTab === 'bookings',
-  })
-
-  const { data: capacity = [] } = useQuery({
-    queryKey: ['daily-capacity', dateFrom, dateTo],
-    queryFn: async () => {
-      let cq = supabase.from('daily_capacity').select('*').order('delivery_date')
-      if (dateFrom) cq = cq.gte('delivery_date', dateFrom)
-      if (dateTo) cq = cq.lte('delivery_date', dateTo)
-      const { data, error } = await cq
-      if (error) throw error
-      return data ?? []
-    },
-    enabled: activeTab === 'bookings',
-  })
+  // ── Queries ───────────────────────────────────────────────────────────────────
 
   const { data: warehouses = [] } = useQuery({
     queryKey: ['manager-warehouses'],
@@ -186,89 +140,7 @@ export default function ManagerPage({ embedded = false }: Props) {
     },
   })
 
-  // ── Content ──────────────────────────────────────────────────────────────────
-
-  const bookingsContent = (
-    <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-      {capacity.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          {capacity.map((row: any) => (
-            <div key={row.delivery_date} className="bg-white border border-[#E0E0E0] rounded-lg p-4 text-center">
-              <p className="text-xs text-[#888888] mb-1">{formatDateDisplay(row.delivery_date)}</p>
-              <p className="text-xl font-bold">{row.total_bookings}</p>
-              <p className="text-xs text-[#888888]">bookings</p>
-              <p className="text-sm font-semibold mt-1">{row.confirmed_units ?? 0} kiện</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-3 mb-1 items-center">
-        <div className="flex items-center gap-1">
-          <FilterDatePicker value={dateFrom} onChange={setDateFrom} placeholder="Từ ngày" />
-          <span className="text-xs text-[#888888]">-</span>
-          <FilterDatePicker value={dateTo} onChange={setDateTo} placeholder="Đến ngày" />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as BookingStatus | 'all')}
-          className="input-field w-48"
-        >
-          <option value="all">Tất cả trạng thái</option>
-          <option value="pending">Chờ xác nhận</option>
-          <option value="confirmed">Đã xác nhận</option>
-          <option value="received">Đã nhận hàng</option>
-          <option value="rejected">Đã từ chối</option>
-        </select>
-      </div>
-      {(dateFrom || dateTo) ? (
-        <p className="text-xs text-[#888888] mb-4">
-          Ngày giao:{' '}
-          {dateFrom && dateTo
-            ? `Từ ${dateFrom.split('-').reverse().join('-')} đến ${dateTo.split('-').reverse().join('-')}`
-            : dateFrom
-            ? `Từ ${dateFrom.split('-').reverse().join('-')}`
-            : `Đến ${dateTo.split('-').reverse().join('-')}`}
-        </p>
-      ) : <div className="mb-4" />}
-
-      {isLoading ? (
-        <div className="flex justify-center py-16"><LoadingSpinner /></div>
-      ) : (
-        <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-[#F5F5F5]">
-                <th className="table-header">Mã booking</th>
-                <th className="table-header">Nhà cung cấp</th>
-                <th className="table-header">Kho</th>
-                <th className="table-header">Ngày giao</th>
-                <th className="table-header">Khung giờ</th>
-                <th className="table-header">SL PO</th>
-                <th className="table-header">Trạng thái</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bookings.map((b: any) => (
-                <tr key={b.id} className="border-t border-[#E0E0E0]">
-                  <td className="table-cell font-mono font-bold text-xs">{b.booking_code}</td>
-                  <td className="table-cell">{b.supplier_name}</td>
-                  <td className="table-cell">{b.warehouse_name}</td>
-                  <td className="table-cell">{formatDateDisplay(b.delivery_date)}</td>
-                  <td className="table-cell">{TIME_SLOT_LABELS[b.time_slot as TimeSlot]}</td>
-                  <td className="table-cell text-center">{b.items_count}</td>
-                  <td className="table-cell"><StatusBadge status={b.status} /></td>
-                </tr>
-              ))}
-              {bookings.length === 0 && (
-                <tr><td colSpan={7} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </main>
-  )
+  // ── Content ───────────────────────────────────────────────────────────────────
 
   const warehousesContent = (
     <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
@@ -307,9 +179,7 @@ export default function ManagerPage({ embedded = false }: Props) {
                         <LinkBtn onClick={() => setEditingWarehouse(null)}>Hủy</LinkBtn>
                       </>
                     ) : (
-                      <>
-                        <LinkBtn onClick={() => { setEditingWarehouse(w); setEditWhName(w.name) }}>Sửa</LinkBtn>
-                      </>
+                      <LinkBtn onClick={() => { setEditingWarehouse(w); setEditWhName(w.name) }}>Sửa</LinkBtn>
                     )}
                   </div>
                 </td>
@@ -378,9 +248,7 @@ export default function ManagerPage({ embedded = false }: Props) {
                         <LinkBtn onClick={() => setEditingSupplier(null)}>Hủy</LinkBtn>
                       </>
                     ) : (
-                      <>
-                        <LinkBtn onClick={() => { setEditingSupplier(s); setEditSpCode(s.code); setEditSpName(s.name) }}>Sửa</LinkBtn>
-                      </>
+                      <LinkBtn onClick={() => { setEditingSupplier(s); setEditSpCode(s.code); setEditSpName(s.name) }}>Sửa</LinkBtn>
                     )}
                   </div>
                 </td>
@@ -410,7 +278,6 @@ export default function ManagerPage({ embedded = false }: Props) {
 
   const tabContent = (
     <>
-      {activeTab === 'bookings' && bookingsContent}
       {activeTab === 'reviewer' && (
         <Suspense fallback={<div className="flex justify-center py-16"><LoadingSpinner /></div>}>
           <ReviewerPage embedded />
@@ -418,6 +285,11 @@ export default function ManagerPage({ embedded = false }: Props) {
       )}
       {activeTab === 'warehouses' && warehousesContent}
       {activeTab === 'suppliers' && suppliersContent}
+      {activeTab === 'report' && (
+        <Suspense fallback={<div className="flex justify-center py-16"><LoadingSpinner /></div>}>
+          <ReportPage />
+        </Suspense>
+      )}
     </>
   )
 

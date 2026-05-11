@@ -6,7 +6,7 @@ export const poRowSchema = z.object({
   delivery_round: z.number().int().min(1, 'Số lần giao phải ≥ 1'),
   is_final_round: z.boolean(),
   quantity_booked: z.number().int().min(1, 'Số kiện/thùng phải ≥ 1'),
-  vat_temp_path: z.string().optional(),
+  vat_temp_paths: z.array(z.string()).optional(),
   slip_temp_paths: z.array(z.string()).min(1, 'Vui lòng tải lên ít nhất 1 ảnh phiếu giao'),
 })
 
@@ -23,11 +23,11 @@ export const bookingFormSchema = z.object({
 })
   .superRefine((data, ctx) => {
     data.items.forEach((item, idx) => {
-      if (item.delivery_round === 1 && !item.vat_temp_path) {
+      if (item.delivery_round === 1 && (!item.vat_temp_paths || item.vat_temp_paths.length === 0)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'Vui lòng tải lên hóa đơn VAT cho lần giao 1',
-          path: ['items', idx, 'vat_temp_path'],
+          message: 'Vui lòng tải lên ít nhất 1 hóa đơn VAT cho lần giao 1',
+          path: ['items', idx, 'vat_temp_paths'],
         })
       }
     })

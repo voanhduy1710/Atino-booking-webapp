@@ -7,6 +7,7 @@ import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
+import { FilterDatePicker } from '@/shared/components/FilterDatePicker'
 import { formatDateDisplay, formatDateTimeDisplay } from '@/shared/lib/dateUtils'
 import { TIME_SLOT_LABELS, type TimeSlot, type BookingStatus } from '@/shared/types/domain'
 import { getCurrentUser } from '@/shared/lib/auth'
@@ -14,13 +15,28 @@ import { getCurrentUser } from '@/shared/lib/auth'
 const GCS_BASE = 'https://storage.googleapis.com/atino-media'
 const resolvePhotoUrl = (path: string) => path.startsWith('http') ? path : `${GCS_BASE}/${path}`
 
+interface ProposedChanges {
+  delivery_date?: string
+  time_slot?: string
+  ghi_chu?: string
+  items?: Array<{ id: string; quantity_booked: number }>
+}
+
 interface BookingAmendment {
   id: string
   amendment_type: 'update' | 'recall'
   request_note: string
+  proposed_changes: ProposedChanges | null
   status: 'pending' | 'approved' | 'denied'
   reviewer_note: string | null
   created_at: string
+}
+
+interface EditFormState {
+  delivery_date: string
+  time_slot: string
+  ghi_chu: string
+  items: Array<{ id: string; product_code: string; process_code: string; quantity_booked: number }>
 }
 
 interface BookingRow {
@@ -103,6 +119,7 @@ export default function BookingDetailPublic() {
   const [amendModal, setAmendModal] = useState<'update' | 'recall' | null>(null)
   const [amendNote, setAmendNote] = useState('')
   const [amendError, setAmendError] = useState('')
+  const [editForm, setEditForm] = useState<EditFormState | null>(null)
 
   const user = getCurrentUser()
   const queryClient = useQueryClient()
@@ -140,7 +157,7 @@ export default function BookingDetailPublic() {
     queryFn: async () => {
       const { data } = await supabase
         .from('booking_amendments' as any)
-        .select('id, amendment_type, request_note, status, reviewer_note, created_at')
+        .select('id, amendment_type, request_note, proposed_changes, status, reviewer_note, created_at')
         .eq('booking_id', booking!.id)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -151,12 +168,13 @@ export default function BookingDetailPublic() {
   })
 
   const requestAmendmentMutation = useMutation({
-    mutationFn: async ({ type, note }: { type: string; note: string }) => {
+    mutationFn: async ({ type, note, proposed_changes }: { type: string; note: string; proposed_changes?: object }) => {
       const { data, error } = await supabase.rpc('request_booking_amendment' as any, {
         p_booking_id: booking!.id,
         p_supplier_account_id: user!.supplier_account_id,
         p_type: type,
         p_note: note,
+        p_proposed_changes: proposed_changes ?? null,
       })
       if (error) throw error
       if ((data as any)?.error) throw new Error((data as any).error)
@@ -165,6 +183,7 @@ export default function BookingDetailPublic() {
       setAmendModal(null)
       setAmendNote('')
       setAmendError('')
+      setEditForm(null)
       void queryClient.invalidateQueries({ queryKey: ['booking-amendment', booking?.id] })
     },
     onError: (e: Error) => setAmendError(e.message),
@@ -274,7 +293,7 @@ export default function BookingDetailPublic() {
                   for (const p of item.booking_item_photos ?? []) {
                     photos.push({
                       src: resolvePhotoUrl(p.storage_path),
-                      label: p.photo_type === 'delivery_slip' ? 'Phiếu giao' : 'Chênh lệch',
+                      label: p.photo_type === 'delivery_slip' ? 'Phiếu giao' : p.photo_type === 'vat_invoice' ? 'Hóa đơn VAT' : 'Chênh lệch',
                     })
                   }
 
@@ -343,7 +362,22 @@ export default function BookingDetailPublic() {
             ) : canRequestAmendment ? (
               <div className="flex gap-2">
                 <button
-                  onClick={() => { setAmendModal('update'); setAmendNote(''); setAmendError('') }}
+                  onClick={() => {
+                    setAmendModal('update')
+                    setAmendNote('')
+                    setAmendError('')
+                    setEditForm({
+                      delivery_date: booking.delivery_date,
+                      time_slot: booking.time_slot,
+                      ghi_chu: booking.ghi_chu ?? '',
+                      items: (booking.booking_items ?? []).map((item) => ({
+                        id: item.id,
+                        product_code: item.product_code,
+                        process_code: item.process_code,
+                        quantity_booked: item.quantity_booked,
+                      })),
+                    })
+                  }}
                   className="btn-outline text-sm py-1.5 px-3"
                 >
                   Yêu cầu chỉnh sửa
@@ -365,37 +399,144 @@ export default function BookingDetailPublic() {
       {/* Amendment request modal */}
       <Modal
         isOpen={!!amendModal}
-        onClose={() => setAmendModal(null)}
+        onClose={() => { setAmendModal(null); setEditForm(null) }}
         title={amendModal === 'recall' ? 'Yêu cầu huỷ booking' : 'Yêu cầu chỉnh sửa booking'}
-        size="sm"
+        size={amendModal === 'update' ? 'lg' : 'sm'}
       >
-        <div className="space-y-4">
-          <p className="text-sm text-[#888888]">
-            {amendModal === 'recall'
-              ? 'Mô tả lý do bạn muốn huỷ booking này. Yêu cầu sẽ được xem xét bởi reviewer.'
-              : 'Mô tả những gì bạn muốn thay đổi. Reviewer sẽ liên hệ để xử lý.'}
-          </p>
-          <textarea
-            value={amendNote}
-            onChange={(e) => setAmendNote(e.target.value)}
-            rows={4}
-            className="input-field resize-none w-full"
-            placeholder={amendModal === 'recall' ? 'Lý do huỷ...' : 'Nội dung cần chỉnh sửa...'}
-          />
-          {amendError && <p className="text-xs text-[#CC0000]">{amendError}</p>}
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setAmendModal(null)} className="flex-1">Huỷ</Button>
-            <Button
-              variant={amendModal === 'recall' ? 'danger-outline' : 'primary'}
-              loading={requestAmendmentMutation.isPending}
-              disabled={!amendNote.trim()}
-              onClick={() => amendModal && requestAmendmentMutation.mutate({ type: amendModal, note: amendNote })}
-              className="flex-1"
-            >
-              Gửi yêu cầu
-            </Button>
+        {amendModal === 'recall' ? (
+          <div className="space-y-4">
+            <p className="text-sm text-[#888888]">Mô tả lý do bạn muốn huỷ booking này. Yêu cầu sẽ được xem xét bởi reviewer.</p>
+            <textarea
+              value={amendNote}
+              onChange={(e) => setAmendNote(e.target.value)}
+              rows={4}
+              className="input-field resize-none w-full"
+              placeholder="Lý do huỷ..."
+            />
+            {amendError && <p className="text-xs text-[#CC0000]">{amendError}</p>}
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setAmendModal(null)} className="flex-1">Huỷ</Button>
+              <Button
+                variant="danger-outline"
+                loading={requestAmendmentMutation.isPending}
+                disabled={!amendNote.trim()}
+                onClick={() => requestAmendmentMutation.mutate({ type: 'recall', note: amendNote })}
+                className="flex-1"
+              >
+                Gửi yêu cầu
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : editForm ? (
+          <div className="space-y-4">
+            <p className="text-sm text-[#888888]">Chỉnh sửa thông tin booking bên dưới. Reviewer sẽ xem xét và quyết định chấp thuận hoặc từ chối.</p>
+
+            {/* Booking-level fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-[#888888] block mb-1">Ngày giao</label>
+                <FilterDatePicker
+                  value={editForm.delivery_date}
+                  onChange={(v) => setEditForm({ ...editForm, delivery_date: v })}
+                  placeholder="Chọn ngày"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[#888888] block mb-1">Khung giờ</label>
+                <select
+                  value={editForm.time_slot}
+                  onChange={(e) => setEditForm({ ...editForm, time_slot: e.target.value })}
+                  className="input-field text-sm"
+                >
+                  {(Object.entries(TIME_SLOT_LABELS) as [string, string][]).map(([val, label]) => (
+                    <option key={val} value={val}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-[#888888] block mb-1">Ghi chú</label>
+              <textarea
+                value={editForm.ghi_chu}
+                onChange={(e) => setEditForm({ ...editForm, ghi_chu: e.target.value })}
+                rows={2}
+                className="input-field resize-none w-full"
+                placeholder="Ghi chú (tuỳ chọn)"
+              />
+            </div>
+
+            {/* Item quantities */}
+            <div>
+              <p className="text-xs font-medium text-[#888888] mb-2">Số lượng đơn hàng</p>
+              <div className="border border-[#E0E0E0] rounded overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-[#F5F5F5]">
+                      <th className="table-header">Mã SP</th>
+                      <th className="table-header">Mã QT</th>
+                      <th className="table-header w-24">Số lượng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {editForm.items.map((item, idx) => (
+                      <tr key={item.id} className="border-t border-[#E0E0E0]">
+                        <td className="table-cell font-mono">{item.product_code}</td>
+                        <td className="table-cell font-mono">{item.process_code}</td>
+                        <td className="table-cell">
+                          <input
+                            type="number"
+                            min={1}
+                            value={item.quantity_booked}
+                            onChange={(e) => {
+                              const updated = [...editForm.items]
+                              updated[idx] = { ...updated[idx], quantity_booked: Number(e.target.value) }
+                              setEditForm({ ...editForm, items: updated })
+                            }}
+                            className="input-field text-sm w-20"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Note */}
+            <div>
+              <label className="text-xs font-medium text-[#888888] block mb-1">Lý do / ghi chú yêu cầu *</label>
+              <textarea
+                value={amendNote}
+                onChange={(e) => setAmendNote(e.target.value)}
+                rows={2}
+                className="input-field resize-none w-full"
+                placeholder="Mô tả lý do chỉnh sửa..."
+              />
+            </div>
+
+            {amendError && <p className="text-xs text-[#CC0000]">{amendError}</p>}
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => { setAmendModal(null); setEditForm(null) }} className="flex-1">Huỷ</Button>
+              <Button
+                variant="primary"
+                loading={requestAmendmentMutation.isPending}
+                disabled={!amendNote.trim()}
+                onClick={() => {
+                  const proposed: ProposedChanges = {
+                    delivery_date: editForm.delivery_date,
+                    time_slot: editForm.time_slot,
+                    ghi_chu: editForm.ghi_chu,
+                    items: editForm.items.map((i) => ({ id: i.id, quantity_booked: i.quantity_booked })),
+                  }
+                  requestAmendmentMutation.mutate({ type: 'update', note: amendNote, proposed_changes: proposed })
+                }}
+                className="flex-1"
+              >
+                Gửi yêu cầu
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Modal>
     </div>
   )

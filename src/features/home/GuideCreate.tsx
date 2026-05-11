@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Navbar } from '@/shared/components/Navbar'
-import { SUPPLIER_TABS } from '@/features/booking/components/BookingForm'
+import { SUPPLIER_TABS } from '@/shared/constants/supplierTabs'
 
 export default function GuideCreate() {
   useEffect(() => {

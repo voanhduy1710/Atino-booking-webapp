@@ -1,12 +1,11 @@
 import { useRef } from 'react'
-import type { Control, UseFormRegister, FieldErrors, UseFormSetValue, UseFormWatch } from 'react-hook-form'
+import type { UseFormRegister, FieldErrors, UseFormSetValue, UseFormWatch } from 'react-hook-form'
 import type { BookingFormData } from '@/features/booking/schemas'
 import { usePhotoUpload } from '@/features/booking/hooks/usePhotoUpload'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 
 interface Props {
   index: number
-  control: Control<BookingFormData>
   register: UseFormRegister<BookingFormData>
   errors: FieldErrors<BookingFormData>
   sessionId: string
@@ -20,7 +19,7 @@ const DELIVERY_ROUND_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 export function PoRow({ index, register, errors, sessionId, supplierCode, onRemove, setValue, watch }: Props) {
   const { files: slipFiles, upload: uploadSlip, remove: removeSlip, isUploading: slipUploading } = usePhotoUpload(sessionId, supplierCode)
-  const { files: vatFiles, upload: uploadVat, remove: removeVat } = usePhotoUpload(sessionId, supplierCode)
+  const { files: vatFiles, upload: uploadVat, remove: removeVat, isUploading: vatUploading } = usePhotoUpload(sessionId, supplierCode)
 
   const slipInputRef = useRef<HTMLInputElement>(null)
   const vatInputRef = useRef<HTMLInputElement>(null)
@@ -32,27 +31,36 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
 
   const handleSlipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files ?? [])
-    const currentPaths = (watch(`items.${index}.slip_temp_paths`) as string[]) ?? []
-    if (currentPaths.length + newFiles.length > 10) {
+    const basePaths = (watch(`items.${index}.slip_temp_paths`) as string[]) ?? []
+    if (basePaths.length + newFiles.length > 10) {
       alert('Tối đa 10 ảnh phiếu giao mỗi đơn hàng')
       return
     }
+    // Accumulate paths locally — do NOT read watch() inside the loop
+    // (watch returns a stale snapshot; reading it per-iteration causes overwrites)
+    const accumulated: string[] = [...basePaths]
     for (const file of newFiles) {
       const path = await uploadSlip(file, `slip_${index}`)
-      if (path) {
-        setValue(`items.${index}.slip_temp_paths`, [...currentPaths, path], { shouldValidate: true })
-      }
+      if (path) accumulated.push(path)
     }
+    setValue(`items.${index}.slip_temp_paths`, accumulated, { shouldValidate: true })
     e.target.value = ''
   }
 
   const handleVatUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    const path = await uploadVat(file, `vat_${index}`)
-    if (path) {
-      setValue(`items.${index}.vat_temp_path`, path, { shouldValidate: true })
+    const newFiles = Array.from(e.target.files ?? [])
+    const basePaths = (watch(`items.${index}.vat_temp_paths`) as string[]) ?? []
+    if (basePaths.length + newFiles.length > 10) {
+      alert('Tối đa 10 hóa đơn VAT mỗi đơn hàng')
+      return
     }
+    // Accumulate paths locally — same fix as handleSlipUpload
+    const accumulated: string[] = [...basePaths]
+    for (const file of newFiles) {
+      const path = await uploadVat(file, `vat_${index}`)
+      if (path) accumulated.push(path)
+    }
+    setValue(`items.${index}.vat_temp_paths`, accumulated, { shouldValidate: true })
     e.target.value = ''
   }
 
@@ -68,7 +76,12 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
 
   const handleRemoveVat = (tempPath: string) => {
     removeVat(tempPath)
-    setValue(`items.${index}.vat_temp_path`, undefined, { shouldValidate: true })
+    const currentPaths = (watch(`items.${index}.vat_temp_paths`) as string[]) ?? []
+    setValue(
+      `items.${index}.vat_temp_paths`,
+      currentPaths.filter((p) => p !== tempPath),
+      { shouldValidate: true }
+    )
   }
 
   return (
@@ -124,43 +137,50 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
         {deliveryRound === 1 && !isFinalRound && (
           <div className="mt-2">
             <label className="text-xs font-medium text-[#CC0000] block mb-1">Hóa đơn VAT *</label>
-            {vatFiles.filter((f) => f.status !== 'error').length === 0 ? (
-              <button
-                type="button"
-                onClick={() => vatInputRef.current?.click()}
-                className="text-xs border border-dashed border-[#E0E0E0] hover:border-black rounded px-2 py-1 transition-colors"
-              >
-                + Tải lên VAT
-              </button>
-            ) : (
-              <div className="space-y-1">
+            <div className="space-y-1">
+              <div className="flex flex-wrap gap-1">
                 {vatFiles.map((f) => (
-                  <div key={f.tempPath} className="flex items-center gap-1 text-xs">
+                  <div
+                    key={f.tempPath}
+                    className={`flex items-center gap-1 text-xs border rounded px-1.5 py-0.5 ${
+                      f.status === 'error' ? 'border-[#CC0000] text-[#CC0000]' : 'border-[#E0E0E0]'
+                    }`}
+                  >
                     {f.status === 'uploading' ? (
                       <LoadingSpinner size="sm" />
                     ) : (
-                      <span className="truncate max-w-[80px]">{f.file.name}</span>
+                      <span className="max-w-[60px] truncate">{f.file.name}</span>
                     )}
                     <button
                       type="button"
                       onClick={() => handleRemoveVat(f.tempPath)}
-                      className="text-[#CC0000] ml-1"
+                      className="text-[#888888] hover:text-black"
                     >
                       ×
                     </button>
                   </div>
                 ))}
               </div>
-            )}
+              <button
+                type="button"
+                onClick={() => vatInputRef.current?.click()}
+                disabled={vatFiles.filter((f) => f.status !== 'error').length >= 10}
+                className="flex items-center gap-1 text-xs border border-dashed border-[#E0E0E0] hover:border-black disabled:opacity-40 rounded px-2 py-1 transition-colors"
+              >
+                {vatUploading ? <LoadingSpinner size="sm" /> : '+'}
+                Thêm VAT
+              </button>
+            </div>
             <input
               ref={vatInputRef}
               type="file"
               accept=".jpg,.jpeg,.png,.pdf"
+              multiple
               className="hidden"
               onChange={handleVatUpload}
             />
-            {itemErrors?.vat_temp_path?.message && (
-              <p className="form-error">{itemErrors.vat_temp_path.message}</p>
+            {(itemErrors?.vat_temp_paths as any)?.message && (
+              <p className="form-error">{(itemErrors?.vat_temp_paths as any).message}</p>
             )}
           </div>
         )}

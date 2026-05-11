@@ -80,7 +80,7 @@ export function AppRoutes() {
         />
 
         {/* Manager — default redirect + sub-paths */}
-        <Route path="/manager" element={<Navigate to="/manager/bookings" replace />} />
+        <Route path="/manager" element={<Navigate to="/manager/reviewer" replace />} />
         <Route
           path="/manager/:tab"
           element={

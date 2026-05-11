@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
-import { Navbar, type NavTab } from '@/shared/components/Navbar'
+import { Navbar } from '@/shared/components/Navbar'
 import { Button } from '@/shared/components/Button'
 import { Select } from '@/shared/components/Select'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
@@ -12,13 +12,10 @@ import { PoRow } from './PoRow'
 import { TIME_SLOT_LABELS, STANDARD_DELIVERY_NOTE, type TimeSlot } from '@/shared/types/domain'
 import { computeDeliveryDatePreview, formatDateDisplay } from '@/shared/lib/dateUtils'
 import { getToken } from '@/shared/lib/auth'
+import { SUPPLIER_TABS } from '@/shared/constants/supplierTabs'
 
-export const SUPPLIER_TABS: NavTab[] = [
-  { id: 'new-booking',   label: 'Đăng ký',             href: '/booking/new' },
-  { id: 'my-bookings',   label: 'Đơn của tôi',         href: '/my-bookings' },
-  { id: 'guide-create',  label: 'Quy trình đăng ký',   href: '/guide/create' },
-  { id: 'guide',         label: 'Quy trình nhận hàng', href: '/guide/receiving' },
-]
+// Re-export for any legacy imports
+export { SUPPLIER_TABS }
 
 const SESSION_ID = crypto.randomUUID()
 // In production: nginx proxies /api/* → Express (same origin)
@@ -123,7 +120,7 @@ export function BookingForm() {
           delivery_round: 1,
           is_final_round: false,
           quantity_booked: 1,
-          vat_temp_path: undefined,
+          vat_temp_paths: [],
           slip_temp_paths: [],
         },
       ],
@@ -149,7 +146,7 @@ export function BookingForm() {
           delivery_round: 1,
           is_final_round: false,
           quantity_booked: 1,
-          vat_temp_path: undefined,
+          vat_temp_paths: [],
           slip_temp_paths: [],
         })
       }
@@ -325,7 +322,6 @@ export function BookingForm() {
                         <PoRow
                           key={field.id}
                           index={index}
-                          control={control}
                           register={register}
                           errors={errors}
                           sessionId={SESSION_ID}

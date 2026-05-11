@@ -50,6 +50,8 @@ function BookingTooltip({
       for (const item of data ?? []) {
         if ((item as any).vat_invoice_url) urls.push({ src: (item as any).vat_invoice_url, label: 'VAT' })
         for (const p of (item as any).booking_item_photos ?? []) {
+          // Skip vat_invoice type — already shown via vat_invoice_url above
+          if (p.photo_type === 'vat_invoice') continue
           urls.push({
             src: resolvePhotoUrl(p.storage_path),
             label: p.photo_type === 'delivery_slip' ? 'Phiếu giao' : 'Chênh lệch',
@@ -138,6 +140,7 @@ interface Props {
 export default function ReviewerPage({ embedded = false, canDelete = false }: Props) {
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
   const [selectedBooking, setSelectedBooking] = useState<SelectedBooking | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [rejectItemId, setRejectItemId] = useState<string | null>(null)
@@ -195,7 +198,7 @@ export default function ReviewerPage({ embedded = false, canDelete = false }: Pr
   const pinCurrentTooltip = () => setIsTooltipPinned(true)
 
   const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ['reviewer-bookings', dateFrom, dateTo],
+    queryKey: ['reviewer-bookings', dateFrom, dateTo, statusFilter],
     queryFn: async () => {
       let q = supabase
         .from('bookings')
@@ -208,6 +211,7 @@ export default function ReviewerPage({ embedded = false, canDelete = false }: Pr
         .order('submitted_at', { ascending: false })
       if (dateFrom) q = q.gte('delivery_date', dateFrom)
       if (dateTo) q = q.lte('delivery_date', dateTo)
+      if (statusFilter !== 'all') q = q.eq('status', statusFilter)
       const { data, error } = await q
       if (error) throw error
       return (data ?? []).map((b: any) => ({
@@ -273,13 +277,17 @@ export default function ReviewerPage({ embedded = false, canDelete = false }: Pr
     queryFn: async () => {
       const { data } = await supabase
         .from('booking_amendments' as any)
-        .select('id, amendment_type, request_note, status, reviewer_note, created_at')
+        .select('id, amendment_type, request_note, proposed_changes, status, reviewer_note, created_at')
         .eq('booking_id', selectedBooking!.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(1)
         .single()
-      return (data as { id: string; amendment_type: string; request_note: string; status: string; reviewer_note: string | null; created_at: string } | null) ?? null
+      return (data as {
+        id: string; amendment_type: string; request_note: string
+        proposed_changes: { delivery_date?: string; time_slot?: string; ghi_chu?: string; items?: Array<{ id: string; quantity_booked: number }> } | null
+        status: string; reviewer_note: string | null; created_at: string
+      } | null) ?? null
     },
     enabled: !!selectedBooking?.id,
   })
@@ -326,10 +334,24 @@ export default function ReviewerPage({ embedded = false, canDelete = false }: Pr
       {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
       <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
         <h1 className="text-xl font-bold">Xác nhận booking</h1>
-        <div className="flex items-center gap-1">
-          <FilterDatePicker value={dateFrom} onChange={setDateFrom} placeholder="Từ ngày" />
-          <span className="text-xs text-[#888888]">-</span>
-          <FilterDatePicker value={dateTo} onChange={setDateTo} placeholder="Đến ngày" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as BookingStatus | 'all')}
+            className="input-field text-sm py-1.5 w-44"
+          >
+            <option value="all">Tất cả trạng thái</option>
+            <option value="pending">Chờ xác nhận</option>
+            <option value="confirmed">Đã xác nhận</option>
+            <option value="rejected">Đã từ chối</option>
+            <option value="received">Đã nhận hàng</option>
+            <option value="cancelled">Đã huỷ</option>
+          </select>
+          <div className="flex items-center gap-1">
+            <FilterDatePicker value={dateFrom} onChange={setDateFrom} placeholder="Từ ngày" />
+            <span className="text-xs text-[#888888]">-</span>
+            <FilterDatePicker value={dateTo} onChange={setDateTo} placeholder="Đến ngày" />
+          </div>
         </div>
       </div>
       {(dateFrom || dateTo) && (
@@ -442,6 +464,8 @@ export default function ReviewerPage({ embedded = false, canDelete = false }: Pr
                     const photos: { src: string; label: string }[] = []
                     if (item.vat_invoice_url) photos.push({ src: item.vat_invoice_url, label: 'Hóa đơn VAT' })
                     for (const p of item.booking_item_photos ?? []) {
+                      // Skip vat_invoice type — already shown via vat_invoice_url above
+                      if (p.photo_type === 'vat_invoice') continue
                       photos.push({
                         src: resolvePhotoUrl(p.storage_path),
                         label: p.photo_type === 'delivery_slip' ? 'Phiếu giao' : 'Chênh lệch',
@@ -502,44 +526,118 @@ export default function ReviewerPage({ embedded = false, canDelete = false }: Pr
             </div>
 
             {/* Pending amendment panel */}
-            {bookingAmendment && (
-              <div className="mt-4 border border-[#F5C518] bg-[#FFF8E1] rounded-lg p-4">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div>
-                    <p className="font-semibold text-sm">
-                      {bookingAmendment.amendment_type === 'recall' ? '⚠️ Yêu cầu huỷ booking' : '✏️ Yêu cầu chỉnh sửa booking'}
-                    </p>
-                    <p className="text-xs text-[#888888] mt-0.5">{bookingAmendment.request_note}</p>
+            {bookingAmendment && (() => {
+              const pc = bookingAmendment.proposed_changes
+              const isUpdate = bookingAmendment.amendment_type === 'update'
+              return (
+                <div className="mt-4 border border-[#F5C518] bg-[#FFF8E1] rounded-lg p-4 space-y-3">
+                  <p className="font-semibold text-sm">
+                    {isUpdate ? '✏️ Yêu cầu chỉnh sửa booking' : '⚠️ Yêu cầu huỷ booking'}
+                  </p>
+                  <p className="text-xs text-[#888888]">{bookingAmendment.request_note}</p>
+
+                  {isUpdate && pc && (
+                    <div className="bg-white border border-[#E0E0E0] rounded text-xs overflow-hidden">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="bg-[#F5F5F5]">
+                            <th className="px-3 py-2 text-left font-medium text-[#888888]">Trường</th>
+                            <th className="px-3 py-2 text-left font-medium text-[#888888]">Hiện tại</th>
+                            <th className="px-3 py-2 text-left font-medium text-[#888888]">Đề xuất</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pc.delivery_date && pc.delivery_date !== selectedBooking.delivery_date && (
+                            <tr className="border-t border-[#E0E0E0]">
+                              <td className="px-3 py-2 text-[#888888]">Ngày giao</td>
+                              <td className="px-3 py-2">{formatDateDisplay(selectedBooking.delivery_date)}</td>
+                              <td className="px-3 py-2 font-medium text-[#1a7a3e]">{formatDateDisplay(pc.delivery_date)}</td>
+                            </tr>
+                          )}
+                          {pc.time_slot && pc.time_slot !== selectedBooking.time_slot && (
+                            <tr className="border-t border-[#E0E0E0]">
+                              <td className="px-3 py-2 text-[#888888]">Khung giờ</td>
+                              <td className="px-3 py-2">{TIME_SLOT_LABELS[selectedBooking.time_slot]}</td>
+                              <td className="px-3 py-2 font-medium text-[#1a7a3e]">{TIME_SLOT_LABELS[pc.time_slot as TimeSlot] ?? pc.time_slot}</td>
+                            </tr>
+                          )}
+                          {'ghi_chu' in pc && pc.ghi_chu !== (selectedBooking.ghi_chu ?? '') && (
+                            <tr className="border-t border-[#E0E0E0]">
+                              <td className="px-3 py-2 text-[#888888]">Ghi chú</td>
+                              <td className="px-3 py-2 text-[#888888] italic">{selectedBooking.ghi_chu || '(trống)'}</td>
+                              <td className="px-3 py-2 font-medium text-[#1a7a3e]">{pc.ghi_chu || '(xoá)'}</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+
+                      {pc.items && pc.items.length > 0 && (() => {
+                        const changedItems = pc.items.filter((pi) => {
+                          const orig = selectedBooking.items.find((it: any) => it.id === pi.id)
+                          return orig && orig.quantity_booked !== pi.quantity_booked
+                        })
+                        if (changedItems.length === 0) return null
+                        return (
+                          <div className="border-t border-[#E0E0E0]">
+                            <p className="px-3 pt-2 pb-1 text-[10px] text-[#888888] uppercase tracking-wider">Số lượng đơn hàng</p>
+                            <table className="w-full">
+                              <thead>
+                                <tr className="bg-[#F5F5F5]">
+                                  <th className="px-3 py-1 text-left font-medium text-[#888888]">Mã SP</th>
+                                  <th className="px-3 py-1 text-left font-medium text-[#888888]">Mã QT</th>
+                                  <th className="px-3 py-1 text-right font-medium text-[#888888]">Hiện tại</th>
+                                  <th className="px-3 py-1 text-right font-medium text-[#888888]">Đề xuất</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {changedItems.map((pi) => {
+                                  const orig = selectedBooking.items.find((it: any) => it.id === pi.id)
+                                  return (
+                                    <tr key={pi.id} className="border-t border-[#E0E0E0]">
+                                      <td className="px-3 py-1 font-mono">{orig?.product_code}</td>
+                                      <td className="px-3 py-1 font-mono">{orig?.process_code}</td>
+                                      <td className="px-3 py-1 text-right">{orig?.quantity_booked}</td>
+                                      <td className="px-3 py-1 text-right font-medium text-[#1a7a3e]">{pi.quantity_booked}</td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="success"
+                      className="text-xs py-1 px-3"
+                      loading={resolveAmendmentMutation.isPending && resolveDecision === 'approved'}
+                      onClick={() => {
+                        setResolveAmendmentId(bookingAmendment.id)
+                        setResolveDecision('approved')
+                        setResolveNote('')
+                      }}
+                    >
+                      Chấp thuận
+                    </Button>
+                    <Button
+                      variant="danger-outline"
+                      className="text-xs py-1 px-3"
+                      loading={resolveAmendmentMutation.isPending && resolveDecision === 'denied'}
+                      onClick={() => {
+                        setResolveAmendmentId(bookingAmendment.id)
+                        setResolveDecision('denied')
+                        setResolveNote('')
+                      }}
+                    >
+                      Từ chối
+                    </Button>
                   </div>
                 </div>
-                <div className="flex gap-2 mt-3">
-                  <Button
-                    variant="success"
-                    className="text-xs py-1 px-3"
-                    loading={resolveAmendmentMutation.isPending && resolveDecision === 'approved'}
-                    onClick={() => {
-                      setResolveAmendmentId(bookingAmendment.id)
-                      setResolveDecision('approved')
-                      setResolveNote('')
-                    }}
-                  >
-                    Chấp thuận
-                  </Button>
-                  <Button
-                    variant="danger-outline"
-                    className="text-xs py-1 px-3"
-                    loading={resolveAmendmentMutation.isPending && resolveDecision === 'denied'}
-                    onClick={() => {
-                      setResolveAmendmentId(bookingAmendment.id)
-                      setResolveDecision('denied')
-                      setResolveNote('')
-                    }}
-                  >
-                    Từ chối
-                  </Button>
-                </div>
-              </div>
-            )}
+              )
+            })()}
 
             {/* Admin delete */}
             {canDelete && (

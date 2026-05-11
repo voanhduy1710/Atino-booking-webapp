@@ -13,13 +13,14 @@ import type { NavTab } from '@/shared/components/Navbar'
 
 const ReviewerPage = lazy(() => import('@/features/warehouse/reviewer/index'))
 const ManagerPage = lazy(() => import('@/features/manager/index'))
+const ReportPage = lazy(() => import('@/features/admin/ReportPage'))
 
 async function sha256(str: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str))
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-type AdminTab = 'accounts' | 'warehouses' | 'suppliers' | 'reviewbookings' | 'manageviews'
+type AdminTab = 'accounts' | 'warehouses' | 'suppliers' | 'reviewbookings' | 'manageviews' | 'report'
 type ManageViewsTab = 'reviewer' | 'manager'
 
 const ADMIN_TABS: NavTab[] = [
@@ -28,9 +29,10 @@ const ADMIN_TABS: NavTab[] = [
   { id: 'suppliers',      label: 'Nhà cung cấp',      href: '/admin/suppliers' },
   { id: 'reviewbookings', label: 'Xác nhận booking',  href: '/admin/reviewbookings' },
   { id: 'manageviews',    label: 'Manage views',       href: '/admin/manageviews' },
+  { id: 'report',         label: 'Báo cáo',            href: '/admin/report' },
 ]
 
-const VALID_TABS: AdminTab[] = ['accounts', 'warehouses', 'suppliers', 'reviewbookings', 'manageviews']
+const VALID_TABS: AdminTab[] = ['accounts', 'warehouses', 'suppliers', 'reviewbookings', 'manageviews', 'report']
 
 interface Supplier { id: string; code: string; name: string; active: boolean }
 interface Warehouse { id: string; code: string; name: string; active: boolean }
@@ -299,6 +301,13 @@ export default function AdminPage() {
       {activeTab === 'reviewbookings' && (
         <Suspense fallback={<div className="flex justify-center py-16"><LoadingSpinner /></div>}>
           <ReviewerPage embedded canDelete />
+        </Suspense>
+      )}
+
+      {/* Report */}
+      {activeTab === 'report' && (
+        <Suspense fallback={<div className="flex justify-center py-16"><LoadingSpinner /></div>}>
+          <ReportPage />
         </Suspense>
       )}
 

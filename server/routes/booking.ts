@@ -28,7 +28,7 @@ interface PoItem {
   delivery_round: number
   is_final_round: boolean
   quantity_booked: number
-  vat_temp_path?: string
+  vat_temp_paths?: string[]
   slip_temp_paths?: string[]
 }
 
@@ -104,8 +104,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
           delivery_round: item.delivery_round,
           is_final_round: item.is_final_round ?? false,
           quantity_booked: item.quantity_booked,
-          vat_invoice_url: item.vat_temp_path
-            ? `https://storage.googleapis.com/${GCS_BUCKET}/${GCS_PREFIX}/${item.vat_temp_path}`
+          vat_invoice_url: item.vat_temp_paths?.[0]
+            ? `https://storage.googleapis.com/${GCS_BUCKET}/${GCS_PREFIX}/${item.vat_temp_paths[0]}`
             : null,
         })
         .select('id')
@@ -118,7 +118,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
       const photoPaths = [
         ...(item.slip_temp_paths ?? []).map((p) => ({ path: p, type: 'delivery_slip' as const })),
-        ...(item.vat_temp_path ? [{ path: item.vat_temp_path, type: 'vat_invoice' as const }] : []),
+        ...(item.vat_temp_paths ?? []).map((p) => ({ path: p, type: 'vat_invoice' as const })),
       ]
 
       for (const { path, type } of photoPaths) {
@@ -133,20 +133,25 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // ── Notify reviewer ───────────────────────────────────────────────────────
+    // ── Notify all staff ──────────────────────────────────────────────────────
     const { data: sup } = await supabase
       .from('suppliers')
       .select('name')
       .eq('id', account.supplier_id)
       .single()
 
-    await supabase.from('notifications').insert({
-      recipient_type: 'staff',
-      recipient_id: 'lethientinh',
-      event_type: 'booking_submitted',
-      message: `Có booking mới từ ${sup?.name ?? 'NCC'}: ${booking.booking_code}`,
-      booking_id: booking.id,
-    })
+    const STAFF_RECIPIENTS = ['voanhduy1710', 'lethientinh', 'lethiendung', 'lethihong']
+    const notificationMessage = `Có booking mới từ ${sup?.name ?? 'NCC'}: ${booking.booking_code}`
+
+    await supabase.from('notifications').insert(
+      STAFF_RECIPIENTS.map((username) => ({
+        recipient_type: 'staff',
+        recipient_id: username,
+        event_type: 'booking_submitted',
+        message: notificationMessage,
+        booking_id: booking.id,
+      }))
+    )
 
     res.json({
       booking_code: booking.booking_code,
