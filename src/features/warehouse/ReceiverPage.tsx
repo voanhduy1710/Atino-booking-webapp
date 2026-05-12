@@ -71,7 +71,6 @@ export default function ReceiverPage() {
         return
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const d = data as any
 
       const b: BookingDetail = {
@@ -105,7 +104,6 @@ export default function ReceiverPage() {
         p_booking_token: booking.booking_token,
         p_quantities: quantities,
         p_receiver_username: user?.sub ?? '',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any)
       if (error) throw error
     },

@@ -18,7 +18,7 @@ function LinkBtn({ onClick, danger, children }: { onClick: () => void; danger?: 
   )
 }
 
-export default function WarehousesPage() {
+export default function WarehousesPage({ embedded = false }: { embedded?: boolean }) {
   const user = getCurrentUser()
   const canDelete = user?.role === 'admin'
   const tabs = user ? (ROLE_TABS[user.role] ?? []) : []
@@ -43,7 +43,7 @@ export default function WarehousesPage() {
 
   const addMutation = useMutation({
     mutationFn: async ({ code, name }: { code: string; name: string }) => {
-      const { error } = await supabase.from('warehouses').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true })
+      const { error } = await supabase.from('warehouses').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true } as any)
       if (error) throw error
     },
     onSuccess: () => {
@@ -54,7 +54,7 @@ export default function WarehousesPage() {
 
   const editMutation = useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      const { error } = await supabase.from('warehouses').update({ name: name.trim() }).eq('id', id)
+      const { error } = await (supabase.from('warehouses') as any).update({ name: name.trim() }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
@@ -71,10 +71,8 @@ export default function WarehousesPage() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['warehouses'] }),
   })
 
-  return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
-      <Navbar tabs={tabs} activeTab="warehouses" />
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+  const mainContent = (
+    <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
         <div className="flex justify-end mb-3">
           <button onClick={() => { setAdding(true); setNewCode(''); setNewName('') }} className="btn-green">
             + Thêm kho
@@ -156,6 +154,13 @@ export default function WarehousesPage() {
           </table>
         </div>
       </main>
+  )
+
+  if (embedded) return mainContent
+  return (
+    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+      <Navbar tabs={tabs} activeTab="warehouses" />
+      {mainContent}
     </div>
   )
 }

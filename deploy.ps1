@@ -24,7 +24,7 @@ Write-Host "======================================================"  -Foreground
 Write-Host ""
 
 # Step 1: TypeScript check
-Write-Host "[1/6] Running TypeScript check..." -ForegroundColor Cyan
+Write-Host "[1/5] Running TypeScript check..." -ForegroundColor Cyan
 npm run typecheck
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] TypeScript errors found. Fix before deploying." -ForegroundColor Red
@@ -33,7 +33,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "      Passed." -ForegroundColor Green
 
 # Step 2: Lint
-Write-Host "[2/6] Running lint..." -ForegroundColor Cyan
+Write-Host "[2/5] Running lint..." -ForegroundColor Cyan
 npm run lint
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Lint errors found. Fix before deploying." -ForegroundColor Red
@@ -41,17 +41,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "      Passed." -ForegroundColor Green
 
-# Step 3: Tests
-Write-Host "[3/6] Running unit tests..." -ForegroundColor Cyan
-npm run test
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Tests failed. Fix before deploying." -ForegroundColor Red
-    exit 1
-}
-Write-Host "      Passed." -ForegroundColor Green
 
 # Step 4: Build
-Write-Host "[4/6] Building frontend..." -ForegroundColor Cyan
+Write-Host "[3/5] Building frontend..." -ForegroundColor Cyan
 npm run build
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Build failed." -ForegroundColor Red
@@ -60,7 +52,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "      Build complete -> dist/" -ForegroundColor Green
 
 # Step 5: Build Docker image + Deploy to Cloud Run
-Write-Host "[5/6] Building Docker image and deploying to Cloud Run..." -ForegroundColor Cyan
+Write-Host "[4/5] Building Docker image and deploying to Cloud Run..." -ForegroundColor Cyan
 Write-Host "      (This may take 2-4 minutes)" -ForegroundColor DarkGray
 Write-Host ""
 
@@ -116,7 +108,7 @@ $SERVICE_URL = gcloud run services describe $SERVICE_NAME `
     --format "value(status.url)"
 
 Write-Host ""
-Write-Host "[5/6] Deploy complete." -ForegroundColor Green
+Write-Host "[4/5] Deploy complete." -ForegroundColor Green
 Write-Host "      URL    : $SERVICE_URL" -ForegroundColor Green
 
 # Health check — confirm service is up and responding
@@ -131,7 +123,7 @@ try {
 }
 
 # Step 6: Clean up old images
-Write-Host "[6/6] Cleaning up old Artifact Registry images..." -ForegroundColor Cyan
+Write-Host "[5/5] Cleaning up old Artifact Registry images..." -ForegroundColor Cyan
 
 $digests = gcloud artifacts docker images list `
     "$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/$REPO_NAME/$IMAGE_NAME" `

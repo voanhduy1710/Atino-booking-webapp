@@ -55,7 +55,6 @@ export function useMarkRead() {
     mutationFn: async (notificationId: string | 'all') => {
       if (!recipientId) return
       // supabase stub schema types 'notifications' as never — cast to bypass
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sb = supabase as any
       if (notificationId === 'all') {
         await sb.from('notifications').update({ is_read: true }).eq('recipient_id', recipientId).eq('is_read', false)

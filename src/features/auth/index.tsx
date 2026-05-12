@@ -8,10 +8,10 @@ type Tab = 'login' | 'register'
 
 const roleRouteMap: Record<string, string> = {
   supplier: '/my-bookings',
-  warehouse_reviewer: '/reviewer',
-  warehouse_receiver: '/receiver',
-  manager: '/manager',
-  admin: '/admin',
+  warehouse_reviewer: '/reviewbooking',
+  warehouse_receiver: '/reviewbooking',
+  manager: '/reviewbooking',
+  admin: '/accounts',
 }
 
 export default function LoginPage() {

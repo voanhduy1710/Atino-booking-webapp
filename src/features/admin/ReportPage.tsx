@@ -189,7 +189,7 @@ function SVGDonut({ slices, size = 120 }: { slices: { value: number; color: stri
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function ReportPage() {
+export default function ReportPage({ embedded = false }: { embedded?: boolean }) {
   const user = getCurrentUser()
   const tabs = user ? (ROLE_TABS[user.role] ?? []) : []
 
@@ -281,9 +281,7 @@ export default function ReportPage() {
     .filter(([k]) => byStatus[k])
     .map(([k, color]) => ({ value: byStatus[k] ?? 0, color, label: STATUS_VI[k] }))
 
-  return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
-    <Navbar tabs={tabs} activeTab="report" />
+  const mainContent = (
     <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
       {/* Header + date filter */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -388,6 +386,13 @@ export default function ReportPage() {
         </>
       )}
     </main>
+  )
+
+  if (embedded) return mainContent
+  return (
+    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+      <Navbar tabs={tabs} activeTab="report" />
+      {mainContent}
     </div>
   )
 }

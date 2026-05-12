@@ -14,11 +14,11 @@ const BookingConfirmationPage = lazy(() => import('@/features/booking/components
 const BookingDetailPublic = lazy(() => import('@/features/booking/components/BookingDetailPublic'))
 const MyBookingsPage     = lazy(() => import('@/features/booking/MyBookings'))
 const ReviewerPage       = lazy(() => import('@/features/warehouse/ReviewerPage'))
-const ReceiverPage       = lazy(() => import('@/features/warehouse/ReceiverPage'))
 const WarehousesPage     = lazy(() => import('@/features/warehouse/WarehousesPage'))
 const SuppliersPage      = lazy(() => import('@/features/supplier/SuppliersPage'))
 const AccountsPage       = lazy(() => import('@/features/auth/AccountsPage'))
 const ReportPage         = lazy(() => import('@/features/admin/ReportPage'))
+const ViewAsPage         = lazy(() => import('@/features/admin/ViewAsPage'))
 
 const Fallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -55,11 +55,8 @@ export function AppRoutes() {
         } />
 
         {/* Staff & management — flat routes */}
-        <Route path="/reviewer" element={
-          <Guard path="/reviewer"><ReviewerPage /></Guard>
-        } />
-        <Route path="/receiver" element={
-          <Guard path="/receiver"><ReceiverPage /></Guard>
+        <Route path="/reviewbooking" element={
+          <Guard path="/reviewbooking"><ReviewerPage /></Guard>
         } />
         <Route path="/report" element={
           <Guard path="/report"><ReportPage /></Guard>
@@ -73,10 +70,14 @@ export function AppRoutes() {
         <Route path="/accounts" element={
           <Guard path="/accounts"><AccountsPage /></Guard>
         } />
+        <Route path="/viewas" element={
+          <Guard path="/viewas"><ViewAsPage /></Guard>
+        } />
 
         {/* Legacy redirects */}
-        <Route path="/manager" element={<Navigate to="/reviewer" replace />} />
-        <Route path="/manager/*" element={<Navigate to="/reviewer" replace />} />
+        <Route path="/reviewer" element={<Navigate to="/reviewbooking" replace />} />
+        <Route path="/manager" element={<Navigate to="/reviewbooking" replace />} />
+        <Route path="/manager/*" element={<Navigate to="/reviewbooking" replace />} />
         <Route path="/admin" element={<Navigate to="/accounts" replace />} />
         <Route path="/admin/*" element={<Navigate to="/accounts" replace />} />
 

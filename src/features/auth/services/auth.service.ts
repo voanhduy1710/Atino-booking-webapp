@@ -103,7 +103,7 @@ export async function loginApi(
   const { data, error } = await supabase.rpc('login_supplier', {
     p_username: username,
     p_password_hash: hash,
-  })
+  } as any)
 
   if (error) throw new Error('Lỗi hệ thống, vui lòng thử lại')
 
@@ -150,7 +150,7 @@ export async function registerSupplierApi(payload: {
     p_password_hash: hash,
     p_full_name: payload.full_name,
     p_password: payload.password,
-  })
+  } as any)
 
   if (error) throw new Error('Lỗi hệ thống, vui lòng thử lại')
 
@@ -179,7 +179,7 @@ export async function approveSupplierApi(
   const { error } = await supabase.rpc('approve_supplier_account', {
     p_account_id: supplierAccountId,
     p_supplier_id: supplierId || null,
-  })
+  } as any)
   if (error) throw new Error('Không thể phê duyệt tài khoản: ' + error.message)
 }
 
@@ -194,6 +194,6 @@ export async function rejectSupplierApi(
   const { error } = await supabase.rpc('reject_supplier_account', {
     p_account_id: supplierAccountId,
     p_reason: reason,
-  })
+  } as any)
   if (error) throw new Error('Không thể từ chối tài khoản: ' + error.message)
 }

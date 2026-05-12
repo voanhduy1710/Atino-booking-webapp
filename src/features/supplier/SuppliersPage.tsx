@@ -18,7 +18,7 @@ function LinkBtn({ onClick, danger, children }: { onClick: () => void; danger?: 
   )
 }
 
-export default function SuppliersPage() {
+export default function SuppliersPage({ embedded = false }: { embedded?: boolean }) {
   const user = getCurrentUser()
   const canDelete = user?.role === 'admin'
   const tabs = user ? (ROLE_TABS[user.role] ?? []) : []
@@ -44,7 +44,7 @@ export default function SuppliersPage() {
 
   const addMutation = useMutation({
     mutationFn: async ({ code, name }: { code: string; name: string }) => {
-      const { error } = await supabase.from('suppliers').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true })
+      const { error } = await supabase.from('suppliers').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true } as any)
       if (error) throw error
     },
     onSuccess: () => {
@@ -55,7 +55,7 @@ export default function SuppliersPage() {
 
   const editMutation = useMutation({
     mutationFn: async ({ id, code, name }: { id: string; code: string; name: string }) => {
-      const { error } = await supabase.from('suppliers').update({ code: code.trim().toUpperCase(), name: name.trim() }).eq('id', id)
+      const { error } = await (supabase.from('suppliers') as any).update({ code: code.trim().toUpperCase(), name: name.trim() }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
@@ -72,10 +72,8 @@ export default function SuppliersPage() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['suppliers'] }),
   })
 
-  return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
-      <Navbar tabs={tabs} activeTab="suppliers" />
-      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+  const mainContent = (
+    <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
         <div className="flex justify-end mb-3">
           <button onClick={() => { setAdding(true); setNewCode(''); setNewName('') }} className="btn-green">
             + Thêm NCC
@@ -161,6 +159,13 @@ export default function SuppliersPage() {
           </table>
         </div>
       </main>
+  )
+
+  if (embedded) return mainContent
+  return (
+    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+      <Navbar tabs={tabs} activeTab="suppliers" />
+      {mainContent}
     </div>
   )
 }

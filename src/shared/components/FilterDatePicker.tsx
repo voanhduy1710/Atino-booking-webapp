@@ -47,7 +47,7 @@ export function FilterDatePicker({
   return (
     <ReactDatePicker
       selected={parseLocalDate(value)}
-      onChange={(date) => onChange(formatLocalDate(date))}
+      onChange={(date: Date | null) => onChange(formatLocalDate(date))}
       dateFormat="dd-MM-yyyy"
       locale="vi"
       placeholderText={placeholder}

@@ -35,7 +35,7 @@ function BookingTooltip({
   row, x, y, isPinned, tooltipRef, onMouseEnter, onMouseLeave, onPhotoClick, onPin,
 }: {
   row: BookingRow; x: number; y: number; isPinned: boolean
-  tooltipRef: RefObject<HTMLDivElement | null>
+  tooltipRef: RefObject<HTMLDivElement>
   onMouseEnter: () => void; onMouseLeave: () => void
   onPhotoClick: (src: string) => void; onPin: () => void
 }) {
@@ -138,10 +138,13 @@ interface SelectedBooking extends BookingRow {
   delivery_note: string
 }
 
-export default function ReviewerPage() {
+export default function ReviewerPage({ embedded = false }: { embedded?: boolean }) {
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [supplierFilter, setSupplierFilter] = useState<string>('all')
   const [selectedBooking, setSelectedBooking] = useState<SelectedBooking | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [rejectItemId, setRejectItemId] = useState<string | null>(null)
@@ -154,7 +157,7 @@ export default function ReviewerPage() {
   const [tooltipRow, setTooltipRow] = useState<{ row: BookingRow; x: number; y: number } | null>(null)
   const [isTooltipPinned, setIsTooltipPinned] = useState(false)
   const tooltipHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const tooltipRef = useRef<HTMLDivElement | null>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
 
   const queryClient = useQueryClient()
   const user = getCurrentUser()
@@ -165,6 +168,11 @@ export default function ReviewerPage() {
   useEffect(() => {
     document.title = 'Xác nhận booking — Atino'
   }, [])
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchInput), 300)
+    return () => clearTimeout(t)
+  }, [searchInput])
 
   useEffect(() => {
     if (!isTooltipPinned) return
@@ -201,8 +209,18 @@ export default function ReviewerPage() {
   }
   const pinCurrentTooltip = () => setIsTooltipPinned(true)
 
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ['reviewer-suppliers'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('suppliers').select('id, name').order('name')
+      if (error) return []
+      return data as { id: string; name: string }[]
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
   const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ['reviewer-bookings', dateFrom, dateTo, statusFilter],
+    queryKey: ['reviewer-bookings', dateFrom, dateTo, statusFilter, debouncedSearch, supplierFilter],
     queryFn: async () => {
       let q = supabase
         .from('bookings')
@@ -216,6 +234,8 @@ export default function ReviewerPage() {
       if (dateFrom) q = q.gte('delivery_date', dateFrom)
       if (dateTo) q = q.lte('delivery_date', dateTo)
       if (statusFilter !== 'all') q = q.eq('status', statusFilter)
+      if (debouncedSearch) q = q.ilike('booking_code', `%${debouncedSearch}%`)
+      if (supplierFilter !== 'all') q = q.eq('supplier_id', supplierFilter)
       const { data, error } = await q
       if (error) throw error
       return (data ?? []).map((b: any) => ({
@@ -303,7 +323,7 @@ export default function ReviewerPage() {
         p_reviewer_username: user?.sub ?? '',
         p_decision: decision,
         p_note: note,
-      })
+      } as any)
       if (error) throw error
     },
     onSuccess: () => {
@@ -318,7 +338,7 @@ export default function ReviewerPage() {
 
   const deleteBookingMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      const { error } = await supabase.rpc('admin_delete_booking' as any, { p_booking_id: bookingId })
+      const { error } = await supabase.rpc('admin_delete_booking' as any, { p_booking_id: bookingId } as any)
       if (error) throw error
     },
     onSuccess: () => {
@@ -339,6 +359,34 @@ export default function ReviewerPage() {
       <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
         <h1 className="text-xl font-bold">Xác nhận booking</h1>
         <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Tìm mã booking..."
+              className="input-field text-sm py-1.5 pr-7 w-44"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => { setSearchInput(''); setDebouncedSearch('') }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#888888] hover:text-black text-base leading-none"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <select
+            value={supplierFilter}
+            onChange={(e) => setSupplierFilter(e.target.value)}
+            className="input-field text-sm py-1.5 w-44"
+          >
+            <option value="all">Tất cả NCC</option>
+            {suppliers.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as BookingStatus | 'all')}
@@ -743,6 +791,10 @@ export default function ReviewerPage() {
       </Modal>
     </main>
   )
+
+  if (embedded) {
+    return <div className="flex flex-col bg-[#F5F5F5]">{content}</div>
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F5F5]">

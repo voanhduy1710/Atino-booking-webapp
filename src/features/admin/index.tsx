@@ -111,7 +111,7 @@ export default function AdminPage() {
   const togglePwReveal = (id: string) =>
     setRevealedPws(prev => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
 
@@ -180,7 +180,7 @@ export default function AdminPage() {
 
   const addWarehouseMutation = useMutation({
     mutationFn: async ({ code, name }: { code: string; name: string }) => {
-      const { error } = await supabase.from('warehouses').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true })
+      const { error } = await supabase.from('warehouses').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true } as any)
       if (error) throw error
     },
     onSuccess: () => {
@@ -191,7 +191,7 @@ export default function AdminPage() {
 
   const editWarehouseMutation = useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      const { error } = await supabase.from('warehouses').update({ name: name.trim() }).eq('id', id)
+      const { error } = await (supabase.from('warehouses') as any).update({ name: name.trim() }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
@@ -202,7 +202,7 @@ export default function AdminPage() {
 
   const addSupplierMutation = useMutation({
     mutationFn: async ({ code, name }: { code: string; name: string }) => {
-      const { error } = await supabase.from('suppliers').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true })
+      const { error } = await supabase.from('suppliers').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true } as any)
       if (error) throw error
     },
     onSuccess: () => {
@@ -213,7 +213,7 @@ export default function AdminPage() {
 
   const editSupplierMutation = useMutation({
     mutationFn: async ({ id, code, name }: { id: string; code: string; name: string }) => {
-      const { error } = await supabase.from('suppliers').update({ code: code.trim().toUpperCase(), name: name.trim() }).eq('id', id)
+      const { error } = await (supabase.from('suppliers') as any).update({ code: code.trim().toUpperCase(), name: name.trim() }).eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
@@ -300,7 +300,7 @@ export default function AdminPage() {
       {/* Reviewer view */}
       {activeTab === 'reviewbookings' && (
         <Suspense fallback={<div className="flex justify-center py-16"><LoadingSpinner /></div>}>
-          <ReviewerPage embedded canDelete />
+          <ReviewerPage embedded />
         </Suspense>
       )}
 

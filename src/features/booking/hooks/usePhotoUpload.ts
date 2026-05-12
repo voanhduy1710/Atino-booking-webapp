@@ -81,7 +81,7 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
         return null
       }
     },
-    [sessionId]
+    [sessionId, supplierCode]
   )
 
   const remove = useCallback((tempPath: string) => {
