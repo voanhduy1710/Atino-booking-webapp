@@ -1,9 +1,9 @@
-Generated at: 2026-05-11 11:34:35
+Generated at: 2026-05-12 14:44:40
 Root directory: C:\Atino-booking-webapp
-Folders: 47
-Files: 125
-Lines of code: 20375
-Bytes: 4,179,616
+Folders: 70
+Files: 172
+Lines of code: 24097
+Bytes: 5,275,780
 
 Structure:
 📁 Atino-booking-webapp/
@@ -26,19 +26,61 @@ Structure:
 │       │   └── 📄 SKILL.md
 │       ├── 📁 caveman-help/
 │       │   └── 📄 SKILL.md
-│       └── 📁 caveman-review/
-│           └── 📄 SKILL.md
+│       ├── 📁 caveman-review/
+│       │   └── 📄 SKILL.md
+│       ├── 📁 debug-issue/
+│       │   └── 📄 skill.md
+│       ├── 📁 explore-codebase/
+│       │   └── 📄 skill.md
+│       ├── 📁 refactor-safely/
+│       │   └── 📄 skill.md
+│       └── 📁 review-changes/
+│           └── 📄 skill.md
 ├── 📁 .claude/
 │   ├── 📁 skills/
+│   │   ├── 📁 debug-issue/
+│   │   │   └── 📄 skill.md
+│   │   ├── 📁 explore-codebase/
+│   │   │   └── 📄 skill.md
+│   │   ├── 📁 refactor-safely/
+│   │   │   └── 📄 skill.md
+│   │   ├── 📁 review-changes/
+│   │   │   └── 📄 skill.md
 │   │   ├── 📄 debug-issue.md
 │   │   ├── 📄 explore-codebase.md
 │   │   ├── 📄 refactor-safely.md
 │   │   └── 📄 review-changes.md
 │   ├── 📄 settings.json
+│   ├── 📄 settings.json.bak
 │   └── 📄 settings.local.json
 ├── 📁 .code-review-graph/
 │   ├── 📄 .gitignore
 │   └── 📄 graph.db
+├── 📁 .codex/
+│   ├── 📄 config.toml
+│   └── 📄 hooks.json
+├── 📁 .gemini/
+│   ├── 📁 hooks/
+│   │   ├── 📄 crg-session-start.sh
+│   │   └── 📄 crg-update.sh
+│   ├── 📁 skills/
+│   │   ├── 📁 debug-issue/
+│   │   │   └── 📄 SKILL.md
+│   │   ├── 📁 explore-codebase/
+│   │   │   └── 📄 SKILL.md
+│   │   ├── 📁 refactor-safely/
+│   │   │   └── 📄 SKILL.md
+│   │   └── 📁 review-changes/
+│   │       └── 📄 SKILL.md
+│   ├── 📄 settings.json
+│   └── 📄 settings.json.bak
+├── 📁 architecture doc files/
+│   ├── 📄 DASHBOARD ARCHITECTURE.md
+│   ├── 📄 DATE_FILTER_ARCHITECTURE.md
+│   ├── 📄 DEPLOY_SCRIPTS.md
+│   ├── 📄 GLOBAL_SEARCH_FILTER.md
+│   ├── 📄 TAB_ARCHITECTURE.md
+│   └── 📄 TOOLTIP_ARCHITECTURE.md
 ├── 📁 business logic/
 │   ├── 📄 business_logic.xlsx
 │   ├── 📄 excel file content.md
@@ -57,6 +99,8 @@ Structure:
 │   ├── 📄 4. Flow diagram.md
 │   ├── 📄 5. Implementation_plan.md
 │   └── 📄 6. Open_questions.md
+├── 📁 public/
+│   └── 📄 booking-logo.svg
 ├── 📁 secrets/
 │   └── 📄 gcs_booking_webapp_key.json
 ├── 📁 server/
@@ -75,7 +119,15 @@ Structure:
 │   │   └── 📄 routes.tsx
 │   ├── 📁 features/
 │   │   ├── 📁 admin/
-│   │   │   └── 📄 index.tsx
+│   │   │   ├── 📁 components/
+│   │   │   │   └── 📄 LinkBtn.tsx
+│   │   │   ├── 📁 tabs/
+│   │   │   │   ├── 📄 AccountsTab.tsx
+│   │   │   │   ├── 📄 SuppliersTab.tsx
+│   │   │   │   └── 📄 WarehousesTab.tsx
+│   │   │   ├── 📄 index.tsx
+│   │   │   ├── 📄 ReportPage.tsx
+│   │   │   └── 📄 ViewAsPage.tsx
 │   │   ├── 📁 auth/
 │   │   │   ├── 📁 components/
 │   │   │   │   ├── 📄 LoginForm.tsx
@@ -84,9 +136,11 @@ Structure:
 │   │   │   │   └── 📄 RequireRole.tsx
 │   │   │   ├── 📁 services/
 │   │   │   │   └── 📄 auth.service.ts
+│   │   │   ├── 📄 AccountsPage.tsx
 │   │   │   └── 📄 index.tsx
 │   │   ├── 📁 booking/
 │   │   │   ├── 📁 components/
+│   │   │   │   ├── 📄 BookingAmendmentSection.tsx
 │   │   │   │   ├── 📄 BookingConfirmation.tsx
 │   │   │   │   ├── 📄 BookingDetailPublic.tsx
 │   │   │   │   ├── 📄 BookingForm.tsx
@@ -110,26 +164,43 @@ Structure:
 │   │   │   │   └── 📄 NotificationPanel.tsx
 │   │   │   └── 📁 hooks/
 │   │   │       └── 📄 useNotifications.ts
+│   │   ├── 📁 supplier/
+│   │   │   └── 📄 SuppliersPage.tsx
 │   │   └── 📁 warehouse/
 │   │       ├── 📁 receiver/
 │   │       │   └── 📄 index.tsx
-│   │       └── 📁 reviewer/
-│   │           └── 📄 index.tsx
+│   │       ├── 📁 reviewer/
+│   │       │   ├── 📄 AmendmentPanel.tsx
+│   │       │   ├── 📄 BookingDetailModal.tsx
+│   │       │   ├── 📄 BookingTooltip.tsx
+│   │       │   └── 📄 index.tsx
+│   │       ├── 📄 ReceiverPage.tsx
+│   │       ├── 📄 ReviewerPage.tsx
+│   │       └── 📄 WarehousesPage.tsx
 │   ├── 📁 shared/
 │   │   ├── 📁 components/
 │   │   │   ├── 📄 Button.tsx
 │   │   │   ├── 📄 Drawer.tsx
+│   │   │   ├── 📄 FilterDatePicker.tsx
 │   │   │   ├── 📄 Input.tsx
+│   │   │   ├── 📄 Lightbox.tsx
 │   │   │   ├── 📄 LoadingSpinner.tsx
 │   │   │   ├── 📄 Modal.tsx
 │   │   │   ├── 📄 Navbar.tsx
 │   │   │   ├── 📄 Select.tsx
 │   │   │   └── 📄 StatusBadge.tsx
+│   │   ├── 📁 config/
+│   │   │   ├── 📄 navTabs.ts
+│   │   │   └── 📄 permissions.ts
+│   │   ├── 📁 constants/
+│   │   │   └── 📄 supplierTabs.ts
 │   │   ├── 📁 hooks/
 │   │   │   └── 📄 useFileUpload.ts
 │   │   ├── 📁 lib/
 │   │   │   ├── 📄 auth.ts
+│   │   │   ├── 📄 crypto.ts
 │   │   │   ├── 📄 dateUtils.ts
+│   │   │   ├── 📄 gcs.ts
 │   │   │   └── 📄 supabase.ts
 │   │   └── 📁 types/
 │   │       ├── 📄 database.ts
@@ -150,16 +221,16 @@ Structure:
 ├── 📄 .mcp.json
 ├── 📄 .opencode.json
 ├── 📄 agents.md
-├── 📄 Atino Logo.jpg
 ├── 📄 Atino Logo.svg
 ├── 📄 CLAUDE.md
 ├── 📄 clean_restart.ps1
+├── 📄 CODE_REVIEW.md
 ├── 📄 deploy.ps1
 ├── 📄 deploy_local.ps1
-├── 📄 DEPLOY_SCRIPTS.md
 ├── 📄 deploy_test.ps1
 ├── 📄 Dockerfile
 ├── 📄 DUAL_SYNC_SETUP.md
+├── 📄 eslint.config.js
 ├── 📄 index.html
 ├── 📄 nginx.conf
 ├── 📄 package-lock.json
@@ -169,7 +240,6 @@ Structure:
 ├── 📄 Project_structure.txt
 ├── 📄 start.md
 ├── 📄 start.sh
-├── 📄 TAB_ARCHITECTURE.md
 ├── 📄 tailwind.config.ts
 ├── 📄 tsconfig.app.json
 ├── 📄 tsconfig.json
@@ -181,43 +251,57 @@ Structure:
 └── 📄 Z_updating_prompt.md
 
 Large Files (> 300 lines):
-📄 src/features/admin/index.tsx: 639 lines
-📄 src/features/manager/index.tsx: 448 lines
-📄 src/features/booking/components/BookingForm.tsx: 429 lines
-📄 src/features/warehouse/reviewer/index.tsx: 301 lines
+📄 src/features/admin/ReportPage.tsx: 398 lines
+📄 src/features/booking/components/BookingForm.tsx: 355 lines
+📄 src/features/auth/AccountsPage.tsx: 354 lines
+📄 src/features/manager/index.tsx: 323 lines
 
 Small Files (< 60 lines):
+📄 src/features/warehouse/ReceiverPage.tsx: 1 lines
+📄 src/features/warehouse/ReviewerPage.tsx: 1 lines
 📄 .agents/skills/caveman-compress/scripts/__main__.py: 3 lines
+📄 src/shared/lib/crypto.ts: 4 lines
 📄 src/app/App.tsx: 5 lines
 📄 src/features/booking/index.tsx: 5 lines
 📄 postcss.config.js: 6 lines
 📄 src/vite-env.d.ts: 6 lines
 📄 tsconfig.json: 7 lines
 📄 start.sh: 9 lines
+📄 .gemini/hooks/crg-update.sh: 10 lines
+📄 src/features/admin/components/LinkBtn.tsx: 10 lines
 📄 src/shared/lib/supabase.ts: 11 lines
 📄 vite.config.ts: 12 lines
 📄 .claude/settings.local.json: 12 lines
 📄 secrets/gcs_booking_webapp_key.json: 13 lines
+📄 src/shared/constants/supplierTabs.ts: 13 lines
 📄 tsconfig.server.json: 15 lines
+📄 .gemini/hooks/crg-session-start.sh: 15 lines
 📄 .opencode.json: 16 lines
 📄 vitest.config.ts: 16 lines
 📄 src/app/main.tsx: 16 lines
 📄 tsconfig.node.json: 20 lines
 📄 src/shared/components/LoadingSpinner.tsx: 20 lines
-📄 src/shared/components/StatusBadge.tsx: 23 lines
+📄 src/shared/config/permissions.ts: 20 lines
+📄 src/shared/components/StatusBadge.tsx: 24 lines
+📄 src/features/auth/guard/RequireRole.tsx: 25 lines
 📄 tsconfig.app.json: 26 lines
 📄 src/app/providers.tsx: 26 lines
 📄 tailwind.config.ts: 27 lines
-📄 src/features/auth/guard/RequireRole.tsx: 32 lines
+📄 eslint.config.js: 29 lines
+📄 src/shared/lib/gcs.ts: 29 lines
+📄 src/shared/config/navTabs.ts: 30 lines
 📄 .mcp.json: 33 lines
 📄 src/features/notifications/components/NotificationBell.tsx: 34 lines
 📄 src/shared/components/Input.tsx: 36 lines
-📄 .claude/settings.json: 37 lines
 📄 src/features/booking/hooks/useBookingData.ts: 37 lines
+📄 src/shared/components/Lightbox.tsx: 37 lines
 📄 src/features/home/GuideTabs.tsx: 38 lines
-📄 server/index.ts: 39 lines
 📄 src/shared/components/Button.tsx: 39 lines
+📄 .gemini/settings.json: 41 lines
 📄 src/shared/components/Select.tsx: 42 lines
+📄 server/index.ts: 43 lines
 📄 server/lib/jwt.ts: 47 lines
+📄 .codex/hooks.json: 48 lines
 📄 server/routes/upload.ts: 54 lines
 📄 server/lib/gcs.ts: 55 lines
+📄 .claude/settings.json: 57 lines

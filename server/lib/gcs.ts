@@ -14,11 +14,13 @@ let _storage: Storage | null = null
 function getStorage(): Storage {
   if (_storage) return _storage
 
-  const saJson = process.env.GCS_SERVICE_ACCOUNT_JSON
-  if (!saJson) {
-    throw new Error('GCS_SERVICE_ACCOUNT_JSON env var not set')
-  }
+  // GCS_SERVICE_ACCOUNT_JSON_B64: base64-encoded JSON (used in Cloud Run to avoid shell quoting issues)
+  // GCS_SERVICE_ACCOUNT_JSON: raw JSON (local .env fallback)
+  const b64 = process.env.GCS_SERVICE_ACCOUNT_JSON_B64
+  const raw = process.env.GCS_SERVICE_ACCOUNT_JSON
+  if (!b64 && !raw) throw new Error('GCS credentials env var not set')
 
+  const saJson = b64 ? Buffer.from(b64, 'base64').toString('utf8') : raw!
   const credentials = JSON.parse(saJson) as object
   _storage = new Storage({ credentials })
   return _storage

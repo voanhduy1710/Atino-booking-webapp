@@ -52,12 +52,14 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
         form.append('file', file)
         form.append('path', relativePath)
 
+        console.log('[upload] POST', GCS_UPLOAD_URL, { path: relativePath, size: file.size, type: file.type })
         const res = await fetch(GCS_UPLOAD_URL, {
           method: 'POST',
           body: form,
         })
 
         const result = await res.json() as { url?: string; error?: string }
+        console.log('[upload] response', res.status, result)
 
         if (!res.ok || !result.url) {
           throw new Error(result.error ?? 'Upload thất bại')
@@ -70,9 +72,11 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
               : f
           )
         )
+        console.log('[upload] success → tempPath:', relativePath)
         return relativePath
       } catch (err) {
         const msg = (err as Error).message
+        console.error('[upload] error for', relativePath, ':', msg)
         setFiles((prev) =>
           prev.map((f) =>
             f.tempPath === relativePath ? { ...f, status: 'error', errorMsg: msg } : f

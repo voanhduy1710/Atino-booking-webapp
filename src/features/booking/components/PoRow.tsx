@@ -43,6 +43,7 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
       const path = await uploadSlip(file, `slip_${index}`)
       if (path) accumulated.push(path)
     }
+    console.log(`[PoRow ${index}] slip accumulated:`, accumulated)
     setValue(`items.${index}.slip_temp_paths`, accumulated, { shouldValidate: true })
     e.target.value = ''
   }
@@ -60,6 +61,7 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
       const path = await uploadVat(file, `vat_${index}`)
       if (path) accumulated.push(path)
     }
+    console.log(`[PoRow ${index}] vat accumulated:`, accumulated)
     setValue(`items.${index}.vat_temp_paths`, accumulated, { shouldValidate: true })
     e.target.value = ''
   }

@@ -89,7 +89,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
     if (bookingError || !booking) {
       console.error('[booking] insert error:', bookingError)
-      res.status(500).json({ error: 'Lỗi tạo booking' })
+      res.status(500).json({ error: bookingError?.message ?? 'Lỗi tạo booking' })
       return
     }
 
@@ -159,8 +159,9 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       delivery_date: booking.delivery_date,
     })
   } catch (err) {
+    const msg = (err as Error).message ?? String(err)
     console.error('[booking] error:', err)
-    res.status(500).json({ error: 'Có lỗi xảy ra, vui lòng thử lại' })
+    res.status(500).json({ error: msg })
   }
 })
 

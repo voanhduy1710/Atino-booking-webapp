@@ -326,7 +326,7 @@ export default function AccountsPage() {
           <div className="space-y-4">
             <p className="text-sm text-[#888888]">Nhập mật khẩu mới:</p>
             <input
-              type="text"
+              type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Mật khẩu mới..."

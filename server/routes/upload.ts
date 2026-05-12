@@ -45,8 +45,9 @@ router.post(
       const result = await uploadToGCS(file.buffer, file.mimetype, path)
       res.json({ url: result.url, path: result.path })
     } catch (err) {
+      const msg = (err as Error).message ?? String(err)
       console.error('[upload] GCS error:', err)
-      res.status(500).json({ error: 'Lỗi hệ thống khi tải ảnh' })
+      res.status(500).json({ error: msg })
     }
   }
 )

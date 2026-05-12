@@ -51,22 +51,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "      Build complete -> dist/" -ForegroundColor Green
 
-# Step 5: Build Docker image + Deploy to Cloud Run
-Write-Host "[4/5] Building Docker image and deploying to Cloud Run..." -ForegroundColor Cyan
-Write-Host "      (This may take 2-4 minutes)" -ForegroundColor DarkGray
-Write-Host ""
-
-gcloud builds submit `
-    --project $GCP_PROJECT `
-    --tag "${IMAGE_BASE}:latest" `
-    .
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Docker build failed." -ForegroundColor Red
-    exit 1
-}
-
-# Read server env vars from .env
+# Read all env vars from .env
 $envContent = Get-Content ".env" | Where-Object { $_ -match "^[^#]" }
 $envVars = @{}
 foreach ($line in $envContent) {
@@ -83,6 +68,34 @@ if (-not $SUPABASE_SERVICE_ROLE_KEY -or $SUPABASE_SERVICE_ROLE_KEY -eq "FILL_IN_
     exit 1
 }
 
+# Step 5: Build Docker image + Deploy to Cloud Run
+Write-Host "[4/5] Building Docker image and deploying to Cloud Run..." -ForegroundColor Cyan
+Write-Host "      (This may take 2-4 minutes)" -ForegroundColor DarkGray
+Write-Host ""
+
+# Write VITE_ vars to .env.production so Docker build can access them
+# .env is excluded from Docker context; .env.production is not
+@"
+VITE_SUPABASE_URL=$($envVars["VITE_SUPABASE_URL"])
+VITE_SUPABASE_ANON_KEY=$($envVars["VITE_SUPABASE_ANON_KEY"])
+VITE_STAFF_USERS=$($envVars["VITE_STAFF_USERS"])
+"@ | Out-File -FilePath ".env.production" -Encoding utf8 -NoNewline
+
+gcloud builds submit `
+    --project $GCP_PROJECT `
+    --tag "${IMAGE_BASE}:latest" `
+    .
+
+$buildExitCode = $LASTEXITCODE
+
+# Always clean up .env.production after submit
+Remove-Item -Path ".env.production" -ErrorAction SilentlyContinue
+
+if ($buildExitCode -ne 0) {
+    Write-Host "[ERROR] Docker build failed." -ForegroundColor Red
+    exit 1
+}
+
 gcloud run deploy $SERVICE_NAME `
     --project $GCP_PROJECT `
     --region $GCP_REGION `
@@ -95,7 +108,8 @@ gcloud run deploy $SERVICE_NAME `
     --max-instances 3 `
     --timeout 60s `
     --port 8080 `
-    --set-env-vars "^|^SUPABASE_URL=https://deuuuibkqletkkbrsmxd.supabase.co|SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY|GCS_SERVICE_ACCOUNT_JSON=$GCS_JSON"
+    --quiet `
+    --set-env-vars "^|^SUPABASE_URL=https://deuuuibkqletkkbrsmxd.supabase.co|SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY|GCS_SERVICE_ACCOUNT_JSON_B64=$([Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($GCS_JSON)))"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Cloud Run deploy failed." -ForegroundColor Red

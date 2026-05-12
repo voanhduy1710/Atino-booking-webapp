@@ -1,0 +1,26 @@
+# Controls what gcloud builds submit uploads to Cloud Build.
+# Overrides .gitignore — list exclusions explicitly here.
+
+node_modules/
+dist/
+dist-ssr/
+
+# Exclude secrets that must never leave this machine
+.env
+.env.local
+.env.*.local
+# .env.production is intentionally NOT excluded — needed for Vite build inside Docker
+
+.git/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+coverage/
+playwright-report/
+test-results/
+playwright.config.ts
+vitest.config.ts
+.code-review-graph/
+*.tsbuildinfo
