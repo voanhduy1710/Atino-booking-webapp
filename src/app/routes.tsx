@@ -2,26 +2,34 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { RequireRole } from '@/features/auth/guard/RequireRole'
+import { ROUTE_PERMISSIONS } from '@/shared/config/permissions'
 
-const LandingPage = lazy(() => import('@/features/home/LandingPage'))
-const GuidePage = lazy(() => import('@/features/home/GuidePage'))
-const GuideCreate = lazy(() => import('@/features/home/GuideCreate'))
-const GuideReceiving = lazy(() => import('@/features/home/GuideReceiving'))
-const LoginPage = lazy(() => import('@/features/auth/index'))
-const BookingPage = lazy(() => import('@/features/booking/index'))
+const LandingPage        = lazy(() => import('@/features/home/LandingPage'))
+const GuidePage          = lazy(() => import('@/features/home/GuidePage'))
+const GuideCreate        = lazy(() => import('@/features/home/GuideCreate'))
+const GuideReceiving     = lazy(() => import('@/features/home/GuideReceiving'))
+const LoginPage          = lazy(() => import('@/features/auth/index'))
+const BookingPage        = lazy(() => import('@/features/booking/index'))
 const BookingConfirmationPage = lazy(() => import('@/features/booking/components/BookingConfirmation'))
 const BookingDetailPublic = lazy(() => import('@/features/booking/components/BookingDetailPublic'))
-const MyBookingsPage = lazy(() => import('@/features/booking/MyBookings'))
-const ReviewerPage = lazy(() => import('@/features/warehouse/reviewer/index'))
-const ReceiverPage = lazy(() => import('@/features/warehouse/receiver/index'))
-const ManagerPage = lazy(() => import('@/features/manager/index'))
-const AdminPage = lazy(() => import('@/features/admin/index'))
+const MyBookingsPage     = lazy(() => import('@/features/booking/MyBookings'))
+const ReviewerPage       = lazy(() => import('@/features/warehouse/ReviewerPage'))
+const ReceiverPage       = lazy(() => import('@/features/warehouse/ReceiverPage'))
+const WarehousesPage     = lazy(() => import('@/features/warehouse/WarehousesPage'))
+const SuppliersPage      = lazy(() => import('@/features/supplier/SuppliersPage'))
+const AccountsPage       = lazy(() => import('@/features/auth/AccountsPage'))
+const ReportPage         = lazy(() => import('@/features/admin/ReportPage'))
 
 const Fallback = () => (
   <div className="min-h-screen flex items-center justify-center">
     <LoadingSpinner />
   </div>
 )
+
+function Guard({ path, children }: { path: string; children: React.ReactNode }) {
+  const roles = ROUTE_PERMISSIONS[path] ?? []
+  return <RequireRole roles={roles}>{children}</RequireRole>
+}
 
 export function AppRoutes() {
   return (
@@ -36,70 +44,41 @@ export function AppRoutes() {
         <Route path="/booking/:token" element={<BookingDetailPublic />} />
 
         {/* Supplier */}
-        <Route
-          path="/booking/new"
-          element={
-            <RequireRole roles={['supplier']}>
-              <BookingPage />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/booking/:token/confirmation"
-          element={
-            <RequireRole roles={['supplier']}>
-              <BookingConfirmationPage />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/my-bookings"
-          element={
-            <RequireRole roles={['supplier']}>
-              <MyBookingsPage />
-            </RequireRole>
-          }
-        />
+        <Route path="/booking/new" element={
+          <Guard path="/booking/new"><BookingPage /></Guard>
+        } />
+        <Route path="/booking/:token/confirmation" element={
+          <Guard path="/booking/new"><BookingConfirmationPage /></Guard>
+        } />
+        <Route path="/my-bookings" element={
+          <Guard path="/my-bookings"><MyBookingsPage /></Guard>
+        } />
 
-        {/* Staff — Reviewer */}
-        <Route
-          path="/reviewer"
-          element={
-            <RequireRole roles={['warehouse_reviewer', 'warehouse_receiver', 'admin']}>
-              <ReviewerPage />
-            </RequireRole>
-          }
-        />
-        <Route
-          path="/receiver"
-          element={
-            <RequireRole roles={['warehouse_receiver', 'admin']}>
-              <ReceiverPage />
-            </RequireRole>
-          }
-        />
+        {/* Staff & management — flat routes */}
+        <Route path="/reviewer" element={
+          <Guard path="/reviewer"><ReviewerPage /></Guard>
+        } />
+        <Route path="/receiver" element={
+          <Guard path="/receiver"><ReceiverPage /></Guard>
+        } />
+        <Route path="/report" element={
+          <Guard path="/report"><ReportPage /></Guard>
+        } />
+        <Route path="/warehouses" element={
+          <Guard path="/warehouses"><WarehousesPage /></Guard>
+        } />
+        <Route path="/suppliers" element={
+          <Guard path="/suppliers"><SuppliersPage /></Guard>
+        } />
+        <Route path="/accounts" element={
+          <Guard path="/accounts"><AccountsPage /></Guard>
+        } />
 
-        {/* Manager — default redirect + sub-paths */}
-        <Route path="/manager" element={<Navigate to="/manager/reviewer" replace />} />
-        <Route
-          path="/manager/:tab"
-          element={
-            <RequireRole roles={['manager', 'admin']}>
-              <ManagerPage />
-            </RequireRole>
-          }
-        />
-
-        {/* Admin — default redirect + sub-paths */}
-        <Route path="/admin" element={<Navigate to="/admin/accounts" replace />} />
-        <Route
-          path="/admin/:tab"
-          element={
-            <RequireRole roles={['admin', 'manager']}>
-              <AdminPage />
-            </RequireRole>
-          }
-        />
+        {/* Legacy redirects */}
+        <Route path="/manager" element={<Navigate to="/reviewer" replace />} />
+        <Route path="/manager/*" element={<Navigate to="/reviewer" replace />} />
+        <Route path="/admin" element={<Navigate to="/accounts" replace />} />
+        <Route path="/admin/*" element={<Navigate to="/accounts" replace />} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

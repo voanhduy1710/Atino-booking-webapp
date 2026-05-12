@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
@@ -22,76 +22,6 @@ const SESSION_ID = crypto.randomUUID()
 // In local dev:  set VITE_API_URL=http://localhost:3001
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
-// ── Inline guide panel ────────────────────────────────────────────────────────
-const CREATE_STEPS = [
-  { step: 1, title: 'Chọn kho và điền thông tin', desc: 'Chọn kho từ dropdown. Mã NCC và Tên NCC được tự động điền.' },
-  { step: 2, title: 'Nhập số lượng đơn hàng (PO)', desc: 'Nhập số PO (1–99). Hệ thống tạo các hàng tương ứng.' },
-  { step: 3, title: 'Điền từng đơn hàng', desc: 'Nhập Mã SP — Mã QT, chọn Số lần giao, Nhập số kiện, tải ảnh phiếu giao. Nếu lần giao 1 bắt buộc tải Hóa đơn VAT.' },
-  { step: 4, title: 'Chọn khung giờ', desc: '07:00–09:00, 09:00–11:00, 13:30–15:30, 15:30–17:00. Trước 18h gói N+1, sau 18h gói N+2.' },
-  { step: 5, title: 'Gửi đăng ký', desc: 'Nhấn "Đăng ký". Lưu mã QR nhận được để xuất trình khi giao hàng tại kho.' },
-]
-const RECEIVING_STEPS = [
-  { step: 1, title: 'Đăng ký trước khi đến', desc: 'Phải hoàn thành đăng ký trên hệ thống. Đơn cần xác nhận bởi nhân viên kho trước khi đến giao.' },
-  { step: 2, title: 'Đến kho đúng khung giờ', desc: 'Xuất trình mã QR hoặc mã booking tại cổng. Hàng hóa phải đúng chủng loại và số lượng đã đăng ký.' },
-  { step: 3, title: 'Nhân viên xác nhận', desc: 'Nhân viên kiểm tra, đếm số lượng thực nhận và xác nhận trên hệ thống. Chênh lệch sẽ được xử lý theo chính sách Atino.' },
-]
-
-type GuideTab = 'create' | 'receiving'
-function GuidePanel() {
-  const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<GuideTab>('create')
-  const steps = tab === 'create' ? CREATE_STEPS : RECEIVING_STEPS
-  return (
-    <div className="mb-4">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 text-sm text-[#888888] hover:text-black transition-colors"
-      >
-        <span className="text-base">{open ? '▼' : '▶'}</span>
-        <span>Xem hướng dẫn đăng ký</span>
-      </button>
-
-      {open && (
-        <div className="mt-2 bg-white border border-[#E0E0E0] rounded-lg overflow-hidden">
-          {/* Subtabs */}
-          <div className="flex border-b border-[#E0E0E0]">
-            {(['create', 'receiving'] as GuideTab[]).map(t => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTab(t)}
-                className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                  tab === t ? 'border-black text-black' : 'border-transparent text-[#888888] hover:text-black'
-                }`}
-              >
-                {t === 'create' ? 'Quy trình đăng ký' : 'Quy trình nhận hàng'}
-              </button>
-            ))}
-          </div>
-
-          {/* Steps */}
-          <div className="px-5 py-4 space-y-4">
-            {steps.map(({ step, title, desc }) => (
-              <div key={step} className="flex gap-3">
-                <div className="flex-shrink-0 w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-bold text-xs">{step}</div>
-                <div>
-                  <p className="font-semibold text-sm mb-0.5">{title}</p>
-                  <p className="text-xs text-[#888888] leading-relaxed">{desc}</p>
-                </div>
-              </div>
-            ))}
-            {tab === 'receiving' && (
-              <p className="text-xs text-[#CC8800] bg-[#FFF8E7] border border-[#FFE0A0] rounded p-2">
-                <strong>Lưu ý:</strong> Hàng giao thiếu hoặc không đúng chủng loại sẽ bị trả về.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 export function BookingForm() {
   const navigate = useNavigate()
@@ -213,7 +143,7 @@ export function BookingForm() {
           ĐƠN ĐĂNG KÝ — GIAO THEO ĐƠN HÀNG
         </h1>
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+<form onSubmit={handleSubmit(onSubmit)} noValidate>
           {/* Section I */}
           <div className="bg-white border border-[#E0E0E0] rounded-lg mb-4">
             <div className="px-6 py-4 border-b border-[#E0E0E0]">

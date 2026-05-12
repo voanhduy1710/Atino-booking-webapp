@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import type { UserRole } from '@/shared/types/domain'
 import { getCurrentUser } from '@/shared/lib/auth'
+import { ROLE_HOME } from '@/shared/config/permissions'
 
 interface Props {
   roles: UserRole[]
@@ -16,15 +17,7 @@ export function RequireRole({ roles, children }: Props) {
   }
 
   if (!roles.includes(user.role as UserRole)) {
-    // Redirect to their allowed route or home
-    const roleRouteMap: Record<string, string> = {
-      supplier: '/my-bookings',
-      warehouse_reviewer: '/reviewer',
-      warehouse_receiver: '/reviewer',
-      manager: '/manager',
-      admin: '/admin',
-    }
-    const redirect = roleRouteMap[user.role] ?? '/'
+    const redirect = ROLE_HOME[user.role] ?? '/'
     return <Navigate to={redirect} replace />
   }
 

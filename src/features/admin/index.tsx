@@ -11,7 +11,7 @@ import { approveSupplierApi, rejectSupplierApi } from '@/features/auth/services/
 import type { SupplierAccount, AccountStatus } from '@/shared/types/domain'
 import type { NavTab } from '@/shared/components/Navbar'
 
-const ReviewerPage = lazy(() => import('@/features/warehouse/reviewer/index'))
+const ReviewerPage = lazy(() => import('@/features/warehouse/ReviewerPage'))
 const ManagerPage = lazy(() => import('@/features/manager/index'))
 const ReportPage = lazy(() => import('@/features/admin/ReportPage'))
 

@@ -6,7 +6,7 @@ import { Navbar } from '@/shared/components/Navbar'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import type { NavTab } from '@/shared/components/Navbar'
 
-const ReviewerPage = lazy(() => import('@/features/warehouse/reviewer/index'))
+const ReviewerPage = lazy(() => import('@/features/warehouse/ReviewerPage'))
 const ReportPage = lazy(() => import('@/features/admin/ReportPage'))
 
 type ManagerTab = 'reviewer' | 'warehouses' | 'suppliers' | 'report'

@@ -41,3 +41,5 @@ supabase/.temp/
 # Service account keys — NEVER commit these
 secrets/
 *.json.key
+# Added by code-review-graph
+.code-review-graph/

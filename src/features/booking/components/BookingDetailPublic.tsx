@@ -169,13 +169,14 @@ export default function BookingDetailPublic() {
 
   const requestAmendmentMutation = useMutation({
     mutationFn: async ({ type, note, proposed_changes }: { type: string; note: string; proposed_changes?: object }) => {
+      if (!booking || !user) return
       const { data, error } = await supabase.rpc('request_booking_amendment' as any, {
-        p_booking_id: booking!.id,
-        p_supplier_account_id: user!.supplier_account_id,
+        p_booking_id: booking.id,
+        p_supplier_account_id: user.supplier_account_id,
         p_type: type,
         p_note: note,
         p_proposed_changes: proposed_changes ?? null,
-      })
+      } as any)
       if (error) throw error
       if ((data as any)?.error) throw new Error((data as any).error)
     },
@@ -287,13 +288,17 @@ export default function BookingDetailPublic() {
               <tbody>
                 {items.map((item) => {
                   const photos: { src: string; label: string }[] = []
-                  if (item.vat_invoice_url) {
+                  const vatPhotos = (item.booking_item_photos ?? []).filter((p) => p.photo_type === 'vat_invoice')
+                  if (vatPhotos.length > 0) {
+                    for (const p of vatPhotos) photos.push({ src: resolvePhotoUrl(p.storage_path), label: 'Hóa đơn VAT' })
+                  } else if (item.vat_invoice_url) {
                     photos.push({ src: item.vat_invoice_url, label: 'Hóa đơn VAT' })
                   }
                   for (const p of item.booking_item_photos ?? []) {
+                    if (p.photo_type === 'vat_invoice') continue
                     photos.push({
                       src: resolvePhotoUrl(p.storage_path),
-                      label: p.photo_type === 'delivery_slip' ? 'Phiếu giao' : p.photo_type === 'vat_invoice' ? 'Hóa đơn VAT' : 'Chênh lệch',
+                      label: p.photo_type === 'delivery_slip' ? 'Phiếu giao' : 'Chênh lệch',
                     })
                   }
 

@@ -8,6 +8,9 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { FilterDatePicker } from '@/shared/components/FilterDatePicker'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
+import { Navbar } from '@/shared/components/Navbar'
+import { getCurrentUser } from '@/shared/lib/auth'
+import { ROLE_TABS } from '@/shared/config/navTabs'
 import { type BookingStatus } from '@/shared/types/domain'
 
 // ── Color palette (same standard 10 from DASHBOARD ARCHITECTURE.md) ──────────
@@ -187,14 +190,11 @@ function SVGDonut({ slices, size = 120 }: { slices: { value: number; color: stri
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ReportPage() {
-  const today = new Date()
-  const thirtyDaysAgo = new Date(today)
-  thirtyDaysAgo.setDate(today.getDate() - 29)
+  const user = getCurrentUser()
+  const tabs = user ? (ROLE_TABS[user.role] ?? []) : []
 
-  const fmt = (d: Date) => d.toISOString().slice(0, 10)
-
-  const [dateFrom, setDateFrom] = useState(fmt(thirtyDaysAgo))
-  const [dateTo, setDateTo] = useState(fmt(today))
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   useEffect(() => {
     document.title = 'Báo cáo — Atino'
@@ -282,6 +282,8 @@ export default function ReportPage() {
     .map(([k, color]) => ({ value: byStatus[k] ?? 0, color, label: STATUS_VI[k] }))
 
   return (
+    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+    <Navbar tabs={tabs} activeTab="report" />
     <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
       {/* Header + date filter */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -386,5 +388,6 @@ export default function ReportPage() {
         </>
       )}
     </main>
+    </div>
   )
 }
