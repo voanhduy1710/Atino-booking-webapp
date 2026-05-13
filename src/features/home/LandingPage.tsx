@@ -19,7 +19,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-[#FFF5FF] flex flex-col items-center justify-center px-4 py-12">
       {/* Logo */}
       <div className="mb-10">
         <img src="/Atino Logo.svg" alt="Atino" className="h-16 w-auto mx-auto" />
@@ -38,7 +38,7 @@ export default function LandingPage() {
         <button
           id="cta-booking"
           onClick={handleBooking}
-          className="w-full py-5 border border-black text-black font-semibold text-base hover:bg-black hover:text-white transition-colors rounded"
+          className="w-full py-5 border border-[#AD58A6] text-black font-semibold text-base hover:bg-[#AD58A6] hover:text-white transition-colors rounded"
         >
           Đăng ký giao hàng
         </button>
@@ -46,7 +46,7 @@ export default function LandingPage() {
         <Link
           to="/guide/create"
           id="cta-guide-create"
-          className="block w-full py-5 border border-black text-black font-semibold text-base text-center hover:bg-black hover:text-white transition-colors rounded"
+          className="block w-full py-5 border border-[#AD58A6] text-black font-semibold text-base text-center hover:bg-[#AD58A6] hover:text-white transition-colors rounded"
         >
           Hướng dẫn tạo đơn
         </Link>
@@ -54,7 +54,7 @@ export default function LandingPage() {
         <Link
           to="/guide/receiving"
           id="cta-guide-receiving"
-          className="block w-full py-5 border border-black text-black font-semibold text-base text-center hover:bg-black hover:text-white transition-colors rounded"
+          className="block w-full py-5 border border-[#AD58A6] text-black font-semibold text-base text-center hover:bg-[#AD58A6] hover:text-white transition-colors rounded"
         >
           Quy trình giao nhận hàng
         </Link>

@@ -34,6 +34,7 @@ interface PoItem {
 }
 
 interface FinalizeBody {
+  supplier_account_id?: string
   warehouse_id: string
   time_slot: string
   ghi_chu?: string
@@ -52,33 +53,42 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
   const token = authHeader.slice(7)
   const payload = verifyJWT(token)
-  if (!payload || payload.role !== 'supplier') {
+  if (!payload || !['supplier', 'admin'].includes(payload.role)) {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
 
   try {
     const supabase = getSupabase()
+    const body = req.body as FinalizeBody
+    const supplierAccountId = payload.role === 'admin' ? body.supplier_account_id : payload.supplier_account_id
+
+    if (!supplierAccountId) {
+      res.status(400).json({ error: 'Vui lòng chọn tài khoản nhà cung cấp' })
+      return
+    }
 
     // ── Verify account status ────────────────────────────────────────────────
     const { data: account } = await supabase
       .from('supplier_accounts')
       .select('status, supplier_id')
-      .eq('id', payload.supplier_account_id)
+      .eq('id', supplierAccountId)
       .single()
 
     if (!account || account.status !== 'active') {
       res.status(403).json({ error: 'Tài khoản chưa được kích hoạt' })
       return
     }
-
-    const body = req.body as FinalizeBody
+    if (!account.supplier_id) {
+      res.status(400).json({ error: 'Tài khoản nhà cung cấp chưa được gán NCC' })
+      return
+    }
 
     // ── Insert booking ────────────────────────────────────────────────────────
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
-        supplier_account_id: payload.supplier_account_id,
+        supplier_account_id: supplierAccountId,
         supplier_id: account.supplier_id,
         warehouse_id: body.warehouse_id,
         time_slot: body.time_slot,

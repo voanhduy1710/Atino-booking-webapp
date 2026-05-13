@@ -295,14 +295,14 @@ export default function ManagerPage({ embedded = false }: Props) {
 
   if (embedded) {
     return (
-      <div className="flex flex-col bg-[#F5F5F5]">
-        <div className="flex border-b border-[#E0E0E0] bg-white px-4">
+      <div className="flex flex-col bg-[#FFF5FF]">
+        <div className="flex border-b border-[#E3B2E2] bg-[#E3B2E2] px-4">
           {MANAGER_TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setInternalTab(t.id as ManagerTab)}
               className={`px-4 py-3 text-sm font-medium transition-colors ${
-                activeTab === t.id ? 'bg-black text-white' : 'text-[#888888] hover:text-black'
+                activeTab === t.id ? 'bg-[#AD58A6] text-white font-bold' : 'text-black font-bold hover:bg-[#D69AD4]'
               }`}
             >
               {t.label}
@@ -315,7 +315,7 @@ export default function ManagerPage({ embedded = false }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
       <Navbar tabs={MANAGER_TABS} activeTab={activeTab} />
       {tabContent}
     </div>

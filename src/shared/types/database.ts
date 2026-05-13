@@ -96,7 +96,7 @@ export interface Database {
           time_slot: '07-09' | '09-11' | '13-15' | '15-17'
           ghi_chu: string | null
           delivery_note: string
-          status: 'pending' | 'confirmed' | 'rejected' | 'received'
+          status: 'pending' | 'partially_approved' | 'partially_rejected' | 'confirmed' | 'rejected' | 'received' | 'cancelled'
           submitted_at: string
           confirmed_by: string | null
           confirmed_at: string | null
@@ -114,7 +114,7 @@ export interface Database {
           time_slot: '07-09' | '09-11' | '13-15' | '15-17'
           ghi_chu?: string | null
           delivery_note: string
-          status?: 'pending' | 'confirmed' | 'rejected' | 'received'
+          status?: 'pending' | 'partially_approved' | 'partially_rejected' | 'confirmed' | 'rejected' | 'received' | 'cancelled'
           submitted_at?: string
           confirmed_by?: string | null
           confirmed_at?: string | null
@@ -250,7 +250,7 @@ export interface Database {
     Functions: Record<string, never>
     Enums: {
       account_status: 'pending' | 'active' | 'rejected'
-      booking_status: 'pending' | 'confirmed' | 'rejected' | 'received'
+      booking_status: 'pending' | 'partially_approved' | 'partially_rejected' | 'confirmed' | 'rejected' | 'received' | 'cancelled'
       booking_item_status: 'pending' | 'confirmed' | 'rejected'
       time_slot: '07-09' | '09-11' | '13-15' | '15-17'
       photo_type: 'delivery_slip' | 'discrepancy'

@@ -28,7 +28,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#FFF5FF] flex flex-col items-center justify-center p-4">
       {/* Logo */}
       <a href="/" className="mb-8">
         <img src="/Atino Logo.svg" alt="Atino" className="h-10 w-auto" />
@@ -37,14 +37,14 @@ export default function LoginPage() {
       {/* Card */}
       <div className="w-full max-w-md bg-white border border-[#E0E0E0] rounded-lg overflow-hidden">
         {/* Tabs */}
-        <div className="flex border-b border-[#E0E0E0]">
+        <div className="flex border-b border-[#E3B2E2] bg-[#E3B2E2]">
           <button
             id="tab-login"
             onClick={() => setTab('login')}
             className={`flex-1 py-3 text-sm font-semibold transition-colors ${
               tab === 'login'
-                ? 'bg-black text-white'
-                : 'bg-white text-[#888888] hover:text-black'
+                ? 'bg-[#AD58A6] text-white'
+                : 'text-black hover:bg-[#D69AD4]'
             }`}
           >
             Đăng nhập
@@ -54,8 +54,8 @@ export default function LoginPage() {
             onClick={() => setTab('register')}
             className={`flex-1 py-3 text-sm font-semibold transition-colors ${
               tab === 'register'
-                ? 'bg-black text-white'
-                : 'bg-white text-[#888888] hover:text-black'
+                ? 'bg-[#AD58A6] text-white'
+                : 'text-black hover:bg-[#D69AD4]'
             }`}
           >
             Đăng ký tài khoản

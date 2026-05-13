@@ -21,6 +21,7 @@ export const ROLE_TABS: Record<string, NavTab[]> = {
   ],
   admin: [
     { id: 'accounts',   label: 'Tài khoản NCC',    href: '/accounts' },
+    { id: 'new-booking', label: 'Đăng ký',          href: '/booking/new' },
     { id: 'warehouses', label: 'Kho hàng',          href: '/warehouses' },
     { id: 'suppliers',  label: 'Nhà cung cấp',      href: '/suppliers' },
     { id: 'reviewer',   label: 'Xác nhận booking',  href: '/reviewbooking' },

@@ -1,55 +1,55 @@
-import { useEffect } from 'react'
+﻿import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Navbar } from '@/shared/components/Navbar'
 import { SUPPLIER_TABS } from '@/shared/constants/supplierTabs'
 
 export default function GuideCreate() {
   useEffect(() => {
-    document.title = 'Hướng dẫn tạo đơn — Atino Booking'
+    document.title = 'HÆ°á»›ng dáº«n táº¡o Ä‘Æ¡n â€” Atino Booking'
   }, [])
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
       <Navbar tabs={SUPPLIER_TABS} activeTab="guide-create" />
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
         <div className="bg-white border border-[#E0E0E0] rounded-lg px-6 py-10">
-          <h1 className="text-2xl font-bold mb-2">Hướng dẫn tạo đơn đăng ký giao hàng</h1>
+          <h1 className="text-2xl font-bold mb-2">HÆ°á»›ng dáº«n táº¡o Ä‘Æ¡n Ä‘Äƒng kÃ½ giao hÃ ng</h1>
           <p className="text-[#888888] text-sm mb-8">
-            Làm theo các bước dưới đây để đăng ký giao hàng thành công.
+            LÃ m theo cÃ¡c bÆ°á»›c dÆ°á»›i Ä‘Ã¢y Ä‘á»ƒ Ä‘Äƒng kÃ½ giao hÃ ng thÃ nh cÃ´ng.
           </p>
 
           <div className="space-y-8">
             {[
               {
                 step: 1,
-                title: 'Đăng nhập tài khoản',
-                desc: 'Sử dụng tên đăng nhập và mật khẩu được cấp. Nếu chưa có tài khoản, vui lòng đăng ký và chờ admin xác nhận.',
+                title: 'ÄÄƒng nháº­p tÃ i khoáº£n',
+                desc: 'Sá»­ dá»¥ng tÃªn Ä‘Äƒng nháº­p vÃ  máº­t kháº©u Ä‘Æ°á»£c cáº¥p. Náº¿u chÆ°a cÃ³ tÃ i khoáº£n, vui lÃ²ng Ä‘Äƒng kÃ½ vÃ  chá» admin xÃ¡c nháº­n.',
               },
               {
                 step: 2,
-                title: 'Chọn kho và điền thông tin nhà cung cấp',
-                desc: 'Chọn kho hàng từ dropdown. Mã NCC và Tên NCC được tự động điền từ tài khoản của bạn.',
+                title: 'Chá»n kho vÃ  Ä‘iá»n thÃ´ng tin nhÃ  cung cáº¥p',
+                desc: 'Chá»n kho hÃ ng tá»« dropdown. MÃ£ NCC vÃ  TÃªn NCC Ä‘Æ°á»£c tá»± Ä‘á»™ng Ä‘iá»n tá»« tÃ i khoáº£n cá»§a báº¡n.',
               },
               {
                 step: 3,
-                title: 'Nhập số lượng đơn hàng (PO)',
-                desc: 'Nhập số lượng đơn hàng (1–99). Hệ thống sẽ tạo ra số hàng tương ứng trong bảng đơn hàng.',
+                title: 'Nháº­p sá»‘ lÆ°á»£ng Ä‘Æ¡n hÃ ng (PO)',
+                desc: 'Nháº­p sá»‘ lÆ°á»£ng Ä‘Æ¡n hÃ ng (1â€“99). Há»‡ thá»‘ng sáº½ táº¡o ra sá»‘ hÃ ng tÆ°Æ¡ng á»©ng trong báº£ng Ä‘Æ¡n hÃ ng.',
               },
               {
                 step: 4,
-                title: 'Điền thông tin từng đơn hàng',
-                desc: 'Cho mỗi hàng: nhập Mã sản phẩm — Mã quy trình, chọn Số lần giao, nhập Số kiện/thùng, tải lên ảnh phiếu giao. Nếu đây là lần giao đầu tiên (Số lần giao = 1), bắt buộc phải tải lên Hóa đơn VAT.',
+                title: 'Äiá»n thÃ´ng tin tá»«ng Ä‘Æ¡n hÃ ng',
+                desc: 'Cho má»—i hÃ ng: nháº­p MÃ£ sáº£n pháº©m â€” MÃ£ quy trÃ¬nh, chá»n Sá»‘ láº§n giao, nháº­p Sá»‘ kiá»‡n/thÃ¹ng, táº£i lÃªn áº£nh phiáº¿u giao. Náº¿u Ä‘Ã¢y lÃ  láº§n giao Ä‘áº§u tiÃªn (Sá»‘ láº§n giao = 1), báº¯t buá»™c pháº£i táº£i lÃªn HÃ³a Ä‘Æ¡n VAT.',
               },
               {
                 step: 5,
-                title: 'Chọn khung giờ giao hàng',
-                desc: 'Chọn một trong bốn khung giờ: 07:00–09:00, 09:00–11:00, 13:30–15:30, 15:30–17:00. Đơn hàng đăng ký trước 18:00 sẽ giao ngày N+1, từ 18:00 trở đi sẽ giao ngày N+2.',
+                title: 'Chá»n khung giá» giao hÃ ng',
+                desc: 'Chá»n má»™t trong bá»‘n khung giá»: 07:00â€“09:00, 09:00â€“11:00, 13:30â€“15:30, 15:30â€“17:00. ÄÆ¡n hÃ ng Ä‘Äƒng kÃ½ trÆ°á»›c 18:00 sáº½ giao ngÃ y N+1, tá»« 18:00 trá»Ÿ Ä‘i sáº½ giao ngÃ y N+2.',
               },
               {
                 step: 6,
-                title: 'Gửi đăng ký và lưu mã QR',
-                desc: 'Nhấn "Đăng ký". Sau khi thành công, bạn sẽ nhận được mã booking và mã QR. Vui lòng lưu hoặc in mã QR để sử dụng khi giao hàng tại kho.',
+                title: 'Gá»­i Ä‘Äƒng kÃ½ vÃ  lÆ°u mÃ£ QR',
+                desc: 'Nháº¥n "ÄÄƒng kÃ½". Sau khi thÃ nh cÃ´ng, báº¡n sáº½ nháº­n Ä‘Æ°á»£c mÃ£ booking vÃ  mÃ£ QR. Vui lÃ²ng lÆ°u hoáº·c in mÃ£ QR Ä‘á»ƒ sá»­ dá»¥ng khi giao hÃ ng táº¡i kho.',
               },
             ].map(({ step, title, desc }) => (
               <div key={step} className="flex gap-5">
@@ -66,7 +66,7 @@ export default function GuideCreate() {
 
           <div className="mt-10 pt-6 border-t border-[#E0E0E0]">
             <Link to="/booking/new" className="btn-primary inline-flex" id="guide-go-to-booking">
-              Đăng ký giao hàng ngay
+              ÄÄƒng kÃ½ giao hÃ ng ngay
             </Link>
           </div>
         </div>

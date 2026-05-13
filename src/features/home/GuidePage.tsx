@@ -15,24 +15,24 @@ export default function GuidePage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#FFF5FF]">
       {/* Header */}
-      <div className="border-b border-[#E0E0E0] px-6 py-4 flex items-center gap-4">
-        <Link to="/" className="text-[#888888] hover:text-black transition-colors text-sm">
+      <div className="border-b border-[#E3B2E2] bg-[#E3B2E2] px-6 py-4 flex items-center gap-4">
+        <Link to="/" className="text-black font-bold hover:text-white transition-colors text-sm">
           ← Quay lại
         </Link>
         <img src="/Atino Logo.svg" alt="Atino" className="h-6 w-auto" />
       </div>
 
       {/* Subtabs */}
-      <div className="border-b border-[#E0E0E0] px-6">
+      <div className="border-b border-[#E3B2E2] bg-[#E3B2E2] px-6">
         <div className="flex gap-0 max-w-3xl mx-auto">
           <button
             onClick={() => setTab('create')}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
               tab === 'create'
-                ? 'border-black text-black'
-                : 'border-transparent text-[#888888] hover:text-black'
+                ? 'border-[#AD58A6] bg-[#AD58A6] text-white font-bold'
+                : 'border-transparent text-black font-bold hover:bg-[#D69AD4]'
             }`}
           >
             Quy trình đăng ký
@@ -41,8 +41,8 @@ export default function GuidePage() {
             onClick={() => setTab('receiving')}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
               tab === 'receiving'
-                ? 'border-black text-black'
-                : 'border-transparent text-[#888888] hover:text-black'
+                ? 'border-[#AD58A6] bg-[#AD58A6] text-white font-bold'
+                : 'border-transparent text-black font-bold hover:bg-[#D69AD4]'
             }`}
           >
             Quy trình nhận hàng

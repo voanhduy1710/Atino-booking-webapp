@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { isPdfAttachment } from '@/shared/lib/attachments'
 
 interface Props {
   src: string
@@ -6,6 +7,8 @@ interface Props {
 }
 
 export function Lightbox({ src, onClose }: Props) {
+  const isPdf = isPdfAttachment(src)
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.stopPropagation(); onClose() }
@@ -26,12 +29,21 @@ export function Lightbox({ src, onClose }: Props) {
       >
         ×
       </button>
-      <img
-        src={src}
-        alt=""
-        className="max-w-full max-h-full object-contain rounded shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      />
+      {isPdf ? (
+        <iframe
+          src={src}
+          title="Attachment preview"
+          className="h-full max-h-[92vh] w-full max-w-5xl rounded bg-white shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <img
+          src={src}
+          alt=""
+          className="max-w-full max-h-full object-contain rounded shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        />
+      )}
     </div>
   )
 }

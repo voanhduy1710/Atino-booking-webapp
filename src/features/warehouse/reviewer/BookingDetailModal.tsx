@@ -4,7 +4,9 @@ import { supabase } from '@/shared/lib/supabase'
 import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/Button'
 import { StatusBadge } from '@/shared/components/StatusBadge'
+import { AttachmentThumbnail } from '@/shared/components/AttachmentThumbnail'
 import { buildPhotoList } from '@/shared/lib/gcs'
+import { countBookingItemStatuses, formatBookingItemSummary } from '@/shared/lib/bookingStatus'
 import { formatDateDisplay } from '@/shared/lib/dateUtils'
 import { TIME_SLOT_LABELS } from '@/shared/types/domain'
 import { AmendmentPanel } from './AmendmentPanel'
@@ -21,33 +23,43 @@ interface Props {
   onClose: () => void
   onPhotoClick: (src: string) => void
   onListRefresh: () => void
+  onBookingRefresh: () => Promise<void>
+  onActionComplete: () => void
   canDelete: boolean
   userSub: string
 }
 
-export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefresh, canDelete, userSub }: Props) {
+export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefresh, onBookingRefresh, onActionComplete, canDelete, userSub }: Props) {
   const queryClient = useQueryClient()
   const [rejectItemId, setRejectItemId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [actionItemId, setActionItemId] = useState<string | null>(null)
+  const itemCounts = countBookingItemStatuses(booking.items)
 
-  const refreshAll = () => {
+  const refreshAll = async () => {
     onListRefresh()
     void queryClient.invalidateQueries({ queryKey: ['reviewer-amendment', booking.id] })
+    await onBookingRefresh()
+    onActionComplete()
+    setActionItemId(null)
   }
 
   const confirmItemMutation = useMutation({
     mutationFn: async (itemId: string) => {
+      setActionItemId(itemId)
       const { error } = await supabase.rpc('confirm_booking_item', {
         p_item_id: itemId,
         p_reviewer_username: userSub,
       } as any)
       if (error) throw error
     },
-    onSuccess: refreshAll,
+    onSuccess: () => { void refreshAll() },
+    onError: () => setActionItemId(null),
   })
 
   const rejectItemMutation = useMutation({
     mutationFn: async ({ itemId, reason }: { itemId: string; reason: string }) => {
+      setActionItemId(itemId)
       const { error } = await supabase.rpc('reject_booking_item', {
         p_item_id: itemId,
         p_reason: reason,
@@ -57,8 +69,9 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
     },
     onSuccess: () => {
       setRejectItemId(null); setRejectReason('')
-      refreshAll()
+      void refreshAll()
     },
+    onError: () => setActionItemId(null),
   })
 
   const deleteBookingMutation = useMutation({
@@ -83,6 +96,22 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
           {booking.ghi_chu && (
             <div className="p-3 bg-[#F5F5F5] rounded text-sm">{booking.ghi_chu}</div>
           )}
+
+          <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="rounded border border-[#E0E0E0] px-2 py-2">
+              <p className="font-bold text-[#1a7a3e]">{itemCounts.confirmed}/{itemCounts.total}</p>
+              <p className="text-[#888888]">Đã duyệt</p>
+            </div>
+            <div className="rounded border border-[#E0E0E0] px-2 py-2">
+              <p className="font-bold text-[#CC0000]">{itemCounts.rejected}/{itemCounts.total}</p>
+              <p className="text-[#888888]">Từ chối</p>
+            </div>
+            <div className="rounded border border-[#E0E0E0] px-2 py-2">
+              <p className="font-bold text-[#888888]">{itemCounts.pending}/{itemCounts.total}</p>
+              <p className="text-[#888888]">Chờ xử lý</p>
+            </div>
+          </div>
+          <p className="text-xs text-[#888888]">{formatBookingItemSummary(itemCounts)}</p>
 
           <div className="overflow-x-auto border border-[#E0E0E0] rounded">
             <table className="w-full text-sm">
@@ -110,15 +139,13 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
                         {photos.length > 0 ? (
                           <div className="flex gap-1 flex-wrap">
                             {photos.map((ph, i) => (
-                              <button
+                              <AttachmentThumbnail
                                 key={i}
-                                type="button"
-                                title={ph.label}
+                                src={ph.src}
+                                label={ph.label}
                                 onClick={() => onPhotoClick(ph.src)}
-                                className="w-10 h-10 flex-shrink-0 rounded border border-[#E0E0E0] overflow-hidden hover:border-black transition-colors"
-                              >
-                                <img src={ph.src} alt={ph.label} className="w-full h-full object-cover" />
-                              </button>
+                                className="w-10 h-10"
+                              />
                             ))}
                           </div>
                         ) : (
@@ -131,7 +158,8 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
                           <div className="flex gap-2">
                             <Button
                               variant="success"
-                              loading={confirmItemMutation.isPending}
+                              loading={confirmItemMutation.isPending && actionItemId === item.id}
+                              disabled={rejectItemMutation.isPending}
                               onClick={() => confirmItemMutation.mutate(item.id)}
                               className="text-xs py-1 px-2"
                             >
@@ -139,12 +167,16 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
                             </Button>
                             <Button
                               variant="danger-outline"
+                              disabled={confirmItemMutation.isPending || rejectItemMutation.isPending}
                               onClick={() => setRejectItemId(item.id)}
                               className="text-xs py-1 px-2"
                             >
                               Từ chối
                             </Button>
                           </div>
+                        )}
+                        {item.status === 'rejected' && item.reject_reason && (
+                          <p className="max-w-40 text-xs text-[#CC0000]">{item.reject_reason}</p>
                         )}
                       </td>
                     </tr>
@@ -199,7 +231,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
             <Button variant="outline" onClick={() => setRejectItemId(null)} className="flex-1">Huỷ</Button>
             <Button
               variant="danger-outline"
-              loading={rejectItemMutation.isPending}
+              loading={rejectItemMutation.isPending && actionItemId === rejectItemId}
               disabled={!rejectReason.trim()}
               onClick={() => rejectItemId && rejectItemMutation.mutate({ itemId: rejectItemId, reason: rejectReason })}
               className="flex-1"

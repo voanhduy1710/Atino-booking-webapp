@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+﻿import { useState, useEffect, lazy, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { Navbar } from '@/shared/components/Navbar'
@@ -6,6 +6,7 @@ import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { Link } from 'react-router-dom'
 import { formatDateDisplay, formatDateTimeDisplay } from '@/shared/lib/dateUtils'
+import { deriveBookingStatus } from '@/shared/lib/bookingStatus'
 import { TIME_SLOT_LABELS, type BookingStatus, type TimeSlot } from '@/shared/types/domain'
 import { getCurrentUser } from '@/shared/lib/auth'
 import { ROLE_TABS } from '@/shared/config/navTabs'
@@ -24,7 +25,7 @@ const ROLE_LABELS: Record<RoleView, string> = {
   supplier:           'Supplier',
 }
 
-// ── Supplier view — all bookings, read-only ───────────────────────────────────
+// â”€â”€ Supplier view â€” all bookings, read-only â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface SupplierBooking {
   id: string
   booking_code: string
@@ -43,7 +44,7 @@ function SupplierView() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, suppliers!inner(name), warehouses!inner(name)')
+        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, suppliers!inner(name), warehouses!inner(name), booking_items(status)')
         .order('submitted_at', { ascending: false })
         .limit(200)
       if (error) throw error
@@ -53,10 +54,10 @@ function SupplierView() {
         booking_token: b.booking_token,
         delivery_date: b.delivery_date,
         time_slot: b.time_slot,
-        status: b.status,
+        status: deriveBookingStatus(b.status, b.booking_items ?? []),
         submitted_at: b.submitted_at,
-        supplier_name: b.suppliers?.name ?? '—',
-        warehouse_name: b.warehouses?.name ?? '—',
+        supplier_name: b.suppliers?.name ?? 'â€”',
+        warehouse_name: b.warehouses?.name ?? 'â€”',
       })) as SupplierBooking[]
     },
   })
@@ -67,23 +68,23 @@ function SupplierView() {
 
   return (
     <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
-      <p className="text-xs text-[#888888] mb-4">Đang xem giao diện Supplier — hiển thị tất cả booking (admin view)</p>
+      <p className="text-xs text-[#888888] mb-4">Äang xem giao diá»‡n Supplier â€” hiá»ƒn thá»‹ táº¥t cáº£ booking (admin view)</p>
       {bookings.length === 0 ? (
         <div className="bg-white border border-[#E0E0E0] rounded-lg p-16 text-center text-[#888888]">
-          <p>Không có booking nào</p>
+          <p>KhÃ´ng cÃ³ booking nÃ o</p>
         </div>
       ) : (
         <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#F5F5F5]">
-                <th className="table-header">Mã booking</th>
-                <th className="table-header">Nhà cung cấp</th>
+                <th className="table-header">MÃ£ booking</th>
+                <th className="table-header">NhÃ  cung cáº¥p</th>
                 <th className="table-header">Kho</th>
-                <th className="table-header w-24">Ngày giao</th>
-                <th className="table-header w-28">Khung giờ</th>
-                <th className="table-header w-32">Đăng ký lúc</th>
-                <th className="table-header">Trạng thái</th>
+                <th className="table-header w-24">NgÃ y giao</th>
+                <th className="table-header w-28">Khung giá»</th>
+                <th className="table-header w-32">ÄÄƒng kÃ½ lÃºc</th>
+                <th className="table-header">Tráº¡ng thÃ¡i</th>
               </tr>
             </thead>
             <tbody>
@@ -108,14 +109,14 @@ function SupplierView() {
   )
 }
 
-// ── Main ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function ViewAsPage() {
   const user = getCurrentUser()
   const tabs = user ? (ROLE_TABS[user.role] ?? []) : []
   const [roleView, setRoleView] = useState<RoleView>('warehouse_reviewer')
   const [pageId, setPageId]     = useState<PageId>('reviewer')
 
-  useEffect(() => { document.title = 'View as — Atino' }, [])
+  useEffect(() => { document.title = 'View as â€” Atino' }, [])
 
   useEffect(() => {
     const roleTabs = ROLE_TABS[roleView] ?? []
@@ -125,11 +126,11 @@ export default function ViewAsPage() {
   const roleTabs = ROLE_TABS[roleView] ?? []
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
       <Navbar tabs={tabs} activeTab="viewas" />
 
       {/* Combined bar: page tabs (left) + role selector (right) */}
-      <div className="flex items-stretch justify-between border-b border-[#E0E0E0] bg-white px-4">
+      <div className="flex items-stretch justify-between border-b border-[#E3B2E2] bg-[#E3B2E2] px-4">
         {/* Inner page tabs for the viewed role */}
         <div className="flex">
           {roleTabs.map((t) => (
@@ -138,8 +139,8 @@ export default function ViewAsPage() {
               onClick={() => setPageId(t.id as PageId)}
               className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
                 pageId === t.id
-                  ? 'border-black text-black'
-                  : 'border-transparent text-[#888888] hover:text-black'
+                  ? 'border-[#AD58A6] bg-[#AD58A6] text-white font-bold'
+                  : 'border-transparent text-black font-bold hover:bg-[#D69AD4]'
               }`}
             >
               {t.label}
@@ -154,7 +155,7 @@ export default function ViewAsPage() {
               key={r}
               onClick={() => setRoleView(r)}
               className={`px-4 py-3 text-sm font-medium transition-colors ${
-                roleView === r ? 'bg-black text-white' : 'text-[#888888] hover:text-black'
+                roleView === r ? 'bg-[#AD58A6] text-white font-bold' : 'text-black font-bold hover:bg-[#D69AD4]'
               }`}
             >
               {ROLE_LABELS[r]}

@@ -1,7 +1,7 @@
 import type { UserRole } from '@/shared/types/domain'
 
 export const ROUTE_PERMISSIONS: Record<string, UserRole[]> = {
-  '/booking/new':    ['supplier'],
+  '/booking/new':    ['supplier', 'admin'],
   '/my-bookings':    ['supplier'],
   '/reviewbooking':  ['warehouse_reviewer', 'warehouse_receiver', 'manager', 'admin'],
   '/report':         ['warehouse_reviewer', 'warehouse_receiver', 'manager', 'admin'],

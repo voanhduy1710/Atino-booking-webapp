@@ -6,6 +6,7 @@ import { Navbar } from '@/shared/components/Navbar'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { formatDateDisplay } from '@/shared/lib/dateUtils'
+import { deriveBookingStatus } from '@/shared/lib/bookingStatus'
 import { TIME_SLOT_LABELS, type BookingStatus, type TimeSlot } from '@/shared/types/domain'
 import { Link } from 'react-router-dom'
 import { SUPPLIER_TABS } from '@/features/booking/components/BookingForm'
@@ -20,6 +21,7 @@ interface MyBooking {
   submitted_at: string
   warehouse_name: string
   warehouse_code: string
+  booking_items?: Array<{ status: string }>
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -38,29 +40,26 @@ export default function MyBookingsPage() {
       if (!user?.supplier_account_id) return []
       const q = supabase
         .from('bookings')
-        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, warehouses!inner(name, code)')
+        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, warehouses!inner(name, code), booking_items(status)')
         .eq('supplier_account_id', user.supplier_account_id)
         .order('submitted_at', { ascending: false })
         .limit(100)
 
-      if (statusFilter !== 'all') {
-        q.eq('status', statusFilter)
-      }
-
       const { data, error } = await q
       if (error) throw error
 
-      return (data ?? []).map((b: any) => ({
+      const rows = (data ?? []).map((b: any) => ({
         id: b.id,
         booking_code: b.booking_code,
         booking_token: b.booking_token,
         delivery_date: b.delivery_date,
         time_slot: b.time_slot,
-        status: b.status,
+        status: deriveBookingStatus(b.status, b.booking_items ?? []),
         submitted_at: b.submitted_at,
         warehouse_name: b.warehouses?.name ?? '',
         warehouse_code: b.warehouses?.code ?? '',
       })) as MyBooking[]
+      return statusFilter === 'all' ? rows : rows.filter((b) => b.status === statusFilter)
     },
     enabled: !!user?.supplier_account_id,
   })
@@ -68,13 +67,15 @@ export default function MyBookingsPage() {
   const STATUS_TABS: { label: string; value: BookingStatus | 'all' }[] = [
     { label: 'Tất cả', value: 'all' },
     { label: 'Chờ xác nhận', value: 'pending' },
+    { label: 'Duyệt một phần', value: 'partially_approved' },
+    { label: 'Từ chối một phần', value: 'partially_rejected' },
     { label: 'Đã xác nhận', value: 'confirmed' },
     { label: 'Đã nhận hàng', value: 'received' },
     { label: 'Đã từ chối', value: 'rejected' },
   ]
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
       <Navbar tabs={SUPPLIER_TABS} activeTab="my-bookings" />
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
@@ -94,8 +95,8 @@ export default function MyBookingsPage() {
               onClick={() => setStatusFilter(tab.value)}
               className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                 statusFilter === tab.value
-                  ? 'bg-black text-white border-black'
-                  : 'bg-white text-[#888888] border-[#E0E0E0] hover:border-black hover:text-black'
+                  ? 'bg-[#AD58A6] text-white border-[#AD58A6] font-bold'
+                  : 'bg-white text-[#888888] border-[#E0E0E0] hover:border-[#AD58A6] hover:text-black'
               }`}
             >
               {tab.label}
@@ -121,7 +122,7 @@ export default function MyBookingsPage() {
               <Link
                 key={b.id}
                 to={`/booking/${b.booking_token}`}
-                className="block bg-white border border-[#E0E0E0] rounded-lg px-5 py-4 hover:border-black transition-colors"
+                className="block bg-white border border-[#E0E0E0] rounded-lg px-5 py-4 hover:border-[#AD58A6] transition-colors"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">

@@ -4,6 +4,8 @@ import { supabase } from '@/shared/lib/supabase'
 import { buildPhotoList } from '@/shared/lib/gcs'
 import { formatDateDisplay, formatDateTimeDisplay } from '@/shared/lib/dateUtils'
 import { TIME_SLOT_LABELS, type TimeSlot, type BookingStatus } from '@/shared/types/domain'
+import { AttachmentThumbnail } from '@/shared/components/AttachmentThumbnail'
+import { formatBookingItemSummary, type BookingItemStatusCounts, type BookingStatusTag } from '@/shared/lib/bookingStatus'
 
 export interface BookingRow {
   id: string
@@ -16,6 +18,8 @@ export interface BookingRow {
   supplier_name: string
   warehouse_name: string
   items_count: number
+  item_status_counts: BookingItemStatusCounts
+  status_tags: BookingStatusTag[]
 }
 
 interface Props {
@@ -28,9 +32,10 @@ interface Props {
   onMouseLeave: () => void
   onPhotoClick: (src: string) => void
   onPin: () => void
+  onViewDetails: () => void
 }
 
-export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, onMouseLeave, onPhotoClick, onPin }: Props) {
+export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, onMouseLeave, onPhotoClick, onPin, onViewDetails }: Props) {
   const { data: photos = [] } = useQuery({
     queryKey: ['tooltip-photos', row.id],
     queryFn: async () => {
@@ -63,6 +68,7 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
           ['Ngày giao', formatDateDisplay(row.delivery_date)],
           ['Khung giờ', TIME_SLOT_LABELS[row.time_slot]],
           ['SL PO', String(row.items_count)],
+          ['Xử lý', formatBookingItemSummary(row.item_status_counts)],
           ['Đăng ký lúc', formatDateTimeDisplay(row.submitted_at)],
         ] as [string, string][]).map(([label, value]) => (
           <div key={label} className="flex justify-between gap-2">
@@ -76,19 +82,24 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
           <p className="text-[10px] text-[#888888] uppercase tracking-wider mb-1.5">Ảnh đính kèm</p>
           <div className="flex flex-wrap gap-1.5">
             {photos.map((ph, i) => (
-              <button
+              <AttachmentThumbnail
                 key={i}
-                type="button"
-                title={ph.label}
+                src={ph.src}
+                label={ph.label}
                 onClick={() => { onPin(); onPhotoClick(ph.src) }}
-                className="w-16 h-16 rounded border border-[#E0E0E0] overflow-hidden hover:border-black transition-colors flex-shrink-0"
-              >
-                <img src={ph.src} alt={ph.label} className="w-full h-full object-cover" />
-              </button>
+                className="w-16 h-16"
+              />
             ))}
           </div>
         </div>
       )}
+      <button
+        type="button"
+        onClick={onViewDetails}
+        className="mt-3 w-full rounded border border-[#AD58A6] px-3 py-1.5 text-xs font-medium hover:bg-[#AD58A6] hover:text-white transition-colors"
+      >
+        Xem chi tiết
+      </button>
       {isPinned && <p className="text-[10px] text-[#BBBBBB] mt-2 text-right">Nhấn Esc để đóng</p>}
     </div>
   )

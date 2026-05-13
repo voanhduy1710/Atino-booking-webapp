@@ -134,7 +134,7 @@ export function AccountsTab() {
             key={value}
             onClick={() => setStatusFilter(value)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              statusFilter === value ? 'bg-black text-white border-black' : 'bg-white border-[#E0E0E0] text-[#888888] hover:border-black hover:text-black'
+              statusFilter === value ? 'bg-[#AD58A6] text-white border-[#AD58A6] font-bold' : 'bg-white border-[#E0E0E0] text-[#888888] hover:border-[#AD58A6] hover:text-black'
             }`}
           >
             {label}

@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 
 interface Props {
   index: number
+  rowId: string
   register: UseFormRegister<BookingFormData>
   errors: FieldErrors<BookingFormData>
   sessionId: string
@@ -17,7 +18,7 @@ interface Props {
 
 const DELIVERY_ROUND_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-export function PoRow({ index, register, errors, sessionId, supplierCode, onRemove, setValue, watch }: Props) {
+export function PoRow({ index, rowId, register, errors, sessionId, supplierCode, onRemove, setValue, watch }: Props) {
   const { files: slipFiles, upload: uploadSlip, remove: removeSlip, isUploading: slipUploading } = usePhotoUpload(sessionId, supplierCode)
   const { files: vatFiles, upload: uploadVat, remove: removeVat, isUploading: vatUploading } = usePhotoUpload(sessionId, supplierCode)
 
@@ -26,12 +27,15 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
 
   const deliveryRound = watch(`items.${index}.delivery_round`)
   const isFinalRound = watch(`items.${index}.is_final_round`)
+  const slipPaths = (watch(`items.${index}.slip_temp_paths`) as string[]) ?? []
+  const vatPaths = (watch(`items.${index}.vat_temp_paths`) as string[]) ?? []
 
   const itemErrors = errors.items?.[index]
+  const uploadPrefix = rowId.replace(/[^a-zA-Z0-9_-]/g, '')
 
   const handleSlipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files ?? [])
-    const basePaths = (watch(`items.${index}.slip_temp_paths`) as string[]) ?? []
+    const basePaths = slipPaths
     if (basePaths.length + newFiles.length > 10) {
       alert('Tối đa 10 ảnh phiếu giao mỗi đơn hàng')
       return
@@ -40,7 +44,7 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
     // (watch returns a stale snapshot; reading it per-iteration causes overwrites)
     const accumulated: string[] = [...basePaths]
     for (const file of newFiles) {
-      const path = await uploadSlip(file, `slip_${index}`)
+      const path = await uploadSlip(file, `slip_${uploadPrefix}`)
       if (path) accumulated.push(path)
     }
     console.log(`[PoRow ${index}] slip accumulated:`, accumulated)
@@ -50,7 +54,7 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
 
   const handleVatUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files ?? [])
-    const basePaths = (watch(`items.${index}.vat_temp_paths`) as string[]) ?? []
+    const basePaths = vatPaths
     if (basePaths.length + newFiles.length > 10) {
       alert('Tối đa 10 hóa đơn VAT mỗi đơn hàng')
       return
@@ -58,7 +62,7 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
     // Accumulate paths locally — same fix as handleSlipUpload
     const accumulated: string[] = [...basePaths]
     for (const file of newFiles) {
-      const path = await uploadVat(file, `vat_${index}`)
+      const path = await uploadVat(file, `vat_${uploadPrefix}`)
       if (path) accumulated.push(path)
     }
     console.log(`[PoRow ${index}] vat accumulated:`, accumulated)
@@ -68,20 +72,18 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
 
   const handleRemoveSlip = (tempPath: string) => {
     removeSlip(tempPath)
-    const currentPaths = (watch(`items.${index}.slip_temp_paths`) as string[]) ?? []
     setValue(
       `items.${index}.slip_temp_paths`,
-      currentPaths.filter((p) => p !== tempPath),
+      slipPaths.filter((p) => p !== tempPath),
       { shouldValidate: true }
     )
   }
 
   const handleRemoveVat = (tempPath: string) => {
     removeVat(tempPath)
-    const currentPaths = (watch(`items.${index}.vat_temp_paths`) as string[]) ?? []
     setValue(
       `items.${index}.vat_temp_paths`,
-      currentPaths.filter((p) => p !== tempPath),
+      vatPaths.filter((p) => p !== tempPath),
       { shouldValidate: true }
     )
   }
@@ -167,7 +169,7 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
                 type="button"
                 onClick={() => vatInputRef.current?.click()}
                 disabled={vatFiles.filter((f) => f.status !== 'error').length >= 10}
-                className="flex items-center gap-1 text-xs border border-dashed border-[#E0E0E0] hover:border-black disabled:opacity-40 rounded px-2 py-1 transition-colors"
+                className="flex items-center gap-1 text-xs border border-dashed border-[#E0E0E0] hover:border-[#AD58A6] disabled:opacity-40 rounded px-2 py-1 transition-colors"
               >
                 {vatUploading ? <LoadingSpinner size="sm" /> : '+'}
                 Thêm VAT
@@ -232,7 +234,7 @@ export function PoRow({ index, register, errors, sessionId, supplierCode, onRemo
             type="button"
             onClick={() => slipInputRef.current?.click()}
             disabled={slipFiles.filter((f) => f.status !== 'error').length >= 10}
-            className="flex items-center gap-1 text-xs border border-dashed border-[#E0E0E0] hover:border-black disabled:opacity-40 rounded px-2 py-1 transition-colors"
+            className="flex items-center gap-1 text-xs border border-dashed border-[#E0E0E0] hover:border-[#AD58A6] disabled:opacity-40 rounded px-2 py-1 transition-colors"
           >
             {slipUploading ? <LoadingSpinner size="sm" /> : '+'}
             Thêm ảnh

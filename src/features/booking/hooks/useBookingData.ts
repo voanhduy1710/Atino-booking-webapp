@@ -3,6 +3,15 @@ import { supabase } from '@/shared/lib/supabase'
 import { getCurrentUser } from '@/shared/lib/auth'
 import type { Warehouse, Supplier } from '@/shared/types/domain'
 
+export interface ActiveSupplierAccountOption {
+  id: string
+  username: string
+  full_name: string
+  supplier_id: string
+  supplier_name: string
+  supplier_code: string
+}
+
 export function useWarehouses() {
   return useQuery({
     queryKey: ['warehouses'],
@@ -33,5 +42,29 @@ export function useSupplierInfo() {
       return data as Supplier
     },
     enabled: !!user?.supplier_id,
+  })
+}
+
+export function useActiveSupplierAccounts(enabled = true) {
+  return useQuery({
+    queryKey: ['active-supplier-accounts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('supplier_accounts')
+        .select('id, username, full_name, supplier_id, suppliers!inner(name, code)')
+        .eq('status', 'active')
+        .not('supplier_id', 'is', null)
+        .order('full_name')
+      if (error) throw error
+      return ((data ?? []) as any[]).map((account) => ({
+        id: account.id,
+        username: account.username,
+        full_name: account.full_name,
+        supplier_id: account.supplier_id,
+        supplier_name: account.suppliers?.name ?? '',
+        supplier_code: account.suppliers?.code ?? '',
+      })) as ActiveSupplierAccountOption[]
+    },
+    enabled,
   })
 }

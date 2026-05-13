@@ -9,9 +9,9 @@ export function GuideTabs() {
   const { pathname } = useLocation()
 
   return (
-    <div className="border-b border-[#E0E0E0] px-6 bg-white flex items-center gap-4 h-14">
+    <div className="border-b border-[#E3B2E2] px-6 bg-[#E3B2E2] flex items-center gap-4 h-14">
       {/* Back + logo */}
-      <Link to="/" className="text-[#888888] hover:text-black transition-colors text-sm flex-shrink-0">
+      <Link to="/" className="text-black font-bold hover:text-white transition-colors text-sm flex-shrink-0">
         ← Quay lại
       </Link>
       <img src="/Atino Logo.svg" alt="Atino" className="h-6 w-auto flex-shrink-0" />
@@ -25,8 +25,8 @@ export function GuideTabs() {
             to={path}
             className={`px-3 py-1 text-sm font-medium rounded transition-colors whitespace-nowrap ${
               active
-                ? 'bg-black text-white'
-                : 'text-[#888888] hover:text-black'
+                ? 'bg-[#AD58A6] text-white font-bold'
+                : 'text-black font-bold hover:bg-[#D69AD4]'
             }`}
           >
             {label}

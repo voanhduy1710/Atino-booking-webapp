@@ -58,7 +58,7 @@ export function FilterDatePicker({
       showYearDropdown
       dropdownMode="select"
       wrapperClassName={`inline-block ${wrapperClassName}`}
-      className={`border border-[#E0E0E0] rounded px-2 py-1 text-xs w-28 focus:outline-none focus:border-black ${className}`}
+      className={`border border-[#E0E0E0] rounded px-2 py-1 text-xs w-28 focus:outline-none focus:border-[#AD58A6] ${className}`}
       popperPlacement="bottom-start"
     />
   )

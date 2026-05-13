@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import jsQR from 'jsqr'
 import { supabase } from '@/shared/lib/supabase'
@@ -6,6 +6,7 @@ import { Navbar } from '@/shared/components/Navbar'
 import { Button } from '@/shared/components/Button'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { formatDateDisplay } from '@/shared/lib/dateUtils'
+import { deriveBookingStatus } from '@/shared/lib/bookingStatus'
 import { type TimeSlot, type BookingStatus } from '@/shared/types/domain'
 import { getCurrentUser } from '@/shared/lib/auth'
 import { ROLE_TABS } from '@/shared/config/navTabs'
@@ -46,7 +47,7 @@ export default function ReceiverPage() {
   const scanIntervalRef = useRef<number | null>(null)
 
   useEffect(() => {
-    document.title = 'Nhận hàng — Atino'
+    document.title = 'Nháº­n hÃ ng â€” Atino'
     return () => { if (scanIntervalRef.current) clearInterval(scanIntervalRef.current) }
   }, [])
 
@@ -63,14 +64,14 @@ export default function ReceiverPage() {
         .eq('booking_token', tok)
         .single()
 
-      if (error || !data) { setLookupError('Không tìm thấy booking'); return }
+      if (error || !data) { setLookupError('KhÃ´ng tÃ¬m tháº¥y booking'); return }
 
       const d = data as any
       const b: BookingDetail = {
         id: d.id, booking_code: d.booking_code, booking_token: d.booking_token,
         delivery_date: d.delivery_date, time_slot: d.time_slot as TimeSlot,
-        status: d.status as BookingStatus, supplier_name: d.suppliers?.name ?? '—',
-        warehouse_name: d.warehouses?.name ?? '—', ghi_chu: d.ghi_chu,
+        status: deriveBookingStatus(d.status, d.booking_items ?? []), supplier_name: d.suppliers?.name ?? 'â€”',
+        warehouse_name: d.warehouses?.name ?? 'â€”', ghi_chu: d.ghi_chu,
         items: d.booking_items ?? [],
       }
       setBooking(b)
@@ -116,7 +117,7 @@ export default function ReceiverPage() {
       }
     } catch {
       setScanning(false)
-      alert('Không thể truy cập camera')
+      alert('KhÃ´ng thá»ƒ truy cáº­p camera')
     }
   }
 
@@ -131,26 +132,26 @@ export default function ReceiverPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
       <Navbar tabs={tabs} activeTab="receiver" />
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
-        <h1 className="text-xl font-bold mb-6">Nhận hàng</h1>
+        <h1 className="text-xl font-bold mb-6">Nháº­n hÃ ng</h1>
 
         <div className="bg-white border border-[#E0E0E0] rounded-lg px-6 py-5 mb-4">
-          <p className="font-semibold text-sm mb-3">Quét mã QR hoặc nhập mã booking</p>
+          <p className="font-semibold text-sm mb-3">QuÃ©t mÃ£ QR hoáº·c nháº­p mÃ£ booking</p>
           <div className="flex gap-2">
             <input
               type="text"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') void lookupBooking(tokenInput) }}
-              placeholder="Nhập mã booking hoặc dán mã QR..."
+              placeholder="Nháº­p mÃ£ booking hoáº·c dÃ¡n mÃ£ QR..."
               className="input-field flex-1"
               id="booking-token-input"
             />
-            <Button onClick={() => void lookupBooking(tokenInput)} loading={isLooking} disabled={!tokenInput.trim()} id="lookup-btn">Tra cứu</Button>
+            <Button onClick={() => void lookupBooking(tokenInput)} loading={isLooking} disabled={!tokenInput.trim()} id="lookup-btn">Tra cá»©u</Button>
             <Button variant="outline" onClick={scanning ? stopScanning : () => void startScanning()} id="scan-btn">
-              {scanning ? '⏹ Dừng' : '📷 Quét'}
+              {scanning ? 'â¹ Dá»«ng' : 'ðŸ“· QuÃ©t'}
             </Button>
           </div>
           {scanning && (
@@ -167,21 +168,21 @@ export default function ReceiverPage() {
             <div className="px-6 py-4 border-b border-[#E0E0E0] flex items-center justify-between">
               <div>
                 <p className="font-mono font-bold">{booking.booking_code}</p>
-                <p className="text-xs text-[#888888]">{booking.supplier_name} • {formatDateDisplay(booking.delivery_date)}</p>
+                <p className="text-xs text-[#888888]">{booking.supplier_name} â€¢ {formatDateDisplay(booking.delivery_date)}</p>
               </div>
               <StatusBadge status={booking.status} />
             </div>
 
-            {booking.status === 'confirmed' ? (
+            {booking.status === 'confirmed' || booking.status === 'partially_approved' ? (
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-[#F5F5F5]">
-                        <th className="table-header">Mã SP</th>
-                        <th className="table-header">Mã QT</th>
-                        <th className="table-header">SL đăng ký</th>
-                        <th className="table-header">SL thực nhận</th>
+                        <th className="table-header">MÃ£ SP</th>
+                        <th className="table-header">MÃ£ QT</th>
+                        <th className="table-header">SL Ä‘Äƒng kÃ½</th>
+                        <th className="table-header">SL thá»±c nháº­n</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -206,15 +207,16 @@ export default function ReceiverPage() {
                 </div>
                 <div className="px-6 py-4">
                   <Button fullWidth loading={receiveDirectMutation.isPending} onClick={() => receiveDirectMutation.mutate()} id="confirm-receive-btn">
-                    Xác nhận nhận hàng
+                    XÃ¡c nháº­n nháº­n hÃ ng
                   </Button>
                 </div>
               </>
             ) : (
               <div className="px-6 py-8 text-center text-[#888888] text-sm">
-                {booking.status === 'received' ? '✅ Đã nhận hàng thành công.'
-                  : booking.status === 'pending' ? '⏳ Booking chưa được reviewer xác nhận.'
-                  : '❌ Booking đã bị từ chối.'}
+                {booking.status === 'received' ? 'âœ… ÄÃ£ nháº­n hÃ ng thÃ nh cÃ´ng.'
+                  : booking.status === 'pending' ? 'â³ Booking chÆ°a Ä‘Æ°á»£c reviewer xÃ¡c nháº­n.'
+                  : booking.status === 'partially_rejected' ? 'â³ Booking cÃ²n sáº£n pháº©m chÆ°a Ä‘Æ°á»£c duyá»‡t Ä‘á»ƒ nháº­n hÃ ng.'
+                  : 'âŒ Booking Ä‘Ã£ bá»‹ tá»« chá»‘i.'}
               </div>
             )}
           </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { Navbar } from '@/shared/components/Navbar'
@@ -30,7 +30,7 @@ export default function WarehousesPage({ embedded = false }: { embedded?: boolea
   const [editing, setEditing] = useState<Warehouse | null>(null)
   const [editName, setEditName] = useState('')
 
-  useEffect(() => { document.title = 'Kho hàng — Atino' }, [])
+  useEffect(() => { document.title = 'Kho hÃ ng â€” Atino' }, [])
 
   const { data: warehouses = [] } = useQuery({
     queryKey: ['warehouses'],
@@ -75,17 +75,17 @@ export default function WarehousesPage({ embedded = false }: { embedded?: boolea
     <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
         <div className="flex justify-end mb-3">
           <button onClick={() => { setAdding(true); setNewCode(''); setNewName('') }} className="btn-green">
-            + Thêm kho
+            + ThÃªm kho
           </button>
         </div>
         <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#F5F5F5]">
-                <th className="table-header">Mã kho</th>
-                <th className="table-header">Tên kho</th>
-                <th className="table-header">Trạng thái</th>
-                <th className="table-header w-32">Thao tác</th>
+                <th className="table-header">MÃ£ kho</th>
+                <th className="table-header">TÃªn kho</th>
+                <th className="table-header">Tráº¡ng thÃ¡i</th>
+                <th className="table-header w-32">Thao tÃ¡c</th>
               </tr>
             </thead>
             <tbody>
@@ -98,25 +98,25 @@ export default function WarehousesPage({ embedded = false }: { embedded?: boolea
                     ) : w.name}
                   </td>
                   <td className="table-cell">
-                    {w.active ? <span className="status-confirmed">Hoạt động</span> : <span className="status-rejected">Ngừng</span>}
+                    {w.active ? <span className="status-confirmed">Hoáº¡t Ä‘á»™ng</span> : <span className="status-rejected">Ngá»«ng</span>}
                   </td>
                   <td className="table-cell">
                     <div className="flex gap-3">
                       {editing?.id === w.id ? (
                         <>
                           <LinkBtn onClick={() => editMutation.mutate({ id: w.id, name: editName })}>
-                            {editMutation.isPending ? 'Lưu...' : 'Lưu'}
+                            {editMutation.isPending ? 'LÆ°u...' : 'LÆ°u'}
                           </LinkBtn>
-                          <LinkBtn onClick={() => setEditing(null)}>Hủy</LinkBtn>
+                          <LinkBtn onClick={() => setEditing(null)}>Há»§y</LinkBtn>
                         </>
                       ) : (
                         <>
-                          <LinkBtn onClick={() => { setEditing(w); setEditName(w.name) }}>Sửa</LinkBtn>
+                          <LinkBtn onClick={() => { setEditing(w); setEditName(w.name) }}>Sá»­a</LinkBtn>
                           {canDelete && (
                             <LinkBtn danger onClick={() => {
-                              if (window.confirm(`Xóa kho "${w.name}"? Không thể hoàn tác.`)) deleteMutation.mutate(w.id)
+                              if (window.confirm(`XÃ³a kho "${w.name}"? KhÃ´ng thá»ƒ hoÃ n tÃ¡c.`)) deleteMutation.mutate(w.id)
                             }}>
-                              Xóa
+                              XÃ³a
                             </LinkBtn>
                           )}
                         </>
@@ -131,15 +131,15 @@ export default function WarehousesPage({ embedded = false }: { embedded?: boolea
                     <input autoFocus value={newCode} onChange={(e) => setNewCode(e.target.value.toUpperCase())} placeholder="VD: THL" className="input-field py-1 text-xs font-mono w-28" />
                   </td>
                   <td className="table-cell">
-                    <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Tên kho..." className="input-field py-1 text-xs" />
+                    <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="TÃªn kho..." className="input-field py-1 text-xs" />
                   </td>
-                  <td className="table-cell text-[#888888] text-xs">Hoạt động</td>
+                  <td className="table-cell text-[#888888] text-xs">Hoáº¡t Ä‘á»™ng</td>
                   <td className="table-cell">
                     <div className="flex gap-3">
                       <LinkBtn onClick={() => addMutation.mutate({ code: newCode, name: newName })}>
-                        {addMutation.isPending ? 'Lưu...' : 'Lưu'}
+                        {addMutation.isPending ? 'LÆ°u...' : 'LÆ°u'}
                       </LinkBtn>
-                      <LinkBtn onClick={() => setAdding(false)}>Hủy</LinkBtn>
+                      <LinkBtn onClick={() => setAdding(false)}>Há»§y</LinkBtn>
                     </div>
                     {addMutation.isError && (
                       <p className="text-xs text-[#CC0000] mt-1">{(addMutation.error as Error).message}</p>
@@ -148,7 +148,7 @@ export default function WarehousesPage({ embedded = false }: { embedded?: boolea
                 </tr>
               )}
               {warehouses.length === 0 && !adding && (
-                <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
+                <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">KhÃ´ng cÃ³ dá»¯ liá»‡u</td></tr>
               )}
             </tbody>
           </table>
@@ -158,7 +158,7 @@ export default function WarehousesPage({ embedded = false }: { embedded?: boolea
 
   if (embedded) return mainContent
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
       <Navbar tabs={tabs} activeTab="warehouses" />
       {mainContent}
     </div>

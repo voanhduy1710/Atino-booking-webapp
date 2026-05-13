@@ -13,7 +13,7 @@
     font-size: 16px;
     line-height: 1.6;
     color: #000000;
-    background-color: #ffffff;
+    background-color: #FFF5FF;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -21,6 +21,7 @@
   body {
     margin: 0;
     min-height: 100vh;
+    background-color: #FFF5FF;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -39,7 +40,7 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center px-6 py-3 bg-black text-white font-semibold rounded border border-black transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center px-6 py-3 bg-[#E3B2E2] text-black font-bold rounded border border-[#E3B2E2] transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   .btn-sm {
@@ -51,7 +52,7 @@
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center px-6 py-3 bg-white text-black font-semibold rounded border border-black transition-colors hover:bg-black hover:text-white disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center px-6 py-3 bg-white text-black font-semibold rounded border border-[#AD58A6] transition-colors hover:bg-[#AD58A6] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   .btn-danger-outline {
@@ -59,7 +60,7 @@
   }
 
   .input-field {
-    @apply w-full px-3 py-2 border border-[#E0E0E0] rounded bg-white text-black placeholder-[#888888] focus:outline-none focus:border-black transition-colors;
+    @apply w-full px-3 py-2 border border-[#E0E0E0] rounded bg-white text-black placeholder-[#888888] focus:outline-none focus:border-[#AD58A6] transition-colors;
   }
 
   .input-field-error {
@@ -71,23 +72,31 @@
   }
 
   .status-pending {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium border border-[#888888] text-[#888888] bg-white;
+    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium border border-[#D6D6D6] text-[#555555] bg-[#F5F5F5];
   }
 
   .status-confirmed {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-[#1a7a3e] text-white;
+    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium bg-[#1a7a3e] text-white;
+  }
+
+  .status-partial {
+    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium border border-[#E3B2E2] text-black bg-[#FFF5FF];
+  }
+
+  .status-partial-rejected {
+    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium border border-[#CC0000] text-[#CC0000] bg-[#FFF5F5];
   }
 
   .status-cancelled {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium border border-[#888888] text-[#888888] bg-[#F5F5F5] line-through;
+    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium border border-[#888888] text-[#888888] bg-[#F5F5F5] line-through;
   }
 
   .status-rejected {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium border border-[#CC0000] text-[#CC0000] bg-white;
+    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium border border-[#F0B3B3] text-[#CC0000] bg-[#FFF5F5];
   }
 
   .status-received {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-[#1a7a3e] text-white;
+    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium bg-[#1a7a3e] text-white;
   }
 
   .section-header {
@@ -141,10 +150,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #E0E0E0;
+  background: #E3B2E2;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #888888;
+  background: #AD58A6;
 }

@@ -41,7 +41,7 @@ export default function AdminPage() {
   useEffect(() => { document.title = 'Admin — Atino' }, [])
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
       <Navbar tabs={ADMIN_TABS} activeTab={activeTab} />
 
       {activeTab === 'reviewbookings' && (
@@ -58,13 +58,13 @@ export default function AdminPage() {
 
       {activeTab === 'manageviews' && (
         <div className="flex flex-col flex-1">
-          <div className="flex justify-end border-b border-[#E0E0E0] bg-white px-4">
+          <div className="flex justify-end border-b border-[#E3B2E2] bg-[#E3B2E2] px-4">
             {(['reviewer', 'manager'] as ManageViewsTab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setManageViewsTab(t)}
                 className={`px-4 py-3 text-sm font-medium transition-colors ${
-                  manageViewsTab === t ? 'bg-black text-white' : 'text-[#888888] hover:text-black'
+                  manageViewsTab === t ? 'bg-[#AD58A6] text-white font-bold' : 'text-black font-bold hover:bg-[#D69AD4]'
                 }`}
               >
                 {t === 'reviewer' ? 'Reviewer' : 'Manager'}

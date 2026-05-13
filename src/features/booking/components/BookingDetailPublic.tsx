@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+﻿import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
@@ -6,10 +6,12 @@ import { Navbar } from '@/shared/components/Navbar'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { Lightbox } from '@/shared/components/Lightbox'
+import { AttachmentThumbnail } from '@/shared/components/AttachmentThumbnail'
 import { formatDateDisplay, formatDateTimeDisplay } from '@/shared/lib/dateUtils'
 import { TIME_SLOT_LABELS, type TimeSlot, type BookingStatus } from '@/shared/types/domain'
 import { getCurrentUser } from '@/shared/lib/auth'
-import { resolvePhotoUrl } from '@/shared/lib/gcs'
+import { buildPhotoList } from '@/shared/lib/gcs'
+import { countBookingItemStatuses, deriveBookingStatus, formatBookingItemSummary } from '@/shared/lib/bookingStatus'
 import { BookingAmendmentSection } from './BookingAmendmentSection'
 
 interface BookingRow {
@@ -40,26 +42,12 @@ interface BookingRow {
   }>
 }
 
-function PhotoThumbnail({ src, label, onClick }: { src: string; label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group relative w-12 h-12 flex-shrink-0 rounded border border-[#E0E0E0] overflow-hidden hover:border-black transition-colors"
-      title={label}
-    >
-      <img src={src} alt={label} className="w-full h-full object-cover" />
-      <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-    </button>
-  )
-}
-
 export default function BookingDetailPublic() {
   const { token } = useParams<{ token: string }>()
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const user = getCurrentUser()
 
-  useEffect(() => { document.title = 'Chi tiết đăng ký — Atino Booking' }, [])
+  useEffect(() => { document.title = 'Chi tiáº¿t Ä‘Äƒng kÃ½ â€” Atino Booking' }, [])
 
   const { data: booking, isLoading, error } = useQuery({
     queryKey: ['booking-public', token],
@@ -99,85 +87,80 @@ export default function BookingDetailPublic() {
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-[#888888]">
-          <p className="text-2xl">❌</p>
-          <p>Không tìm thấy đơn đăng ký.</p>
-          <Link to="/" className="btn-outline">Về trang chủ</Link>
+          <p className="text-2xl">âŒ</p>
+          <p>KhÃ´ng tÃ¬m tháº¥y Ä‘Æ¡n Ä‘Äƒng kÃ½.</p>
+          <Link to="/" className="btn-outline">Vá» trang chá»§</Link>
         </div>
       </div>
     )
   }
 
   const items = booking.booking_items ?? []
+  const itemCounts = countBookingItemStatuses(items)
+  const bookingStatus = deriveBookingStatus(booking.status, items)
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F5]">
+    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
       <Navbar />
       {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
 
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 mx-auto w-full lg:w-[80vw] max-w-none px-4 py-6">
         <div className="bg-white border border-[#E0E0E0] rounded-lg px-6 py-5 mb-4">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
               <p className="font-mono text-lg font-bold">{booking.booking_code}</p>
-              <p className="text-sm text-[#888888]">Đăng ký lúc {formatDateTimeDisplay(booking.submitted_at)}</p>
+              <p className="text-sm text-[#888888]">ÄÄƒng kÃ½ lÃºc {formatDateTimeDisplay(booking.submitted_at)}</p>
             </div>
-            <StatusBadge status={booking.status} />
+            <StatusBadge status={bookingStatus} />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-            <div><p className="text-xs text-[#888888] mb-0.5">Kho</p><p className="font-medium">{booking.warehouses?.name ?? '—'}</p></div>
-            <div><p className="text-xs text-[#888888] mb-0.5">Ngày giao</p><p className="font-medium">{formatDateDisplay(booking.delivery_date)}</p></div>
-            <div><p className="text-xs text-[#888888] mb-0.5">Khung giờ</p><p className="font-medium">{TIME_SLOT_LABELS[booking.time_slot]}</p></div>
-            <div><p className="text-xs text-[#888888] mb-0.5">Nhà cung cấp</p><p className="font-medium">{booking.suppliers?.name ?? '—'}</p></div>
-            {booking.confirmed_by && <div><p className="text-xs text-[#888888] mb-0.5">Xác nhận bởi</p><p className="font-medium">{booking.confirmed_by}</p></div>}
-            {booking.received_by && <div><p className="text-xs text-[#888888] mb-0.5">Nhận bởi</p><p className="font-medium">{booking.received_by}</p></div>}
+            <div><p className="text-xs text-[#888888] mb-0.5">Kho</p><p className="font-medium">{booking.warehouses?.name ?? 'â€”'}</p></div>
+            <div><p className="text-xs text-[#888888] mb-0.5">NgÃ y giao</p><p className="font-medium">{formatDateDisplay(booking.delivery_date)}</p></div>
+            <div><p className="text-xs text-[#888888] mb-0.5">Khung giá»</p><p className="font-medium">{TIME_SLOT_LABELS[booking.time_slot]}</p></div>
+            <div><p className="text-xs text-[#888888] mb-0.5">NhÃ  cung cáº¥p</p><p className="font-medium">{booking.suppliers?.name ?? 'â€”'}</p></div>
+            {booking.confirmed_by && <div><p className="text-xs text-[#888888] mb-0.5">XÃ¡c nháº­n bá»Ÿi</p><p className="font-medium">{booking.confirmed_by}</p></div>}
+            {booking.received_by && <div><p className="text-xs text-[#888888] mb-0.5">Nháº­n bá»Ÿi</p><p className="font-medium">{booking.received_by}</p></div>}
           </div>
         </div>
 
         <div className="bg-white border border-[#E0E0E0] rounded-lg overflow-hidden">
           <div className="px-6 py-4 border-b border-[#E0E0E0]">
-            <h2 className="font-bold text-sm">Danh sách đơn hàng ({items.length})</h2>
+            <h2 className="font-bold text-sm">Danh sÃ¡ch Ä‘Æ¡n hÃ ng ({items.length})</h2>
+            <p className="text-xs text-[#888888] mt-1">{formatBookingItemSummary(itemCounts)}</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm table-fixed">
+            <table className="min-w-[820px] w-full text-sm">
               <thead>
                 <tr className="bg-[#F5F5F5]">
-                  <th className="table-header w-28">Mã SP</th>
-                  <th className="table-header w-28">Mã QT</th>
-                  <th className="table-header w-20">Lần giao</th>
-                  <th className="table-header w-20">SL đk</th>
-                  <th className="table-header w-20">SL nhận</th>
-                  <th className="table-header">Ảnh</th>
+                  <th className="table-header w-28">MÃ£ SP</th>
+                  <th className="table-header w-28">MÃ£ QT</th>
+                  <th className="table-header w-20">Láº§n giao</th>
+                  <th className="table-header w-20">SL Ä‘k</th>
+                  <th className="table-header w-20">SL nháº­n</th>
+                  <th className="table-header w-36">Tráº¡ng thÃ¡i</th>
+                  <th className="table-header w-44">áº¢nh</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => {
-                  const photos: { src: string; label: string }[] = []
-                  const vatPhotos = (item.booking_item_photos ?? []).filter((p) => p.photo_type === 'vat_invoice')
-                  if (vatPhotos.length > 0) {
-                    for (const p of vatPhotos) photos.push({ src: resolvePhotoUrl(p.storage_path), label: 'Hóa đơn VAT' })
-                  } else if (item.vat_invoice_url) {
-                    photos.push({ src: item.vat_invoice_url, label: 'Hóa đơn VAT' })
-                  }
-                  for (const p of item.booking_item_photos ?? []) {
-                    if (p.photo_type === 'vat_invoice') continue
-                    photos.push({ src: resolvePhotoUrl(p.storage_path), label: p.photo_type === 'delivery_slip' ? 'Phiếu giao' : 'Chênh lệch' })
-                  }
+                  const photos = buildPhotoList(item)
                   return (
                     <tr key={item.id} className="border-t border-[#E0E0E0]">
                       <td className="table-cell font-mono">{item.product_code}</td>
                       <td className="table-cell font-mono">{item.process_code}</td>
-                      <td className="table-cell text-center">{item.is_final_round ? 'Cuối' : item.delivery_round}</td>
+                      <td className="table-cell text-center">{item.is_final_round ? 'Cuá»‘i' : item.delivery_round}</td>
                       <td className="table-cell text-right">{item.quantity_booked}</td>
-                      <td className="table-cell text-right">{item.quantity_received ?? '—'}</td>
-                      <td className="table-cell">
+                      <td className="table-cell text-right">{item.quantity_received ?? 'â€”'}</td>
+                      <td className="table-cell align-middle"><StatusBadge status={item.status as BookingStatus} /></td>
+                      <td className="table-cell align-middle">
                         {photos.length > 0 ? (
-                          <div className="flex gap-1 flex-wrap">
+                          <div className="grid grid-cols-3 gap-1 max-w-36">
                             {photos.map((ph, i) => (
-                              <PhotoThumbnail key={i} src={ph.src} label={ph.label} onClick={() => setLightboxSrc(ph.src)} />
+                              <AttachmentThumbnail key={i} src={ph.src} label={ph.label} onClick={() => setLightboxSrc(ph.src)} className="w-10 h-10" />
                             ))}
                           </div>
                         ) : (
-                          <span className="text-[#BBBBBB]">—</span>
+                          <span className="text-[#BBBBBB]">â€”</span>
                         )}
                       </td>
                     </tr>
@@ -190,7 +173,7 @@ export default function BookingDetailPublic() {
 
         {booking.ghi_chu && (
           <div className="mt-4 bg-white border border-[#E0E0E0] rounded-lg px-6 py-4">
-            <p className="text-xs text-[#888888] mb-1">Ghi chú</p>
+            <p className="text-xs text-[#888888] mb-1">Ghi chÃº</p>
             <p className="text-sm">{booking.ghi_chu}</p>
           </div>
         )}
