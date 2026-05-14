@@ -103,9 +103,13 @@ try {
                 foreach ($line in $beLines) {
                     if ($showBackendDetailLogs -or
                         $line -match "^(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD) " -or
+                        $line -match "^\[req:" -or
+                        $line -match "^\[booking" -or
+                        $line -match "^\[upload" -or
+                        $line -match "^\[body\]" -or
                         $line -match "^\[server\]" -or
-                        $line -match "^INFO:" -or
-                        $line -match "Express running") {
+                        $line -match "Express running" -or
+                        $line -match "\b(ERROR|WARN|FATAL|MISSING)\b") {
                         Write-Host "[BE] $line" -ForegroundColor Yellow
                     }
                 }

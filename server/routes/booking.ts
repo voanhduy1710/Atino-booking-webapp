@@ -9,6 +9,7 @@
 import { Router, Request, Response } from 'express'
 import { createClient } from '@supabase/supabase-js'
 import { verifyJWT } from '../lib/jwt.js'
+import ws from 'ws'
 
 const router = Router()
 
@@ -19,7 +20,7 @@ function getSupabase() {
   const url = process.env.SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set')
-  return createClient(url, key)
+  return createClient(url, key, { realtime: { transport: ws as any } })
 }
 
 interface PoItem {
@@ -56,11 +57,13 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
+  console.log(`[booking:${req.id}] auth OK role=${payload.role}`)
 
   try {
     const supabase = getSupabase()
     const body = req.body as FinalizeBody
     const supplierAccountId = payload.role === 'admin' ? body.supplier_account_id : payload.supplier_account_id
+    console.log(`[booking:${req.id}] supplier_account_id=${supplierAccountId ?? 'none'}`)
 
     if (!supplierAccountId) {
       res.status(400).json({ error: 'Vui lòng chọn tài khoản nhà cung cấp' })
@@ -82,6 +85,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: 'Tài khoản nhà cung cấp chưa được gán NCC' })
       return
     }
+    console.log(`[booking:${req.id}] account verified supplier_id=${account.supplier_id} status=${account.status}`)
 
     // ── Insert booking ────────────────────────────────────────────────────────
     const { data: booking, error: bookingError } = await supabase
@@ -102,9 +106,11 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       res.status(500).json({ error: bookingError?.message ?? 'Lỗi tạo booking' })
       return
     }
+    console.log(`[booking:${req.id}] booking created code=${booking.booking_code} id=${booking.id}`)
 
     // ── Insert items + photos ─────────────────────────────────────────────────
     for (const item of body.items) {
+      console.log(`[booking:${req.id}] item ${item.product_code}/${item.process_code} qty=${item.quantity_booked}`)
       const { data: ins, error: ie } = await supabase
         .from('booking_items')
         .insert({
@@ -122,7 +128,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         .single()
 
       if (ie || !ins) {
-        console.error('[booking] item insert error:', ie)
+        console.error(`[booking:${req.id}] item insert FAILED ${item.product_code}/${item.process_code}: ${ie?.message}`)
         continue
       }
 
@@ -162,6 +168,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         booking_id: booking.id,
       }))
     )
+    console.log(`[booking:${req.id}] notified ${STAFF_RECIPIENTS.length} staff`)
+    console.log(`[booking:${req.id}] DONE code=${booking.booking_code}`)
 
     res.json({
       booking_code: booking.booking_code,
@@ -170,7 +178,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     })
   } catch (err) {
     const msg = (err as Error).message ?? String(err)
-    console.error('[booking] error:', err)
+    console.error(`[booking:${req.id}] FATAL: ${(err as Error).message}`)
+    if ((err as Error).stack) console.error((err as Error).stack)
     res.status(500).json({ error: msg })
   }
 })

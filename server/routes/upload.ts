@@ -40,13 +40,15 @@ router.post(
       res.status(400).json({ error: 'Missing file or path' })
       return
     }
+    console.log(`[upload:${req.id}] file=${file.originalname} size=${file.size}b mime=${file.mimetype} dest=${path}`)
 
     try {
       const result = await uploadToGCS(file.buffer, file.mimetype, path)
+      console.log(`[upload:${req.id}] GCS OK url=${result.url}`)
       res.json({ url: result.url, path: result.path })
     } catch (err) {
       const msg = (err as Error).message ?? String(err)
-      console.error('[upload] GCS error:', err)
+      console.error(`[upload:${req.id}] GCS FAILED: ${msg}`)
       res.status(500).json({ error: msg })
     }
   }
