@@ -236,6 +236,29 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['booking_amendments']['Insert']>
       }
+      product_process_catalog: {
+        Row: {
+          id: string
+          lark_record_id: string
+          product_name: string
+          order_code: string
+          active: boolean
+          last_synced_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          lark_record_id: string
+          product_name: string
+          order_code: string
+          active?: boolean
+          last_synced_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['product_process_catalog']['Insert']>
+      }
     }
     Views: {
       daily_capacity: {

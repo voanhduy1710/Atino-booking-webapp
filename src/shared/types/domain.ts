@@ -97,6 +97,17 @@ export interface BookingItemPhoto {
   uploaded_at: string
 }
 
+export interface ProductProcessCatalog {
+  id: string
+  lark_record_id: string
+  product_name: string
+  order_code: string
+  active: boolean
+  last_synced_at: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Notification {
   id: string
   recipient_type: NotificationRecipient

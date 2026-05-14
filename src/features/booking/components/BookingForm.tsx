@@ -2,6 +2,7 @@
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Navbar } from '@/shared/components/Navbar'
 import { Button } from '@/shared/components/Button'
 import { Select } from '@/shared/components/Select'
@@ -9,11 +10,13 @@ import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { bookingFormSchema, type BookingFormData } from '@/features/booking/schemas'
 import { useActiveSupplierAccounts, useWarehouses, useSupplierInfo } from '@/features/booking/hooks/useBookingData'
 import { PoRow } from './PoRow'
-import { TIME_SLOT_LABELS, STANDARD_DELIVERY_NOTE, type TimeSlot } from '@/shared/types/domain'
+import { TIME_SLOT_LABELS, STANDARD_DELIVERY_NOTE, type TimeSlot, type ProductProcessCatalog } from '@/shared/types/domain'
 import { computeDeliveryDatePreview, formatDateDisplay } from '@/shared/lib/dateUtils'
 import { getCurrentUser, getToken } from '@/shared/lib/auth'
 import { SUPPLIER_TABS } from '@/shared/constants/supplierTabs'
 import { ROLE_TABS } from '@/shared/config/navTabs'
+import { supabase } from '@/shared/lib/supabase'
+import { pageMainClass } from '@/shared/config/pageLayout'
 
 // Re-export for any legacy imports
 export { SUPPLIER_TABS }
@@ -32,6 +35,19 @@ export function BookingForm() {
   const { data: warehouses = [], isLoading: warehousesLoading } = useWarehouses()
   const { data: supplier } = useSupplierInfo()
   const { data: supplierAccounts = [], isLoading: supplierAccountsLoading } = useActiveSupplierAccounts(isAdmin)
+  const { data: productProcessOptions = [], isLoading: productProcessLoading } = useQuery({
+    queryKey: ['product-process-catalog'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('product_process_catalog')
+        .select('*')
+        .eq('active', true)
+        .order('product_name', { ascending: true })
+        .order('order_code', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as ProductProcessCatalog[]
+    },
+  })
   const selectedAdminSupplierAccount = useMemo(
     () => supplierAccounts.find((account) => account.id === adminSupplierAccountId) ?? null,
     [adminSupplierAccountId, supplierAccounts]
@@ -143,7 +159,7 @@ export function BookingForm() {
     }
   }
 
-  if (warehousesLoading || (isAdmin && supplierAccountsLoading)) {
+  if (warehousesLoading || productProcessLoading || (isAdmin && supplierAccountsLoading)) {
     return (
       <div className="min-h-screen flex flex-col">
         <Navbar tabs={navTabs} activeTab="new-booking" />
@@ -158,7 +174,7 @@ export function BookingForm() {
     <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={navTabs} activeTab="new-booking" />
 
-      <main className="flex-1 lg:w-[60vw] max-w-none mx-auto w-full px-4 py-6">
+      <main className={pageMainClass('bookingNew')}>
         <h1 className="text-xl font-bold tracking-wider uppercase text-center mb-4">
           ĐƠN ĐĂNG KÝ — GIAO THEO ĐƠN HÀNG
         </h1>
@@ -279,12 +295,13 @@ export function BookingForm() {
 
               {/* PO Table */}
               <div>
-                <div className="overflow-x-auto border border-[#ecdbe8] rounded">
+                <div className="overflow-x-auto overflow-y-visible border border-[#ecdbe8] rounded">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-[#F5F5F5]">
                         <th className="table-header w-10">STT</th>
-                        <th className="table-header">Mã SP — Mã QT</th>
+                        <th className="table-header min-w-64">Mã SP</th>
+                        <th className="table-header min-w-64">Mã QT</th>
                         <th className="table-header w-32">Số lần giao</th>
                         <th className="table-header w-28">Kiện/thùng</th>
                         <th className="table-header">Ảnh phiếu giao</th>
@@ -304,6 +321,7 @@ export function BookingForm() {
                           onRemove={fields.length > 1 ? () => remove(index) : undefined}
                           setValue={setValue}
                           watch={watch}
+                          productProcessOptions={productProcessOptions}
                         />
                       ))}
                     </tbody>

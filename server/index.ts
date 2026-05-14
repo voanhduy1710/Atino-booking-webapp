@@ -11,19 +11,17 @@ import { config } from 'dotenv'
 config()
 
 import express from 'express'
-import type { Request, Response, NextFunction } from 'express'
+import type { ErrorRequestHandler, Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import { randomUUID } from 'crypto'
 import uploadRouter from './routes/upload.js'
 import bookingRouter from './routes/booking.js'
+import productProcessRouter from './routes/productProcess.js'
 
-// Extend Express Request with logging fields
-declare global {
-  namespace Express {
-    interface Request {
-      id: string
-      startMs: number
-    }
+declare module 'express-serve-static-core' {
+  interface Request {
+    id: string
+    startMs: number
   }
 }
 
@@ -70,6 +68,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // ── Routes ─────────────────────────────────────────────────────────────────
 app.use('/api/upload/gcs', uploadRouter)
 app.use('/api/booking/finalize', bookingRouter)
+app.use('/api/product-process', productProcessRouter)
 
 // ── Health check ───────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -77,11 +76,14 @@ app.get('/api/health', (_req, res) => {
 })
 
 // ── Global error handler ───────────────────────────────────────────────────
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  void next
   console.error(`[req:${req.id}] UNHANDLED ${err.name}: ${err.message}`)
   if (err.stack) console.error(err.stack)
   res.status(500).json({ error: err.message })
-})
+}
+
+app.use(errorHandler)
 
 // ── Start ──────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {

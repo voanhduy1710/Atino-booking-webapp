@@ -62,9 +62,15 @@ foreach ($line in $envContent) {
 
 $SUPABASE_SERVICE_ROLE_KEY = $envVars["SUPABASE_SERVICE_ROLE_KEY"]
 $GCS_JSON = $envVars["GCS_SERVICE_ACCOUNT_JSON"]
+$LARK_APP_ID = $envVars["LARK_APP_ID"]
+$LARK_APP_SECRET = $envVars["LARK_APP_SECRET"]
 
 if (-not $SUPABASE_SERVICE_ROLE_KEY -or $SUPABASE_SERVICE_ROLE_KEY -eq "FILL_IN_YOUR_SERVICE_ROLE_KEY_HERE") {
     Write-Host "[ERROR] SUPABASE_SERVICE_ROLE_KEY is not set in .env" -ForegroundColor Red
+    exit 1
+}
+if (-not $LARK_APP_ID -or -not $LARK_APP_SECRET) {
+    Write-Host "[ERROR] LARK_APP_ID or LARK_APP_SECRET is not set in .env" -ForegroundColor Red
     exit 1
 }
 
@@ -109,7 +115,7 @@ gcloud run deploy $SERVICE_NAME `
     --timeout 60s `
     --port 8080 `
     --quiet `
-    --set-env-vars "^|^SUPABASE_URL=https://deuuuibkqletkkbrsmxd.supabase.co|SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY|GCS_SERVICE_ACCOUNT_JSON_B64=$([Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($GCS_JSON)))"
+    --set-env-vars "^|^SUPABASE_URL=https://deuuuibkqletkkbrsmxd.supabase.co|SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY|GCS_SERVICE_ACCOUNT_JSON_B64=$([Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($GCS_JSON)))|LARK_APP_ID=$LARK_APP_ID|LARK_APP_SECRET=$LARK_APP_SECRET"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Cloud Run deploy failed." -ForegroundColor Red

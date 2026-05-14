@@ -19,6 +19,7 @@ const SuppliersPage      = lazy(() => import('@/features/supplier/SuppliersPage'
 const AccountsPage       = lazy(() => import('@/features/auth/AccountsPage'))
 const ReportPage         = lazy(() => import('@/features/admin/ReportPage'))
 const ViewAsPage         = lazy(() => import('@/features/admin/ViewAsPage'))
+const ProductProcessPage = lazy(() => import('@/features/productProcess/ProductProcessPage'))
 
 const Fallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -72,6 +73,9 @@ export function AppRoutes() {
         } />
         <Route path="/viewas" element={
           <Guard path="/viewas"><ViewAsPage /></Guard>
+        } />
+        <Route path="/product-process" element={
+          <Guard path="/product-process"><ProductProcessPage /></Guard>
         } />
 
         {/* Legacy redirects */}

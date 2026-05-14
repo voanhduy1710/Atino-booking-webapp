@@ -3,6 +3,8 @@ import type { UseFormRegister, FieldErrors, UseFormSetValue, UseFormWatch } from
 import type { BookingFormData } from '@/features/booking/schemas'
 import { usePhotoUpload } from '@/features/booking/hooks/usePhotoUpload'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
+import type { ProductProcessCatalog } from '@/shared/types/domain'
+import { ProductProcessCombobox } from './ProductProcessCombobox'
 
 interface Props {
   index: number
@@ -14,11 +16,12 @@ interface Props {
   onRemove?: () => void
   setValue: UseFormSetValue<BookingFormData>
   watch: UseFormWatch<BookingFormData>
+  productProcessOptions: ProductProcessCatalog[]
 }
 
 const DELIVERY_ROUND_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-export function PoRow({ index, rowId, register, errors, sessionId, supplierCode, onRemove, setValue, watch }: Props) {
+export function PoRow({ index, rowId, register, errors, sessionId, supplierCode, onRemove, setValue, watch, productProcessOptions }: Props) {
   const { files: slipFiles, upload: uploadSlip, remove: removeSlip, isUploading: slipUploading } = usePhotoUpload(sessionId, supplierCode)
   const { files: vatFiles, upload: uploadVat, remove: removeVat, isUploading: vatUploading } = usePhotoUpload(sessionId, supplierCode)
 
@@ -27,11 +30,22 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
 
   const deliveryRound = watch(`items.${index}.delivery_round`)
   const isFinalRound = watch(`items.${index}.is_final_round`)
+  const productCode = watch(`items.${index}.product_code`)
+  const processCode = watch(`items.${index}.process_code`)
   const slipPaths = (watch(`items.${index}.slip_temp_paths`) as string[]) ?? []
   const vatPaths = (watch(`items.${index}.vat_temp_paths`) as string[]) ?? []
 
   const itemErrors = errors.items?.[index]
   const uploadPrefix = rowId.replace(/[^a-zA-Z0-9_-]/g, '')
+  const selectedProductProcessId = productProcessOptions.find(
+    (option) => option.product_name === productCode && option.order_code === processCode
+  )?.id ?? ''
+
+  const handleProductProcessChange = (id: string) => {
+    const option = productProcessOptions.find((item) => item.id === id)
+    setValue(`items.${index}.product_code`, option?.product_name ?? '', { shouldValidate: true })
+    setValue(`items.${index}.process_code`, option?.order_code ?? '', { shouldValidate: true })
+  }
 
   const handleSlipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files ?? [])
@@ -93,23 +107,36 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
       {/* STT */}
       <td className="table-cell text-center font-medium text-[#888888]">{index + 1}</td>
 
-      {/* Mã SP / Mã QT */}
-      <td className="table-cell">
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            className={`input-field text-sm ${itemErrors?.product_code ? 'input-field-error' : ''}`}
-            placeholder="Mã SP"
-            {...register(`items.${index}.product_code`)}
-          />
-          <input
-            className={`input-field text-sm ${itemErrors?.process_code ? 'input-field-error' : ''}`}
-            placeholder="Mã QT"
-            {...register(`items.${index}.process_code`)}
-          />
-        </div>
+      {/* Mã SP */}
+      <td className="table-cell min-w-64">
+        <ProductProcessCombobox
+          placeholder="Mã SP"
+          selectedId={selectedProductProcessId}
+          options={productProcessOptions}
+          getLabel={(option) => option.product_name}
+          onSelect={handleProductProcessChange}
+          error={Boolean(itemErrors?.product_code)}
+        />
         {itemErrors?.product_code?.message && (
           <p className="form-error mt-1">{itemErrors.product_code.message}</p>
         )}
+        <input type="hidden" {...register(`items.${index}.product_code`)} />
+      </td>
+
+      {/* Mã QT */}
+      <td className="table-cell min-w-64">
+        <ProductProcessCombobox
+          placeholder="Mã QT"
+          selectedId={selectedProductProcessId}
+          options={productProcessOptions}
+          getLabel={(option) => option.order_code}
+          onSelect={handleProductProcessChange}
+          error={Boolean(itemErrors?.process_code)}
+        />
+        {itemErrors?.process_code?.message && (
+          <p className="form-error mt-1">{itemErrors.process_code.message}</p>
+        )}
+        <input type="hidden" {...register(`items.${index}.process_code`)} />
       </td>
 
       {/* Số lần giao */}
