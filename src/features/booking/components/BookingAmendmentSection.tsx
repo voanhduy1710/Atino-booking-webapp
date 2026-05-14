@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { Button } from '@/shared/components/Button'
@@ -94,7 +94,7 @@ export function BookingAmendmentSection({ booking, user }: Props) {
 
   return (
     <div className="mt-4 bg-white border border-[#ecdbe8] rounded-lg px-6 py-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-[#888888] mb-3">YÃªu cáº§u Ä‘iá»u chá»‰nh</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-[#888888] mb-3">Yêu cầu điều chỉnh</p>
 
       {pendingAmendment ? (
         <div className={`rounded p-3 text-sm ${
@@ -103,13 +103,13 @@ export function BookingAmendmentSection({ booking, user }: Props) {
           'bg-[#FFF0F0] border border-[#CC0000]'
         }`}>
           <p className="font-medium mb-1">
-            {pendingAmendment.amendment_type === 'recall' ? 'YÃªu cáº§u huá»·' : 'YÃªu cáº§u chá»‰nh sá»­a'} â€”{' '}
-            {pendingAmendment.status === 'pending' ? 'Äang chá» xá»­ lÃ½' :
-             pendingAmendment.status === 'approved' ? 'ÄÃ£ cháº¥p thuáº­n' : 'ÄÃ£ tá»« chá»‘i'}
+            {pendingAmendment.amendment_type === 'recall' ? 'Yêu cầu huỷ' : 'Yêu cầu chỉnh sửa'} —{' '}
+            {pendingAmendment.status === 'pending' ? 'Đang chờ xử lý' :
+             pendingAmendment.status === 'approved' ? 'Đã chấp thuận' : 'Đã từ chối'}
           </p>
           <p className="text-[#888888] text-xs">{pendingAmendment.request_note}</p>
           {pendingAmendment.reviewer_note && (
-            <p className="text-xs mt-1 italic">Pháº£n há»“i: {pendingAmendment.reviewer_note}</p>
+            <p className="text-xs mt-1 italic">Phản hồi: {pendingAmendment.reviewer_note}</p>
           )}
         </div>
       ) : canRequest ? (
@@ -128,45 +128,45 @@ export function BookingAmendmentSection({ booking, user }: Props) {
             }}
             className="btn-outline text-sm py-1.5 px-3"
           >
-            YÃªu cáº§u chá»‰nh sá»­a
+            Yêu cầu chỉnh sửa
           </button>
           <button
             onClick={() => { setAmendModal('recall'); setAmendNote(''); setAmendError('') }}
             className="text-sm py-1.5 px-3 border border-[#CC0000] text-[#CC0000] rounded hover:bg-[#FFF0F0] transition-colors"
           >
-            YÃªu cáº§u huá»·
+            Yêu cầu huỷ
           </button>
         </div>
       ) : (
-        <p className="text-sm text-[#888888]">Booking nÃ y khÃ´ng thá»ƒ yÃªu cáº§u Ä‘iá»u chá»‰nh.</p>
+        <p className="text-sm text-[#888888]">Booking này không thể yêu cầu điều chỉnh.</p>
       )}
 
       <Modal
         isOpen={!!amendModal}
         onClose={() => { setAmendModal(null); setEditForm(null) }}
-        title={amendModal === 'recall' ? 'YÃªu cáº§u huá»· booking' : 'YÃªu cáº§u chá»‰nh sá»­a booking'}
+        title={amendModal === 'recall' ? 'Yêu cầu huỷ booking' : 'Yêu cầu chỉnh sửa booking'}
         size={amendModal === 'update' ? 'lg' : 'sm'}
       >
         {amendModal === 'recall' ? (
           <div className="space-y-4">
-            <p className="text-sm text-[#888888]">MÃ´ táº£ lÃ½ do báº¡n muá»‘n huá»· booking nÃ y.</p>
-            <textarea value={amendNote} onChange={(e) => setAmendNote(e.target.value)} rows={4} className="input-field resize-none w-full" placeholder="LÃ½ do huá»·..." />
+            <p className="text-sm text-[#888888]">Mô tả lý do bạn muốn huỷ booking này.</p>
+            <textarea value={amendNote} onChange={(e) => setAmendNote(e.target.value)} rows={4} className="input-field resize-none w-full" placeholder="Lý do huỷ..." />
             {amendError && <p className="text-xs text-[#CC0000]">{amendError}</p>}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setAmendModal(null)} className="flex-1">Huá»·</Button>
-              <Button variant="danger-outline" loading={requestAmendmentMutation.isPending} disabled={!amendNote.trim()} onClick={() => requestAmendmentMutation.mutate({ type: 'recall', note: amendNote })} className="flex-1">Gá»­i yÃªu cáº§u</Button>
+              <Button variant="outline" onClick={() => setAmendModal(null)} className="flex-1">Huỷ</Button>
+              <Button variant="danger-outline" loading={requestAmendmentMutation.isPending} disabled={!amendNote.trim()} onClick={() => requestAmendmentMutation.mutate({ type: 'recall', note: amendNote })} className="flex-1">Gửi yêu cầu</Button>
             </div>
           </div>
         ) : editForm ? (
           <div className="space-y-4">
-            <p className="text-sm text-[#888888]">Chá»‰nh sá»­a thÃ´ng tin booking bÃªn dÆ°á»›i.</p>
+            <p className="text-sm text-[#888888]">Chỉnh sửa thông tin booking bên dưới.</p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-medium text-[#888888] block mb-1">NgÃ y giao</label>
-                <FilterDatePicker value={editForm.delivery_date} onChange={(v) => setEditForm({ ...editForm, delivery_date: v })} placeholder="Chá»n ngÃ y" />
+                <label className="text-xs font-medium text-[#888888] block mb-1">Ngày giao</label>
+                <FilterDatePicker value={editForm.delivery_date} onChange={(v) => setEditForm({ ...editForm, delivery_date: v })} placeholder="Chọn ngày" />
               </div>
               <div>
-                <label className="text-xs font-medium text-[#888888] block mb-1">Khung giá»</label>
+                <label className="text-xs font-medium text-[#888888] block mb-1">Khung giờ</label>
                 <select value={editForm.time_slot} onChange={(e) => setEditForm({ ...editForm, time_slot: e.target.value })} className="input-field text-sm">
                   {(Object.entries(TIME_SLOT_LABELS) as [string, string][]).map(([val, label]) => (
                     <option key={val} value={val}>{label}</option>
@@ -175,18 +175,18 @@ export function BookingAmendmentSection({ booking, user }: Props) {
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-[#888888] block mb-1">Ghi chÃº</label>
-              <textarea value={editForm.ghi_chu} onChange={(e) => setEditForm({ ...editForm, ghi_chu: e.target.value })} rows={2} className="input-field resize-none w-full" placeholder="Ghi chÃº (tuá»³ chá»n)" />
+              <label className="text-xs font-medium text-[#888888] block mb-1">Ghi chú</label>
+              <textarea value={editForm.ghi_chu} onChange={(e) => setEditForm({ ...editForm, ghi_chu: e.target.value })} rows={2} className="input-field resize-none w-full" placeholder="Ghi chú (tuỳ chọn)" />
             </div>
             <div>
-              <p className="text-xs font-medium text-[#888888] mb-2">Sá»‘ lÆ°á»£ng Ä‘Æ¡n hÃ ng</p>
+              <p className="text-xs font-medium text-[#888888] mb-2">Số lượng đơn hàng</p>
               <div className="border border-[#ecdbe8] rounded overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-[#F5F5F5]">
-                      <th className="table-header">MÃ£ SP</th>
-                      <th className="table-header">MÃ£ QT</th>
-                      <th className="table-header w-24">Sá»‘ lÆ°á»£ng</th>
+                      <th className="table-header">Mã SP</th>
+                      <th className="table-header">Mã QT</th>
+                      <th className="table-header w-24">Số lượng</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -214,12 +214,12 @@ export function BookingAmendmentSection({ booking, user }: Props) {
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-[#888888] block mb-1">LÃ½ do / ghi chÃº yÃªu cáº§u *</label>
-              <textarea value={amendNote} onChange={(e) => setAmendNote(e.target.value)} rows={2} className="input-field resize-none w-full" placeholder="MÃ´ táº£ lÃ½ do chá»‰nh sá»­a..." />
+              <label className="text-xs font-medium text-[#888888] block mb-1">Lý do / ghi chú yêu cầu *</label>
+              <textarea value={amendNote} onChange={(e) => setAmendNote(e.target.value)} rows={2} className="input-field resize-none w-full" placeholder="Mô tả lý do chỉnh sửa..." />
             </div>
             {amendError && <p className="text-xs text-[#CC0000]">{amendError}</p>}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => { setAmendModal(null); setEditForm(null) }} className="flex-1">Huá»·</Button>
+              <Button variant="outline" onClick={() => { setAmendModal(null); setEditForm(null) }} className="flex-1">Huỷ</Button>
               <Button
                 variant="primary"
                 loading={requestAmendmentMutation.isPending}
@@ -233,7 +233,7 @@ export function BookingAmendmentSection({ booking, user }: Props) {
                 }}
                 className="flex-1"
               >
-                Gá»­i yÃªu cáº§u
+                Gửi yêu cầu
               </Button>
             </div>
           </div>

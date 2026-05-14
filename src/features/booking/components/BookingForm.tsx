@@ -158,7 +158,7 @@ export function BookingForm() {
     <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={navTabs} activeTab="new-booking" />
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 lg:w-[60vw] max-w-none mx-auto w-full px-4 py-6">
         <h1 className="text-xl font-bold tracking-wider uppercase text-center mb-4">
           ĐƠN ĐĂNG KÝ — GIAO THEO ĐƠN HÀNG
         </h1>

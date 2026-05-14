@@ -1,4 +1,4 @@
-﻿import ReactDatePicker, { registerLocale } from 'react-datepicker'
+import ReactDatePicker, { registerLocale } from 'react-datepicker'
 import { vi } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
 
@@ -7,7 +7,7 @@ const customVi = {
   localize: {
     ...vi.localize,
     day: (n: number) => ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][n],
-    month: (n: number) => `ThÃ¡ng ${n + 1}`,
+    month: (n: number) => `Tháng ${n + 1}`,
   },
 }
 registerLocale('vi', customVi as any)

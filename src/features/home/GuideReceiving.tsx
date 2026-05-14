@@ -11,7 +11,7 @@ export default function GuideReceiving() {
     <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={SUPPLIER_TABS} activeTab="guide" />
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 lg:w-[80vw] max-w-none mx-auto w-full px-4 py-6">
         <div className="bg-white border border-[#ecdbe8] rounded-lg px-6 py-10">
           <h1 className="text-2xl font-bold mb-2">Quy trình giao nhận hàng</h1>
           <p className="text-[#888888] text-sm mb-8">

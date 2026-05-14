@@ -13,6 +13,7 @@ import { getCurrentUser } from '@/shared/lib/auth'
 import { buildPhotoList } from '@/shared/lib/gcs'
 import { countBookingItemStatuses, deriveBookingStatus, formatBookingItemSummary } from '@/shared/lib/bookingStatus'
 import { BookingAmendmentSection } from './BookingAmendmentSection'
+import { SUPPLIER_TABS } from '@/shared/constants/supplierTabs'
 
 interface BookingRow {
   id: string
@@ -46,6 +47,7 @@ export default function BookingDetailPublic() {
   const { token } = useParams<{ token: string }>()
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const user = getCurrentUser()
+  const navTabs = user?.role === 'supplier' ? SUPPLIER_TABS : undefined
 
   useEffect(() => { document.title = 'Chi tiết đăng ký — Atino Booking' }, [])
 
@@ -76,7 +78,7 @@ export default function BookingDetailPublic() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Navbar />
+        <Navbar tabs={navTabs} activeTab="my-bookings" />
         <div className="flex-1 flex items-center justify-center"><LoadingSpinner size="lg" /></div>
       </div>
     )
@@ -85,7 +87,7 @@ export default function BookingDetailPublic() {
   if (error || !booking) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Navbar />
+        <Navbar tabs={navTabs} activeTab="my-bookings" />
         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-[#888888]">
           <p className="text-2xl">❌</p>
           <p>Không tìm thấy đơn đăng ký.</p>
@@ -101,7 +103,7 @@ export default function BookingDetailPublic() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
-      <Navbar />
+      <Navbar tabs={navTabs} activeTab="my-bookings" />
       {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
 
       <main className="flex-1 mx-auto w-full lg:w-[80vw] max-w-none px-4 py-6">
@@ -129,7 +131,7 @@ export default function BookingDetailPublic() {
             <p className="text-xs text-[#888888] mt-1">{formatBookingItemSummary(itemCounts)}</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-[820px] w-full text-sm">
+            <table className="min-w-[820px] w-full text-sm table-fixed">
               <thead>
                 <tr className="bg-[#F5F5F5]">
                   <th className="table-header w-28">Mã SP</th>
@@ -138,7 +140,7 @@ export default function BookingDetailPublic() {
                   <th className="table-header w-20">SL đk</th>
                   <th className="table-header w-20">SL nhận</th>
                   <th className="table-header w-36">Trạng thái</th>
-                  <th className="table-header w-44">Ảnh</th>
+                  <th className="table-header">Ảnh</th>
                 </tr>
               </thead>
               <tbody>

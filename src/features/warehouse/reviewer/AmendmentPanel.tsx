@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { Button } from '@/shared/components/Button'
@@ -53,6 +53,18 @@ export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }
         p_note: note,
       } as any)
       if (error) throw error
+
+      if (currentBooking.supplier_account_id) {
+        const typeLabel = amendment?.amendment_type === 'recall' ? 'huỷ' : 'chỉnh sửa'
+        const statusLabel = decision === 'approved' ? 'chấp thuận' : 'từ chối'
+        await supabase.from('notifications').insert({
+          recipient_type: 'supplier_account',
+          recipient_id: currentBooking.supplier_account_id,
+          event_type: decision === 'approved' ? 'amendment_approved' : 'amendment_denied',
+          message: `Yêu cầu ${typeLabel} booking ${currentBooking.booking_code} đã được ${statusLabel}.`,
+          booking_id: bookingId,
+        } as any)
+      }
     },
     onSuccess: () => {
       setResolveId(null); setResolveDecision(null); setResolveNote('')
@@ -70,7 +82,7 @@ export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }
     <>
       <div className="border border-[#F5C518] bg-[#FFF8E1] rounded-lg p-4 space-y-3">
         <p className="font-semibold text-sm">
-          {isUpdate ? 'ðŸ– YÃªu cáº§u chá»‰nh sá»­a booking' : 'âš ï¸ YÃªu cáº§u huá»· booking'}
+          {isUpdate ? '🖍 Yêu cầu chỉnh sửa booking' : '⚠️ Yêu cầu huỷ booking'}
         </p>
         <p className="text-xs text-[#888888]">{amendment.request_note}</p>
 
@@ -79,31 +91,31 @@ export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }
             <table className="w-full">
               <thead>
                 <tr className="bg-[#F5F5F5]">
-                  <th className="px-3 py-2 text-left font-medium text-[#888888]">TrÆ°á»ng</th>
-                  <th className="px-3 py-2 text-left font-medium text-[#888888]">Hiá»‡n táº¡i</th>
-                  <th className="px-3 py-2 text-left font-medium text-[#888888]">Äá» xuáº¥t</th>
+                  <th className="px-3 py-2 text-left font-medium text-[#888888]">Trường</th>
+                  <th className="px-3 py-2 text-left font-medium text-[#888888]">Hiện tại</th>
+                  <th className="px-3 py-2 text-left font-medium text-[#888888]">Đề xuất</th>
                 </tr>
               </thead>
               <tbody>
                 {pc.delivery_date && pc.delivery_date !== currentBooking.delivery_date && (
                   <tr className="border-t border-[#ecdbe8]">
-                    <td className="px-3 py-2 text-[#888888]">NgÃ y giao</td>
+                    <td className="px-3 py-2 text-[#888888]">Ngày giao</td>
                     <td className="px-3 py-2">{formatDateDisplay(currentBooking.delivery_date)}</td>
                     <td className="px-3 py-2 font-medium text-[#1a7a3e]">{formatDateDisplay(pc.delivery_date)}</td>
                   </tr>
                 )}
                 {pc.time_slot && pc.time_slot !== currentBooking.time_slot && (
                   <tr className="border-t border-[#ecdbe8]">
-                    <td className="px-3 py-2 text-[#888888]">Khung giá»</td>
+                    <td className="px-3 py-2 text-[#888888]">Khung giờ</td>
                     <td className="px-3 py-2">{TIME_SLOT_LABELS[currentBooking.time_slot]}</td>
                     <td className="px-3 py-2 font-medium text-[#1a7a3e]">{TIME_SLOT_LABELS[pc.time_slot as TimeSlot] ?? pc.time_slot}</td>
                   </tr>
                 )}
                 {'ghi_chu' in pc && pc.ghi_chu !== (currentBooking.ghi_chu ?? '') && (
                   <tr className="border-t border-[#ecdbe8]">
-                    <td className="px-3 py-2 text-[#888888]">Ghi chÃº</td>
-                    <td className="px-3 py-2 text-[#888888] italic">{currentBooking.ghi_chu || '(trá»‘ng)'}</td>
-                    <td className="px-3 py-2 font-medium text-[#1a7a3e]">{pc.ghi_chu || '(xoÃ¡)'}</td>
+                    <td className="px-3 py-2 text-[#888888]">Ghi chú</td>
+                    <td className="px-3 py-2 text-[#888888] italic">{currentBooking.ghi_chu || '(trống)'}</td>
+                    <td className="px-3 py-2 font-medium text-[#1a7a3e]">{pc.ghi_chu || '(xoá)'}</td>
                   </tr>
                 )}
               </tbody>
@@ -117,14 +129,14 @@ export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }
               if (changedItems.length === 0) return null
               return (
                 <div className="border-t border-[#ecdbe8]">
-                  <p className="px-3 pt-2 pb-1 text-[10px] text-[#888888] uppercase tracking-wider">Sá»‘ lÆ°á»£ng Ä‘Æ¡n hÃ ng</p>
+                  <p className="px-3 pt-2 pb-1 text-[10px] text-[#888888] uppercase tracking-wider">Số lượng đơn hàng</p>
                   <table className="w-full">
                     <thead>
                       <tr className="bg-[#F5F5F5]">
-                        <th className="px-3 py-1 text-left font-medium text-[#888888]">MÃ£ SP</th>
-                        <th className="px-3 py-1 text-left font-medium text-[#888888]">MÃ£ QT</th>
-                        <th className="px-3 py-1 text-right font-medium text-[#888888]">Hiá»‡n táº¡i</th>
-                        <th className="px-3 py-1 text-right font-medium text-[#888888]">Äá» xuáº¥t</th>
+                        <th className="px-3 py-1 text-left font-medium text-[#888888]">Mã SP</th>
+                        <th className="px-3 py-1 text-left font-medium text-[#888888]">Mã QT</th>
+                        <th className="px-3 py-1 text-right font-medium text-[#888888]">Hiện tại</th>
+                        <th className="px-3 py-1 text-right font-medium text-[#888888]">Đề xuất</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -154,7 +166,7 @@ export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }
             loading={resolveMutation.isPending && resolveDecision === 'approved'}
             onClick={() => { setResolveId(amendment.id); setResolveDecision('approved'); setResolveNote('') }}
           >
-            Cháº¥p thuáº­n
+            Chấp thuận
           </Button>
           <Button
             variant="danger-outline"
@@ -162,7 +174,7 @@ export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }
             loading={resolveMutation.isPending && resolveDecision === 'denied'}
             onClick={() => { setResolveId(amendment.id); setResolveDecision('denied'); setResolveNote('') }}
           >
-            Tá»« chá»‘i
+            Từ chối
           </Button>
         </div>
       </div>
@@ -170,22 +182,22 @@ export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }
       <Modal
         isOpen={!!resolveId && !!resolveDecision}
         onClose={() => { setResolveId(null); setResolveDecision(null) }}
-        title={resolveDecision === 'approved' ? 'Cháº¥p thuáº­n yÃªu cáº§u' : 'Tá»« chá»‘i yÃªu cáº§u'}
+        title={resolveDecision === 'approved' ? 'Chấp thuận yêu cầu' : 'Từ chối yêu cầu'}
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-sm text-[#888888]">
-            {resolveDecision === 'denied' ? 'Nháº­p lÃ½ do tá»« chá»‘i (báº¯t buá»™c):' : 'Ghi chÃº pháº£n há»“i (tuá»³ chá»n):'}
+            {resolveDecision === 'denied' ? 'Nhập lý do từ chối (bắt buộc):' : 'Ghi chú phản hồi (tuỳ chọn):'}
           </p>
           <textarea
             value={resolveNote}
             onChange={(e) => setResolveNote(e.target.value)}
             rows={3}
             className="input-field resize-none w-full"
-            placeholder="Ghi chÃº..."
+            placeholder="Ghi chú..."
           />
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => { setResolveId(null); setResolveDecision(null) }} className="flex-1">Huá»·</Button>
+            <Button variant="outline" onClick={() => { setResolveId(null); setResolveDecision(null) }} className="flex-1">Huỷ</Button>
             <Button
               variant={resolveDecision === 'approved' ? 'success' : 'danger-outline'}
               loading={resolveMutation.isPending}
@@ -196,7 +208,7 @@ export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }
               }
               className="flex-1"
             >
-              XÃ¡c nháº­n
+              Xác nhận
             </Button>
           </div>
         </div>

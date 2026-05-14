@@ -134,7 +134,7 @@ export default function ReceiverPage() {
   return (
     <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={tabs} activeTab="receiver" />
-      <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
+      <main className="flex-1 lg:w-[80vw] max-w-none mx-auto w-full px-4 py-6">
         <h1 className="text-xl font-bold mb-6">Nhận hàng</h1>
 
         <div className="bg-white border border-[#ecdbe8] rounded-lg px-6 py-5 mb-4">

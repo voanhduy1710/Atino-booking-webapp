@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { Modal } from '@/shared/components/Modal'
@@ -29,12 +29,31 @@ interface Props {
   userSub: string
 }
 
+const REVERT_WINDOW_MS = 30 * 60 * 1000
+
+function isWithin30Min(reviewedAt: string | null | undefined): boolean {
+  if (!reviewedAt) return false
+  return Date.now() - new Date(reviewedAt).getTime() < REVERT_WINDOW_MS
+}
+
+function minutesLeft(reviewedAt: string): number {
+  const elapsed = (Date.now() - new Date(reviewedAt).getTime()) / 60_000
+  return Math.max(0, Math.floor(30 - elapsed))
+}
+
 export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefresh, onBookingRefresh, onActionComplete, canDelete, userSub }: Props) {
   const queryClient = useQueryClient()
   const [rejectItemId, setRejectItemId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [actionItemId, setActionItemId] = useState<string | null>(null)
   const itemCounts = countBookingItemStatuses(booking.items)
+
+  // Force re-render every minute so countdown and button visibility stay current
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   const notifySupplier = async (eventType: 'booking_confirmed' | 'booking_rejected', message: string) => {
     if (!booking.supplier_account_id) return
@@ -63,7 +82,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
         p_reviewer_username: userSub,
       } as any)
       if (error) throw error
-      await notifySupplier('booking_confirmed', `ÄÆ¡n ${booking.booking_code} cÃ³ sáº£n pháº©m Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t.`)
+      await notifySupplier('booking_confirmed', `Đơn ${booking.booking_code} có sản phẩm đã được duyệt.`)
     },
     onSuccess: () => { void refreshAll() },
     onError: () => setActionItemId(null),
@@ -78,13 +97,27 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
         p_reviewer_username: userSub,
       } as any)
       if (error) throw error
-      await notifySupplier('booking_rejected', `ÄÆ¡n ${booking.booking_code} cÃ³ sáº£n pháº©m bá»‹ tá»« chá»‘i. LÃ­ do: ${reason}`)
+      await notifySupplier('booking_rejected', `Đơn ${booking.booking_code} có sản phẩm bị từ chối. Lí do: ${reason}`)
     },
     onSuccess: () => {
       setRejectItemId(null); setRejectReason('')
       void refreshAll()
     },
     onError: () => setActionItemId(null),
+  })
+
+  const revertItemMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      setActionItemId(itemId)
+      const { data, error } = await supabase.rpc('revert_booking_item' as any, {
+        p_item_id: itemId,
+        p_reviewer_username: userSub,
+      } as any)
+      if (error) throw error
+      if ((data as any)?.error) throw new Error((data as any).error)
+    },
+    onSuccess: () => { void refreshAll() },
+    onError: (e: Error) => { setActionItemId(null); alert(e.message) },
   })
 
   const deleteBookingMutation = useMutation({
@@ -100,10 +133,10 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
       <Modal isOpen onClose={onClose} title={`Booking: ${booking.booking_code}`} size="xl">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div><p className="text-xs text-[#888888]">NhÃ  cung cáº¥p</p><p className="font-medium">{booking.supplier_name}</p></div>
+            <div><p className="text-xs text-[#888888]">Nhà cung cấp</p><p className="font-medium">{booking.supplier_name}</p></div>
             <div><p className="text-xs text-[#888888]">Kho</p><p className="font-medium">{booking.warehouse_name}</p></div>
-            <div><p className="text-xs text-[#888888]">NgÃ y giao</p><p className="font-medium">{formatDateDisplay(booking.delivery_date)}</p></div>
-            <div><p className="text-xs text-[#888888]">Khung giá»</p><p className="font-medium">{TIME_SLOT_LABELS[booking.time_slot]}</p></div>
+            <div><p className="text-xs text-[#888888]">Ngày giao</p><p className="font-medium">{formatDateDisplay(booking.delivery_date)}</p></div>
+            <div><p className="text-xs text-[#888888]">Khung giờ</p><p className="font-medium">{TIME_SLOT_LABELS[booking.time_slot]}</p></div>
           </div>
 
           {booking.ghi_chu && (
@@ -113,15 +146,15 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
             <div className="rounded border border-[#ecdbe8] px-2 py-2">
               <p className="font-bold text-[#1a7a3e]">{itemCounts.confirmed}/{itemCounts.total}</p>
-              <p className="text-[#888888]">ÄÃ£ duyá»‡t</p>
+              <p className="text-[#888888]">Đã duyệt</p>
             </div>
             <div className="rounded border border-[#ecdbe8] px-2 py-2">
               <p className="font-bold text-[#CC0000]">{itemCounts.rejected}/{itemCounts.total}</p>
-              <p className="text-[#888888]">Tá»« chá»‘i</p>
+              <p className="text-[#888888]">Từ chối</p>
             </div>
             <div className="rounded border border-[#ecdbe8] px-2 py-2">
               <p className="font-bold text-[#888888]">{itemCounts.pending}/{itemCounts.total}</p>
-              <p className="text-[#888888]">Chá» xá»­ lÃ½</p>
+              <p className="text-[#888888]">Chờ xử lý</p>
             </div>
           </div>
           <p className="text-xs text-[#888888]">{formatBookingItemSummary(itemCounts)}</p>
@@ -130,23 +163,24 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-[#F5F5F5]">
-                  <th className="table-header">MÃ£ SP</th>
-                  <th className="table-header">MÃ£ QT</th>
-                  <th className="table-header">Láº§n giao</th>
+                  <th className="table-header">Mã SP</th>
+                  <th className="table-header">Mã QT</th>
+                  <th className="table-header">Lần giao</th>
                   <th className="table-header">SL</th>
-                  <th className="table-header">áº¢nh</th>
-                  <th className="table-header whitespace-nowrap">Tráº¡ng thÃ¡i</th>
-                  <th className="table-header">Thao tÃ¡c</th>
+                  <th className="table-header">Ảnh</th>
+                  <th className="table-header whitespace-nowrap">Trạng thái</th>
+                  <th className="table-header">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {booking.items.map((item: any) => {
                   const photos = buildPhotoList(item)
+                  const canRevert = isWithin30Min(item.reviewed_at)
                   return (
                     <tr key={item.id} className="border-t border-[#ecdbe8]">
                       <td className="table-cell font-mono">{item.product_code}</td>
                       <td className="table-cell font-mono">{item.process_code}</td>
-                      <td className="table-cell text-center">{item.is_final_round ? 'Cuá»‘i' : item.delivery_round}</td>
+                      <td className="table-cell text-center">{item.is_final_round ? 'Cuối' : item.delivery_round}</td>
                       <td className="table-cell text-right">{item.quantity_booked}</td>
                       <td className="table-cell">
                         {photos.length > 0 ? (
@@ -162,35 +196,49 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
                             ))}
                           </div>
                         ) : (
-                          <span className="text-[#BBBBBB]">â€”</span>
+                          <span className="text-[#BBBBBB]">—</span>
                         )}
                       </td>
                       <td className="table-cell whitespace-nowrap"><StatusBadge status={item.status} /></td>
                       <td className="table-cell">
-                        {item.status === 'pending' && (
+                        {item.status === 'pending' ? (
                           <div className="flex gap-2">
                             <Button
                               variant="success"
                               loading={confirmItemMutation.isPending && actionItemId === item.id}
-                              disabled={rejectItemMutation.isPending}
+                              disabled={rejectItemMutation.isPending || revertItemMutation.isPending}
                               onClick={() => confirmItemMutation.mutate(item.id)}
                               className="text-xs py-1 px-2"
                             >
-                              Duyá»‡t
+                              Duyệt
                             </Button>
                             <Button
                               variant="danger-outline"
-                              disabled={confirmItemMutation.isPending || rejectItemMutation.isPending}
+                              disabled={confirmItemMutation.isPending || rejectItemMutation.isPending || revertItemMutation.isPending}
                               onClick={() => setRejectItemId(item.id)}
                               className="text-xs py-1 px-2"
                             >
-                              Tá»« chá»‘i
+                              Từ chối
                             </Button>
                           </div>
-                        )}
-                        {item.status === 'rejected' && item.reject_reason && (
+                        ) : (item.status === 'confirmed' || item.status === 'rejected') && canRevert ? (
+                          <div className="flex flex-col gap-1">
+                            {item.status === 'rejected' && item.reject_reason && (
+                              <p className="max-w-40 text-xs text-[#CC0000]">{item.reject_reason}</p>
+                            )}
+                            <Button
+                              variant="outline"
+                              loading={revertItemMutation.isPending && actionItemId === item.id}
+                              disabled={revertItemMutation.isPending || confirmItemMutation.isPending || rejectItemMutation.isPending}
+                              onClick={() => revertItemMutation.mutate(item.id)}
+                              className="text-xs py-1 px-2 whitespace-nowrap"
+                            >
+                              Hoàn tác ({minutesLeft(item.reviewed_at)}p)
+                            </Button>
+                          </div>
+                        ) : item.status === 'rejected' && item.reject_reason ? (
                           <p className="max-w-40 text-xs text-[#CC0000]">{item.reject_reason}</p>
-                        )}
+                        ) : null}
                       </td>
                     </tr>
                   )
@@ -212,13 +260,13 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
                 variant="danger-outline"
                 loading={deleteBookingMutation.isPending}
                 onClick={() => {
-                  if (window.confirm(`XoÃ¡ booking ${booking.booking_code}? KhÃ´ng thá»ƒ hoÃ n tÃ¡c.`)) {
+                  if (window.confirm(`Xoá booking ${booking.booking_code}? Không thể hoàn tác.`)) {
                     deleteBookingMutation.mutate(booking.id)
                   }
                 }}
                 className="text-xs py-1.5 px-3"
               >
-                XoÃ¡ booking
+                Xoá booking
               </Button>
             </div>
           )}
@@ -228,20 +276,20 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
       <Modal
         isOpen={!!rejectItemId}
         onClose={() => setRejectItemId(null)}
-        title="Tá»« chá»‘i Ä‘Æ¡n hÃ ng"
+        title="Từ chối đơn hàng"
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-sm text-[#888888]">Vui lÃ²ng nháº­p lÃ½ do tá»« chá»‘i:</p>
+          <p className="text-sm text-[#888888]">Vui lòng nhập lý do từ chối:</p>
           <textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             rows={3}
             className="input-field resize-none"
-            placeholder="LÃ½ do tá»« chá»‘i..."
+            placeholder="Lý do từ chối..."
           />
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setRejectItemId(null)} className="flex-1">Huá»·</Button>
+            <Button variant="outline" onClick={() => setRejectItemId(null)} className="flex-1">Huỷ</Button>
             <Button
               variant="danger-outline"
               loading={rejectItemMutation.isPending && actionItemId === rejectItemId}
@@ -249,7 +297,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
               onClick={() => rejectItemId && rejectItemMutation.mutate({ itemId: rejectItemId, reason: rejectReason })}
               className="flex-1"
             >
-              XÃ¡c nháº­n tá»« chá»‘i
+              Xác nhận từ chối
             </Button>
           </div>
         </div>

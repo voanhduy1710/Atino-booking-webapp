@@ -113,7 +113,7 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
     queryFn: async () => {
       let q = supabase
         .from('bookings')
-        .select('id, booking_code, booking_token, supplier_account_id, delivery_date, time_slot, status, submitted_at, ghi_chu, suppliers!inner(name), warehouses!inner(name), booking_items(id, status, reject_reason)')
+        .select('id, booking_code, booking_token, supplier_account_id, delivery_date, time_slot, status, submitted_at, ghi_chu, suppliers!inner(name, code), warehouses!inner(name), booking_items(id, status, reject_reason, product_code, process_code)')
         .order('submitted_at', { ascending: false })
       if (dateFrom) q = q.gte('delivery_date', dateFrom)
       if (dateTo) q = q.lte('delivery_date', dateTo)
@@ -129,12 +129,14 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
           supplier_account_id: b.supplier_account_id,
           delivery_date: b.delivery_date, time_slot: b.time_slot, status: deriveBookingStatus(b.status, items),
           submitted_at: b.submitted_at, supplier_name: b.suppliers?.name ?? '—',
+          supplier_code: b.suppliers?.code ?? '—',
           warehouse_name: b.warehouses?.name ?? '—',
           items_count: items.length,
           item_status_counts: countBookingItemStatuses(items),
           status_tags: statusTags,
           ghi_chu: b.ghi_chu,
           reject_reasons: items.map((item: any) => item.reject_reason).filter(Boolean).join('; '),
+          item_codes: items.map((item: any) => ({ product_code: item.product_code, process_code: item.process_code })),
         }
       }) as BookingRow[]
       return statusFilter === 'all' ? rows : rows.filter((b) => b.status_tags.includes(statusFilter))
@@ -235,13 +237,14 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
             <thead>
               <tr>
                 <th className="table-header">Mã booking</th>
-                <th className="table-header">Nhà cung cấp</th>
+                <th className="table-header">Mã NCC</th>
                 <th className="table-header">Kho</th>
                 <th className="table-header w-24">Ngày giao</th>
                 <th className="table-header w-28">Khung giờ</th>
                 <th className="table-header w-20">SL PO</th>
                 <th className="table-header w-36">Tiến độ</th>
                 <th className="table-header w-32">Đăng ký lúc</th>
+                <th className="table-header">Mã SP · Mã QT</th>
                 <th className="table-header whitespace-nowrap w-52">Trạng thái</th>
                 <th className="table-header min-w-44">Ghi chú</th>
                 <th className="table-header min-w-44">Lí do</th>
@@ -257,7 +260,7 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
                   onClick={() => void openBooking(b)}
                 >
                   <td className="table-cell font-mono font-bold">{b.booking_code}</td>
-                  <td className="table-cell">{b.supplier_name}</td>
+                  <td className="table-cell font-mono text-xs">{b.supplier_code}</td>
                   <td className="table-cell">{b.warehouse_name}</td>
                   <td className="table-cell text-xs">{formatDateDisplay(b.delivery_date)}</td>
                   <td className="table-cell">{TIME_SLOT_LABELS[b.time_slot]}</td>
@@ -267,6 +270,13 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
                     <span className="block">{b.item_status_counts.rejected}/{b.items_count} từ chối</span>
                   </td>
                   <td className="table-cell text-xs text-[#888888]">{formatDateTimeDisplay(b.submitted_at)}</td>
+                  <td className="table-cell">
+                    <div className="space-y-0.5">
+                      {(b as any).item_codes?.map((ic: any, i: number) => (
+                        <p key={i} className="font-mono text-[10px] whitespace-nowrap">{ic.product_code} · {ic.process_code}</p>
+                      ))}
+                    </div>
+                  </td>
                   <td className="table-cell whitespace-nowrap">
                     <div className="flex flex-col items-start gap-1">
                       {b.status_tags.map((status) => <StatusBadge key={status} status={status} />)}

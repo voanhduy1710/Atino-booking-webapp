@@ -1,4 +1,4 @@
-﻿import { type RefObject } from 'react'
+import { type RefObject } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { buildPhotoList } from '@/shared/lib/gcs'
@@ -16,6 +16,7 @@ export interface BookingRow {
   status: BookingStatus
   submitted_at: string
   supplier_name: string
+  supplier_code: string
   supplier_account_id: string
   warehouse_name: string
   items_count: number
@@ -23,6 +24,14 @@ export interface BookingRow {
   status_tags: BookingStatusTag[]
   ghi_chu: string | null
   reject_reasons: string
+}
+
+interface TooltipItem {
+  product_code: string
+  process_code: string
+  delivery_round: number
+  is_final_round: boolean
+  quantity_booked: number
 }
 
 interface Props {
@@ -39,21 +48,32 @@ interface Props {
 }
 
 export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, onMouseLeave, onPhotoClick, onPin, onViewDetails }: Props) {
-  const { data: photos = [] } = useQuery({
-    queryKey: ['tooltip-photos', row.id],
+  const { data } = useQuery({
+    queryKey: ['tooltip-items', row.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('booking_items')
-        .select('vat_invoice_url, booking_item_photos(storage_path, photo_type)')
+        .select('product_code, process_code, delivery_round, is_final_round, quantity_booked, vat_invoice_url, booking_item_photos(storage_path, photo_type)')
         .eq('booking_id', row.id)
-      if (error) return []
-      return (data ?? []).flatMap((item) => buildPhotoList(item as any))
+      if (error) return { items: [], photos: [] }
+      const items: TooltipItem[] = (data ?? []).map((d: any) => ({
+        product_code: d.product_code,
+        process_code: d.process_code,
+        delivery_round: d.delivery_round,
+        is_final_round: d.is_final_round,
+        quantity_booked: d.quantity_booked,
+      }))
+      const photos = (data ?? []).flatMap((item) => buildPhotoList(item as any))
+      return { items, photos }
     },
     staleTime: 8 * 60 * 1000,
   })
 
-  const clampedX = Math.max(4, Math.min(x, window.innerWidth - 336))
-  const clampedY = Math.max(4, Math.min(y, window.innerHeight - 320))
+  const items = data?.items ?? []
+  const photos = data?.photos ?? []
+
+  const clampedX = Math.max(4, Math.min(x, window.innerWidth - 360))
+  const clampedY = Math.max(4, Math.min(y, window.innerHeight - 400))
 
   return (
     <div
@@ -66,13 +86,12 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
       <p className="font-mono font-bold text-xs mb-2">{row.booking_code}</p>
       <div className="space-y-1.5 mb-3">
         {([
-          ['NhÃ  cung cáº¥p', row.supplier_name],
+          ['Mã NCC', row.supplier_code],
           ['Kho', row.warehouse_name],
-          ['NgÃ y giao', formatDateDisplay(row.delivery_date)],
-          ['Khung giá»', TIME_SLOT_LABELS[row.time_slot]],
-          ['SL PO', String(row.items_count)],
-          ['Xá»­ lÃ½', formatBookingItemSummary(row.item_status_counts)],
-          ['ÄÄƒng kÃ½ lÃºc', formatDateTimeDisplay(row.submitted_at)],
+          ['Ngày giao', formatDateDisplay(row.delivery_date)],
+          ['Khung giờ', TIME_SLOT_LABELS[row.time_slot]],
+          ['Xử lý', formatBookingItemSummary(row.item_status_counts)],
+          ['Đăng ký lúc', formatDateTimeDisplay(row.submitted_at)],
         ] as [string, string][]).map(([label, value]) => (
           <div key={label} className="flex justify-between gap-2">
             <span className="text-[#888888] text-xs flex-shrink-0">{label}</span>
@@ -80,9 +99,38 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
           </div>
         ))}
       </div>
+
+      {items.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[10px] text-[#888888] uppercase tracking-wider mb-1.5">Đơn hàng</p>
+          <div className="border border-[#ecdbe8] rounded overflow-hidden">
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="bg-[#F5F5F5]">
+                  <th className="px-2 py-1 text-left text-[#888888] font-medium">Mã SP</th>
+                  <th className="px-2 py-1 text-left text-[#888888] font-medium">Mã QT</th>
+                  <th className="px-2 py-1 text-center text-[#888888] font-medium">Lần</th>
+                  <th className="px-2 py-1 text-right text-[#888888] font-medium">SL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, i) => (
+                  <tr key={i} className="border-t border-[#ecdbe8]">
+                    <td className="px-2 py-1 font-mono">{item.product_code}</td>
+                    <td className="px-2 py-1 font-mono">{item.process_code}</td>
+                    <td className="px-2 py-1 text-center">{item.is_final_round ? 'Cuối' : item.delivery_round}</td>
+                    <td className="px-2 py-1 text-right">{item.quantity_booked}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {photos.length > 0 && (
         <div>
-          <p className="text-[10px] text-[#888888] uppercase tracking-wider mb-1.5">áº¢nh Ä‘Ã­nh kÃ¨m</p>
+          <p className="text-[10px] text-[#888888] uppercase tracking-wider mb-1.5">Ảnh đính kèm</p>
           <div className="flex flex-wrap gap-1.5">
             {photos.map((ph, i) => (
               <AttachmentThumbnail
@@ -101,9 +149,9 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
         onClick={onViewDetails}
         className="mt-3 w-full rounded border border-[#80417A] px-3 py-1.5 text-xs font-medium hover:bg-[#80417A] hover:text-white transition-colors"
       >
-        Xem chi tiáº¿t
+        Xem chi tiết
       </button>
-      {isPinned && <p className="text-[10px] text-[#BBBBBB] mt-2 text-right">Nháº¥n Esc Ä‘á»ƒ Ä‘Ã³ng</p>}
+      {isPinned && <p className="text-[10px] text-[#BBBBBB] mt-2 text-right">Nhấn Esc để đóng</p>}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { getCurrentUser } from '@/shared/lib/auth'
@@ -27,14 +27,12 @@ interface MyBooking {
   booking_items?: Array<{ status: string; reject_reason: string | null }>
 }
 
-// â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 export default function MyBookingsPage() {
   const user = getCurrentUser()
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
 
   useEffect(() => {
-    document.title = 'Lá»‹ch sá»­ Ä‘Äƒng kÃ½ â€” Atino Booking'
+    document.title = 'Lịch sử đăng ký — Atino Booking'
   }, [])
 
   const { data: bookings = [], isLoading } = useQuery({
@@ -79,29 +77,27 @@ export default function MyBookingsPage() {
   })
 
   const STATUS_TABS: { label: string; value: BookingStatus | 'all' }[] = [
-    { label: 'Táº¥t cáº£', value: 'all' },
-    { label: 'Chá» xÃ¡c nháº­n', value: 'pending' },
-    { label: 'Duyá»‡t má»™t pháº§n', value: 'partially_approved' },
-    { label: 'Tá»« chá»‘i má»™t pháº§n', value: 'partially_rejected' },
-    { label: 'ÄÃ£ xÃ¡c nháº­n', value: 'confirmed' },
-    { label: 'ÄÃ£ nháº­n hÃ ng', value: 'received' },
-    { label: 'ÄÃ£ tá»« chá»‘i', value: 'rejected' },
+    { label: 'Tất cả', value: 'all' },
+    { label: 'Chờ xác nhận', value: 'pending' },
+    { label: 'Duyệt một phần', value: 'partially_approved' },
+    { label: 'Từ chối một phần', value: 'partially_rejected' },
+    { label: 'Đã xác nhận', value: 'confirmed' },
+    { label: 'Đã nhận hàng', value: 'received' },
+    { label: 'Đã từ chối', value: 'rejected' },
   ]
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={SUPPLIER_TABS} activeTab="my-bookings" />
 
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
-        {/* Header */}
+      <main className="flex-1 lg:w-[80vw] max-w-none mx-auto w-full px-4 py-6">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-bold">Lá»‹ch sá»­ Ä‘Äƒng kÃ½ giao hÃ ng</h1>
+          <h1 className="text-xl font-bold">Lịch sử đăng ký giao hàng</h1>
           <Link to="/booking/new" className="btn-green" id="new-booking-btn">
-            + ÄÄƒng kÃ½ má»›i
+            + Đăng ký mới
           </Link>
         </div>
 
-        {/* Status filters */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
           {STATUS_TABS.map((tab) => (
             <button
@@ -117,16 +113,15 @@ export default function MyBookingsPage() {
           ))}
         </div>
 
-        {/* Booking list */}
         {isLoading ? (
           <div className="flex justify-center py-16">
             <LoadingSpinner size="lg" />
           </div>
         ) : bookings.length === 0 ? (
           <div className="bg-white border border-[#ecdbe8] rounded-lg p-16 text-center text-[#888888]">
-            <p>ChÆ°a cÃ³ Ä‘Äƒng kÃ½ nÃ o</p>
+            <p>Chưa có đăng ký nào</p>
             <Link to="/booking/new" className="mt-3 text-sm text-black underline block">
-              Táº¡o Ä‘Æ¡n Ä‘Äƒng kÃ½ ngay
+              Tạo đơn đăng ký ngay
             </Link>
           </div>
         ) : (
@@ -141,12 +136,12 @@ export default function MyBookingsPage() {
                   <div className="min-w-0">
                     <p className="font-mono text-sm font-bold">{b.booking_code}</p>
                     <p className="text-xs text-[#888888] mt-0.5">
-                      {b.warehouse_name} â€¢ Giao ngÃ y {formatDateDisplay(b.delivery_date)} â€¢{' '}
+                      {b.warehouse_name} • Giao ngày {formatDateDisplay(b.delivery_date)} •{' '}
                       {TIME_SLOT_LABELS[b.time_slot]}
                     </p>
                     <div className="mt-2 grid gap-1 text-xs text-[#555555] sm:grid-cols-2">
-                      <p><span className="font-semibold text-black">Ghi chÃº:</span> {b.ghi_chu || <span className="text-[#BBBBBB]">â€”</span>}</p>
-                      <p><span className="font-semibold text-black">LÃ­ do:</span> {b.reject_reasons || <span className="text-[#BBBBBB]">â€”</span>}</p>
+                      <p><span className="font-semibold text-black">Ghi chú:</span> {b.ghi_chu || <span className="text-[#BBBBBB]">—</span>}</p>
+                      <p><span className="font-semibold text-black">Lý do:</span> {b.reject_reasons || <span className="text-[#BBBBBB]">—</span>}</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">

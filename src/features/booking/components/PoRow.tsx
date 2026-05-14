@@ -1,4 +1,4 @@
-﻿import { useRef } from 'react'
+import { useRef } from 'react'
 import type { UseFormRegister, FieldErrors, UseFormSetValue, UseFormWatch } from 'react-hook-form'
 import type { BookingFormData } from '@/features/booking/schemas'
 import { usePhotoUpload } from '@/features/booking/hooks/usePhotoUpload'
@@ -37,10 +37,10 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
     const newFiles = Array.from(e.target.files ?? [])
     const basePaths = slipPaths
     if (basePaths.length + newFiles.length > 10) {
-      alert('Tá»‘i Ä‘a 10 áº£nh phiáº¿u giao má»—i Ä‘Æ¡n hÃ ng')
+      alert('Tối đa 10 ảnh phiếu giao mỗi đơn hàng')
       return
     }
-    // Accumulate paths locally â€” do NOT read watch() inside the loop
+    // Accumulate paths locally — do NOT read watch() inside the loop
     // (watch returns a stale snapshot; reading it per-iteration causes overwrites)
     const accumulated: string[] = [...basePaths]
     for (const file of newFiles) {
@@ -56,10 +56,10 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
     const newFiles = Array.from(e.target.files ?? [])
     const basePaths = vatPaths
     if (basePaths.length + newFiles.length > 10) {
-      alert('Tá»‘i Ä‘a 10 hÃ³a Ä‘Æ¡n VAT má»—i Ä‘Æ¡n hÃ ng')
+      alert('Tối đa 10 hóa đơn VAT mỗi đơn hàng')
       return
     }
-    // Accumulate paths locally â€” same fix as handleSlipUpload
+    // Accumulate paths locally — same fix as handleSlipUpload
     const accumulated: string[] = [...basePaths]
     for (const file of newFiles) {
       const path = await uploadVat(file, `vat_${uploadPrefix}`)
@@ -93,26 +93,26 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
       {/* STT */}
       <td className="table-cell text-center font-medium text-[#888888]">{index + 1}</td>
 
-      {/* MÃ£ SP / MÃ£ QT */}
+      {/* Mã SP / Mã QT */}
       <td className="table-cell">
-        <div className="space-y-1">
+        <div className="grid grid-cols-2 gap-2">
           <input
             className={`input-field text-sm ${itemErrors?.product_code ? 'input-field-error' : ''}`}
-            placeholder="MÃ£ sáº£n pháº©m"
+            placeholder="Mã SP"
             {...register(`items.${index}.product_code`)}
           />
           <input
             className={`input-field text-sm ${itemErrors?.process_code ? 'input-field-error' : ''}`}
-            placeholder="MÃ£ quy trÃ¬nh"
+            placeholder="Mã QT"
             {...register(`items.${index}.process_code`)}
           />
-          {itemErrors?.product_code?.message && (
-            <p className="form-error">{itemErrors.product_code.message}</p>
-          )}
         </div>
+        {itemErrors?.product_code?.message && (
+          <p className="form-error mt-1">{itemErrors.product_code.message}</p>
+        )}
       </td>
 
-      {/* Sá»‘ láº§n giao */}
+      {/* Số lần giao */}
       <td className="table-cell">
         <div className="space-y-1">
           <select
@@ -130,17 +130,17 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
             {DELIVERY_ROUND_OPTIONS.map((n) => (
               <option key={n} value={n}>{n}</option>
             ))}
-            <option value="final">Cuá»‘i</option>
+            <option value="final">Cuối</option>
           </select>
           {/* Hidden field for form registration */}
           <input type="hidden" {...register(`items.${index}.delivery_round`, { valueAsNumber: true })} />
           <input type="hidden" {...register(`items.${index}.is_final_round`)} />
         </div>
 
-        {/* VAT invoice â€” only on round 1 */}
+        {/* VAT invoice — only on round 1 */}
         {deliveryRound === 1 && !isFinalRound && (
           <div className="mt-2">
-            <label className="text-xs font-medium text-[#CC0000] block mb-1">HÃ³a Ä‘Æ¡n VAT *</label>
+            <label className="text-xs font-medium text-[#CC0000] block mb-1">Hóa đơn VAT *</label>
             <div className="space-y-1">
               <div className="flex flex-wrap gap-1">
                 {vatFiles.map((f) => (
@@ -159,7 +159,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
                       onClick={() => handleRemoveVat(f.tempPath)}
                       className="text-[#888888] hover:text-black"
                     >
-                      Ã—
+                      ×
                     </button>
                   </div>
                 ))}
@@ -171,7 +171,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
                 className="flex items-center gap-1 text-xs border border-dashed border-[#ecdbe8] hover:border-[#80417A] disabled:opacity-40 rounded px-2 py-1 transition-colors"
               >
                 {vatUploading ? <LoadingSpinner size="sm" /> : '+'}
-                ThÃªm VAT
+                Thêm VAT
               </button>
             </div>
             <input
@@ -189,7 +189,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
         )}
       </td>
 
-      {/* Sá»‘ kiá»‡n/thÃ¹ng */}
+      {/* Số kiện/thùng */}
       <td className="table-cell">
         <input
           type="number"
@@ -202,7 +202,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
         )}
       </td>
 
-      {/* áº¢nh phiáº¿u giao */}
+      {/* Ảnh phiếu giao */}
       <td className="table-cell">
         <div className="space-y-1">
           <div className="flex flex-wrap gap-1">
@@ -222,7 +222,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
                   onClick={() => handleRemoveSlip(f.tempPath)}
                   className="text-[#888888] hover:text-black"
                 >
-                  Ã—
+                  ×
                 </button>
               </div>
             ))}
@@ -235,7 +235,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
             className="flex items-center gap-1 text-xs border border-dashed border-[#ecdbe8] hover:border-[#80417A] disabled:opacity-40 rounded px-2 py-1 transition-colors"
           >
             {slipUploading ? <LoadingSpinner size="sm" /> : '+'}
-            ThÃªm áº£nh
+            Thêm ảnh
           </button>
           <input
             ref={slipInputRef}
@@ -258,9 +258,9 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
             type="button"
             onClick={onRemove}
             className="text-[#888888] hover:text-[#CC0000] transition-colors text-lg"
-            aria-label="XÃ³a hÃ ng"
+            aria-label="Xóa hàng"
           >
-            Ã—
+            ×
           </button>
         )}
       </td>

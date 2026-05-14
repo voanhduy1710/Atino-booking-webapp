@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 type GuideTab = 'create' | 'receiving'
@@ -11,7 +11,7 @@ export default function GuidePage() {
   const [tab, setTab] = useState<GuideTab>('create')
 
   useEffect(() => {
-    document.title = 'HÆ°á»›ng dáº«n â€” Atino Booking'
+    document.title = 'Hướng dẫn — Atino Booking'
   }, [])
 
   return (
@@ -19,14 +19,14 @@ export default function GuidePage() {
       {/* Header */}
       <div className="border-b border-[#d5c0d5] bg-white px-6 py-4 flex items-center gap-4 shadow-sm">
         <Link to="/" className="text-black font-bold hover:text-white transition-colors text-sm">
-          â† Quay láº¡i
+          ← Quay lại
         </Link>
         <img src="/Atino Logo.svg" alt="Atino" className="h-6 w-auto" />
       </div>
 
       {/* Subtabs */}
       <div className="border-b border-[#d5c0d5] bg-white px-6">
-        <div className="flex gap-0 max-w-3xl mx-auto">
+        <div className="flex gap-0 lg:w-[80vw] max-w-none mx-auto">
           <button
             onClick={() => setTab('create')}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${tab === 'create'
@@ -34,7 +34,7 @@ export default function GuidePage() {
                 : 'border-transparent text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
               }`}
           >
-            Quy trÃ¬nh Ä‘Äƒng kÃ½
+            Quy trình đăng ký
           </button>
           <button
             onClick={() => setTab('receiving')}
@@ -43,12 +43,12 @@ export default function GuidePage() {
                 : 'border-transparent text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
               }`}
           >
-            Quy trÃ¬nh nháº­n hÃ ng
+            Quy trình nhận hàng
           </button>
         </div>
       </div>
 
-      {/* Content â€” strip the outer wrapper from each guide */}
+      {/* Content — strip the outer wrapper from each guide */}
       <div>
         {tab === 'create' ? (
           <GuideCreateContent />
@@ -60,23 +60,23 @@ export default function GuidePage() {
   )
 }
 
-// â”€â”€ Inline content components (reuse logic without the outer page chrome) â”€â”€â”€â”€â”€â”€
+// ── Inline content components (reuse logic without the outer page chrome) ──────
 
 function GuideCreateContent() {
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <h1 className="text-2xl font-bold mb-2">HÆ°á»›ng dáº«n táº¡o Ä‘Æ¡n Ä‘Äƒng kÃ½ giao hÃ ng</h1>
+    <div className="lg:w-[80vw] max-w-none mx-auto px-6 py-10">
+      <h1 className="text-2xl font-bold mb-2">Hướng dẫn tạo đơn đăng ký giao hàng</h1>
       <p className="text-[#888888] text-sm mb-8">
-        LÃ m theo cÃ¡c bÆ°á»›c dÆ°á»›i Ä‘Ã¢y Ä‘á»ƒ Ä‘Äƒng kÃ½ giao hÃ ng thÃ nh cÃ´ng.
+        Làm theo các bước dưới đây để đăng ký giao hàng thành công.
       </p>
       <div className="space-y-8">
         {[
-          { step: 1, title: 'ÄÄƒng nháº­p tÃ i khoáº£n', desc: 'Sá»­ dá»¥ng tÃªn Ä‘Äƒng nháº­p vÃ  máº­t kháº©u Ä‘Æ°á»£c cáº¥p. Náº¿u chÆ°a cÃ³ tÃ i khoáº£n, vui lÃ²ng Ä‘Äƒng kÃ½ vÃ  chá» admin xÃ¡c nháº­n.' },
-          { step: 2, title: 'Chá»n kho vÃ  Ä‘iá»n thÃ´ng tin nhÃ  cung cáº¥p', desc: 'Chá»n kho hÃ ng tá»« dropdown. MÃ£ NCC vÃ  TÃªn NCC Ä‘Æ°á»£c tá»± Ä‘á»™ng Ä‘iá»n tá»« tÃ i khoáº£n cá»§a báº¡n.' },
-          { step: 3, title: 'Nháº­p sá»‘ lÆ°á»£ng Ä‘Æ¡n hÃ ng (PO)', desc: 'Nháº­p sá»‘ lÆ°á»£ng Ä‘Æ¡n hÃ ng (1â€“99). Há»‡ thá»‘ng sáº½ táº¡o ra sá»‘ hÃ ng tÆ°Æ¡ng á»©ng trong báº£ng Ä‘Æ¡n hÃ ng.' },
-          { step: 4, title: 'Äiá»n thÃ´ng tin tá»«ng Ä‘Æ¡n hÃ ng', desc: 'Cho má»—i hÃ ng: nháº­p MÃ£ sáº£n pháº©m â€” MÃ£ quy trÃ¬nh, chá»n Sá»‘ láº§n giao, nháº­p Sá»‘ kiá»‡n/thÃ¹ng, táº£i lÃªn áº£nh phiáº¿u giao. Náº¿u Ä‘Ã¢y lÃ  láº§n giao Ä‘áº§u tiÃªn (Sá»‘ láº§n giao = 1), báº¯t buá»™c pháº£i táº£i lÃªn HÃ³a Ä‘Æ¡n VAT.' },
-          { step: 5, title: 'Chá»n khung giá» giao hÃ ng', desc: 'Chá»n má»™t trong bá»‘n khung giá»: 07:00â€“09:00, 09:00â€“11:00, 13:30â€“15:30, 15:30â€“17:00. ÄÆ¡n hÃ ng Ä‘Äƒng kÃ½ trÆ°á»›c 18:00 sáº½ giao ngÃ y N+1, tá»« 18:00 trá»Ÿ Ä‘i sáº½ giao ngÃ y N+2.' },
-          { step: 6, title: 'Gá»­i Ä‘Äƒng kÃ½ vÃ  lÆ°u mÃ£ QR', desc: 'Nháº¥n "ÄÄƒng kÃ½". Sau khi thÃ nh cÃ´ng, báº¡n sáº½ nháº­n Ä‘Æ°á»£c mÃ£ booking vÃ  mÃ£ QR. Vui lÃ²ng lÆ°u hoáº·c in mÃ£ QR Ä‘á»ƒ sá»­ dá»¥ng khi giao hÃ ng táº¡i kho.' },
+          { step: 1, title: 'Đăng nhập tài khoản', desc: 'Sử dụng tên đăng nhập và mật khẩu được cấp. Nếu chưa có tài khoản, vui lòng đăng ký và chờ admin xác nhận.' },
+          { step: 2, title: 'Chọn kho và điền thông tin nhà cung cấp', desc: 'Chọn kho hàng từ dropdown. Mã NCC và Tên NCC được tự động điền từ tài khoản của bạn.' },
+          { step: 3, title: 'Nhập số lượng đơn hàng (PO)', desc: 'Nhập số lượng đơn hàng (1–99). Hệ thống sẽ tạo ra số hàng tương ứng trong bảng đơn hàng.' },
+          { step: 4, title: 'Điền thông tin từng đơn hàng', desc: 'Cho mỗi hàng: nhập Mã sản phẩm — Mã quy trình, chọn Số lần giao, nhập Số kiện/thùng, tải lên ảnh phiếu giao. Nếu đây là lần giao đầu tiên (Số lần giao = 1), bắt buộc phải tải lên Hóa đơn VAT.' },
+          { step: 5, title: 'Chọn khung giờ giao hàng', desc: 'Chọn một trong bốn khung giờ: 07:00–09:00, 09:00–11:00, 13:30–15:30, 15:30–17:00. Đơn hàng đăng ký trước 18:00 sẽ giao ngày N+1, từ 18:00 trở đi sẽ giao ngày N+2.' },
+          { step: 6, title: 'Gửi đăng ký và lưu mã QR', desc: 'Nhấn "Đăng ký". Sau khi thành công, bạn sẽ nhận được mã booking và mã QR. Vui lòng lưu hoặc in mã QR để sử dụng khi giao hàng tại kho.' },
         ].map(({ step, title, desc }) => (
           <div key={step} className="flex gap-5">
             <div className="flex-shrink-0 w-9 h-9 rounded-full border-2 border-black flex items-center justify-center font-bold text-sm">{step}</div>
@@ -89,7 +89,7 @@ function GuideCreateContent() {
       </div>
       <div className="mt-10 pt-6 border-t border-[#ecdbe8]">
         <Link to="/login" className="btn-primary inline-flex" id="guide-go-to-login">
-          ÄÄƒng nháº­p Ä‘á»ƒ Ä‘Äƒng kÃ½ giao hÃ ng
+          Đăng nhập để đăng ký giao hàng
         </Link>
       </div>
     </div>
@@ -99,15 +99,15 @@ function GuideCreateContent() {
 function GuideReceivingContent() {
   // Import inline from GuideReceiving page body
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <h1 className="text-2xl font-bold mb-2">HÆ°á»›ng dáº«n nháº­n hÃ ng táº¡i kho</h1>
+    <div className="lg:w-[80vw] max-w-none mx-auto px-6 py-10">
+      <h1 className="text-2xl font-bold mb-2">Hướng dẫn nhận hàng tại kho</h1>
       <p className="text-[#888888] text-sm mb-8">
-        Quy trÃ¬nh nháº­n hÃ ng tá»« nhÃ  cung cáº¥p táº¡i kho Atino.
+        Quy trình nhận hàng từ nhà cung cấp tại kho Atino.
       </p>
       <div className="bg-[#F5F5F5] border border-[#ecdbe8] rounded-lg p-5 text-sm text-[#888888] text-center">
-        Ná»™i dung hÆ°á»›ng dáº«n nháº­n hÃ ng Ä‘ang Ä‘Æ°á»£c cáº­p nháº­t.{' '}
+        Nội dung hướng dẫn nhận hàng đang được cập nhật.{' '}
         <Link to="/guide/receiving" className="underline hover:text-black">
-          Xem trang Ä‘áº§y Ä‘á»§ â†’
+          Xem trang đầy đủ →
         </Link>
       </div>
     </div>

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
@@ -14,10 +14,10 @@ type ManagerTab = 'reviewer' | 'warehouses' | 'suppliers' | 'report'
 const VALID_MANAGER_TABS: ManagerTab[] = ['reviewer', 'warehouses', 'suppliers', 'report']
 
 const MANAGER_TABS: NavTab[] = [
-  { id: 'reviewer', label: 'XÃ¡c nháº­n booking', href: '/manager/reviewer' },
-  { id: 'warehouses', label: 'Kho hÃ ng', href: '/manager/warehouses' },
-  { id: 'suppliers', label: 'NhÃ  cung cáº¥p', href: '/manager/suppliers' },
-  { id: 'report', label: 'BÃ¡o cÃ¡o', href: '/manager/report' },
+  { id: 'reviewer', label: 'Xác nhận booking', href: '/manager/reviewer' },
+  { id: 'warehouses', label: 'Kho hàng', href: '/manager/warehouses' },
+  { id: 'suppliers', label: 'Nhà cung cấp', href: '/manager/suppliers' },
+  { id: 'report', label: 'Báo cáo', href: '/manager/report' },
 ]
 
 interface Supplier { id: string; code: string; name: string; active: boolean }
@@ -69,10 +69,10 @@ export default function ManagerPage({ embedded = false }: Props) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (!embedded) document.title = 'Quáº£n lÃ½ â€” Atino'
+    if (!embedded) document.title = 'Quản lý — Atino'
   }, [embedded])
 
-  // â”€â”€ Queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Queries ───────────────────────────────────────────────────────────────────
 
   const { data: warehouses = [] } = useQuery({
     queryKey: ['manager-warehouses'],
@@ -94,7 +94,7 @@ export default function ManagerPage({ embedded = false }: Props) {
     enabled: activeTab === 'suppliers',
   })
 
-  // â”€â”€ Mutations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Mutations ─────────────────────────────────────────────────────────────────
 
   const addWarehouseMutation = useMutation({
     mutationFn: async ({ code, name }: { code: string; name: string }) => {
@@ -140,23 +140,23 @@ export default function ManagerPage({ embedded = false }: Props) {
     },
   })
 
-  // â”€â”€ Content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Content ───────────────────────────────────────────────────────────────────
 
   const warehousesContent = (
-    <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+    <main className="flex-1 lg:w-[80vw] max-w-none mx-auto w-full px-4 py-6">
       <div className="flex justify-end mb-3">
         <button onClick={() => { setAddingWarehouse(true); setNewWhCode(''); setNewWhName('') }} className="btn-green">
-          + ThÃªm kho
+          + Thêm kho
         </button>
       </div>
       <div className="overflow-x-auto bg-white border border-[#ecdbe8] rounded-lg">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#F5F5F5]">
-              <th className="table-header">MÃ£ kho</th>
-              <th className="table-header">TÃªn kho</th>
-              <th className="table-header">Tráº¡ng thÃ¡i</th>
-              <th className="table-header w-32">Thao tÃ¡c</th>
+              <th className="table-header">Mã kho</th>
+              <th className="table-header">Tên kho</th>
+              <th className="table-header">Trạng thái</th>
+              <th className="table-header w-32">Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -169,17 +169,17 @@ export default function ManagerPage({ embedded = false }: Props) {
                   ) : w.name}
                 </td>
                 <td className="table-cell">
-                  {w.active ? <span className="status-confirmed">Hoáº¡t Ä‘á»™ng</span> : <span className="status-rejected">Ngá»«ng</span>}
+                  {w.active ? <span className="status-confirmed">Hoạt động</span> : <span className="status-rejected">Ngừng</span>}
                 </td>
                 <td className="table-cell">
                   <div className="flex gap-3">
                     {editingWarehouse?.id === w.id ? (
                       <>
-                        <LinkBtn onClick={() => editWarehouseMutation.mutate({ id: w.id, name: editWhName })}>{editWarehouseMutation.isPending ? 'LÆ°u...' : 'LÆ°u'}</LinkBtn>
-                        <LinkBtn onClick={() => setEditingWarehouse(null)}>Há»§y</LinkBtn>
+                        <LinkBtn onClick={() => editWarehouseMutation.mutate({ id: w.id, name: editWhName })}>{editWarehouseMutation.isPending ? 'Lưu...' : 'Lưu'}</LinkBtn>
+                        <LinkBtn onClick={() => setEditingWarehouse(null)}>Hủy</LinkBtn>
                       </>
                     ) : (
-                      <LinkBtn onClick={() => { setEditingWarehouse(w); setEditWhName(w.name) }}>Sá»­a</LinkBtn>
+                      <LinkBtn onClick={() => { setEditingWarehouse(w); setEditWhName(w.name) }}>Sửa</LinkBtn>
                     )}
                   </div>
                 </td>
@@ -188,18 +188,18 @@ export default function ManagerPage({ embedded = false }: Props) {
             {addingWarehouse && (
               <tr className="border-t border-[#ecdbe8] bg-[#FAFAFA]">
                 <td className="table-cell"><input autoFocus value={newWhCode} onChange={(e) => setNewWhCode(e.target.value.toUpperCase())} placeholder="VD: THL" className="input-field py-1 text-xs font-mono w-28" /></td>
-                <td className="table-cell"><input value={newWhName} onChange={(e) => setNewWhName(e.target.value)} placeholder="TÃªn kho..." className="input-field py-1 text-xs" /></td>
-                <td className="table-cell text-[#888888] text-xs">Hoáº¡t Ä‘á»™ng</td>
+                <td className="table-cell"><input value={newWhName} onChange={(e) => setNewWhName(e.target.value)} placeholder="Tên kho..." className="input-field py-1 text-xs" /></td>
+                <td className="table-cell text-[#888888] text-xs">Hoạt động</td>
                 <td className="table-cell">
                   <div className="flex gap-3">
-                    <LinkBtn onClick={() => addWarehouseMutation.mutate({ code: newWhCode, name: newWhName })}>{addWarehouseMutation.isPending ? 'LÆ°u...' : 'LÆ°u'}</LinkBtn>
-                    <LinkBtn onClick={() => setAddingWarehouse(false)}>Há»§y</LinkBtn>
+                    <LinkBtn onClick={() => addWarehouseMutation.mutate({ code: newWhCode, name: newWhName })}>{addWarehouseMutation.isPending ? 'Lưu...' : 'Lưu'}</LinkBtn>
+                    <LinkBtn onClick={() => setAddingWarehouse(false)}>Hủy</LinkBtn>
                   </div>
                 </td>
               </tr>
             )}
             {warehouses.length === 0 && !addingWarehouse && (
-              <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">KhÃ´ng cÃ³ dá»¯ liá»‡u</td></tr>
+              <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
             )}
           </tbody>
         </table>
@@ -208,20 +208,20 @@ export default function ManagerPage({ embedded = false }: Props) {
   )
 
   const suppliersContent = (
-    <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+    <main className="flex-1 lg:w-[80vw] max-w-none mx-auto w-full px-4 py-6">
       <div className="flex justify-end mb-3">
         <button onClick={() => { setAddingSupplier(true); setNewSpCode(''); setNewSpName('') }} className="btn-green">
-          + ThÃªm NCC
+          + Thêm NCC
         </button>
       </div>
       <div className="overflow-x-auto bg-white border border-[#ecdbe8] rounded-lg">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#F5F5F5]">
-              <th className="table-header">MÃ£ NCC</th>
-              <th className="table-header">TÃªn NCC</th>
-              <th className="table-header">Tráº¡ng thÃ¡i</th>
-              <th className="table-header w-32">Thao tÃ¡c</th>
+              <th className="table-header">Mã NCC</th>
+              <th className="table-header">Tên NCC</th>
+              <th className="table-header">Trạng thái</th>
+              <th className="table-header w-32">Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -238,17 +238,17 @@ export default function ManagerPage({ embedded = false }: Props) {
                   ) : s.name}
                 </td>
                 <td className="table-cell">
-                  {s.active ? <span className="status-confirmed">Hoáº¡t Ä‘á»™ng</span> : <span className="status-rejected">Ngá»«ng</span>}
+                  {s.active ? <span className="status-confirmed">Hoạt động</span> : <span className="status-rejected">Ngừng</span>}
                 </td>
                 <td className="table-cell">
                   <div className="flex gap-3">
                     {editingSupplier?.id === s.id ? (
                       <>
-                        <LinkBtn onClick={() => editSupplierMutation.mutate({ id: s.id, code: editSpCode, name: editSpName })}>{editSupplierMutation.isPending ? 'LÆ°u...' : 'LÆ°u'}</LinkBtn>
-                        <LinkBtn onClick={() => setEditingSupplier(null)}>Há»§y</LinkBtn>
+                        <LinkBtn onClick={() => editSupplierMutation.mutate({ id: s.id, code: editSpCode, name: editSpName })}>{editSupplierMutation.isPending ? 'Lưu...' : 'Lưu'}</LinkBtn>
+                        <LinkBtn onClick={() => setEditingSupplier(null)}>Hủy</LinkBtn>
                       </>
                     ) : (
-                      <LinkBtn onClick={() => { setEditingSupplier(s); setEditSpCode(s.code); setEditSpName(s.name) }}>Sá»­a</LinkBtn>
+                      <LinkBtn onClick={() => { setEditingSupplier(s); setEditSpCode(s.code); setEditSpName(s.name) }}>Sửa</LinkBtn>
                     )}
                   </div>
                 </td>
@@ -257,18 +257,18 @@ export default function ManagerPage({ embedded = false }: Props) {
             {addingSupplier && (
               <tr className="border-t border-[#ecdbe8] bg-[#FAFAFA]">
                 <td className="table-cell"><input autoFocus value={newSpCode} onChange={(e) => setNewSpCode(e.target.value.toUpperCase())} placeholder="VD: GC01" className="input-field py-1 text-xs font-mono w-28" /></td>
-                <td className="table-cell"><input value={newSpName} onChange={(e) => setNewSpName(e.target.value)} placeholder="TÃªn nhÃ  cung cáº¥p..." className="input-field py-1 text-xs" /></td>
-                <td className="table-cell text-[#888888] text-xs">Hoáº¡t Ä‘á»™ng</td>
+                <td className="table-cell"><input value={newSpName} onChange={(e) => setNewSpName(e.target.value)} placeholder="Tên nhà cung cấp..." className="input-field py-1 text-xs" /></td>
+                <td className="table-cell text-[#888888] text-xs">Hoạt động</td>
                 <td className="table-cell">
                   <div className="flex gap-3">
-                    <LinkBtn onClick={() => addSupplierMutation.mutate({ code: newSpCode, name: newSpName })}>{addSupplierMutation.isPending ? 'LÆ°u...' : 'LÆ°u'}</LinkBtn>
-                    <LinkBtn onClick={() => setAddingSupplier(false)}>Há»§y</LinkBtn>
+                    <LinkBtn onClick={() => addSupplierMutation.mutate({ code: newSpCode, name: newSpName })}>{addSupplierMutation.isPending ? 'Lưu...' : 'Lưu'}</LinkBtn>
+                    <LinkBtn onClick={() => setAddingSupplier(false)}>Hủy</LinkBtn>
                   </div>
                 </td>
               </tr>
             )}
             {suppliers.length === 0 && !addingSupplier && (
-              <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">KhÃ´ng cÃ³ dá»¯ liá»‡u</td></tr>
+              <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
             )}
           </tbody>
         </table>

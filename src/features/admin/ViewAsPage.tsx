@@ -78,7 +78,7 @@ function SupplierView() {
   const paginatedBookings = bookings.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   return (
-    <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
+    <main className="flex-1 lg:w-[80vw] max-w-none mx-auto w-full px-4 py-6">
       <p className="text-xs text-[#888888] mb-4">Đang xem giao diện Supplier — hiển thị tất cả booking (admin view)</p>
       {bookings.length === 0 ? (
         <div className="bg-white border border-[#ecdbe8] rounded-lg p-16 text-center text-[#888888]">

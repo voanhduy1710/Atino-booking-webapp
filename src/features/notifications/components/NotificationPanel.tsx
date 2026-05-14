@@ -1,4 +1,4 @@
-﻿import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useNotifications, useMarkRead } from '@/features/notifications/hooks/useNotifications'
 import { relativeTime } from '@/shared/lib/dateUtils'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
@@ -10,17 +10,17 @@ interface Props {
 }
 
 const EVENT_ICONS: Record<string, string> = {
-  booking_submitted: 'ðŸ“¦',
-  booking_confirmed: 'âœ…',
-  booking_rejected: 'âŒ',
-  booking_received: 'ðŸ­',
-  account_pending: 'â³',
-  account_approved: 'âœ…',
-  account_rejected: 'âŒ',
-  amendment_requested: 'ðŸ–',
-  amendment_approved: 'âœ…',
-  amendment_denied: 'âŒ',
-  discrepancy_recorded: 'âš ï¸',
+  booking_submitted: '📦',
+  booking_confirmed: '✅',
+  booking_rejected: '❌',
+  booking_received: '🏭',
+  account_pending: '⏳',
+  account_approved: '✅',
+  account_rejected: '❌',
+  amendment_requested: '🖍',
+  amendment_approved: '✅',
+  amendment_denied: '❌',
+  discrepancy_recorded: '⚠️',
 }
 
 export function NotificationPanel({ isOpen, onClose }: Props) {
@@ -60,25 +60,25 @@ export function NotificationPanel({ isOpen, onClose }: Props) {
           }`}
         role="dialog"
         aria-modal="true"
-        aria-label="ThÃ´ng bÃ¡o"
+        aria-label="Thông báo"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#ecdbe8]">
-          <h2 className="font-bold text-sm">ThÃ´ng bÃ¡o</h2>
+          <h2 className="font-bold text-sm">Thông báo</h2>
           <div className="flex items-center gap-3">
             <button
               onClick={handleMarkAllRead}
               className="text-xs text-[#888888] hover:text-black transition-colors"
               id="mark-all-read"
             >
-              ÄÃ¡nh dáº¥u táº¥t cáº£ Ä‘Ã£ Ä‘á»c
+              Đánh dấu tất cả đã đọc
             </button>
             <button
               onClick={onClose}
               className="text-[#888888] hover:text-black transition-colors text-xl"
-              aria-label="ÄÃ³ng"
+              aria-label="Đóng"
             >
-              Ã—
+              ×
             </button>
           </div>
         </div>
@@ -91,8 +91,8 @@ export function NotificationPanel({ isOpen, onClose }: Props) {
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-[#888888] text-sm">
-              <span className="text-2xl mb-2">ðŸ””</span>
-              ChÆ°a cÃ³ thÃ´ng bÃ¡o
+              <span className="text-2xl mb-2">🔔</span>
+              Chưa có thông báo
             </div>
           ) : (
             notifications.map((n) => (
@@ -103,7 +103,7 @@ export function NotificationPanel({ isOpen, onClose }: Props) {
                   }`}
               >
                 <span className="text-lg flex-shrink-0 mt-0.5">
-                  {EVENT_ICONS[n.event_type] ?? 'ðŸ“¢'}
+                  {EVENT_ICONS[n.event_type] ?? '📢'}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm leading-snug ${!n.is_read ? 'font-medium' : 'text-[#888888]'}`}>

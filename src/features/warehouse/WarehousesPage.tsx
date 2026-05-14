@@ -72,7 +72,7 @@ export default function WarehousesPage({ embedded = false }: { embedded?: boolea
   })
 
   const mainContent = (
-    <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+    <main className="flex-1 lg:w-[80vw] max-w-none mx-auto w-full px-4 py-6">
         <div className="flex justify-end mb-3">
           <button onClick={() => { setAdding(true); setNewCode(''); setNewName('') }} className="btn-green">
             + Thêm kho

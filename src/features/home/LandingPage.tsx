@@ -1,4 +1,4 @@
-﻿import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { getCurrentUser } from '@/shared/lib/auth'
 
@@ -7,7 +7,7 @@ export default function LandingPage() {
   const user = getCurrentUser()
 
   useEffect(() => {
-    document.title = 'ÄÆ¡n ÄÄƒng KÃ½ â€” Atino Booking'
+    document.title = 'Đơn Đăng Ký — Atino Booking'
   }, [])
 
   const handleBooking = () => {
@@ -27,10 +27,10 @@ export default function LandingPage() {
 
       {/* Title */}
       <h1 className="text-3xl font-bold tracking-widest uppercase text-center mb-2">
-        ÄÆ N ÄÄ‚NG KÃ
+        ĐƠN ĐĂNG KÝ
       </h1>
       <p className="text-[#888888] text-center mb-10 text-sm">
-        Vui lÃ²ng chá»n Ä‘Æ¡n Ä‘Äƒng kÃ½ phÃ¹ há»£p
+        Vui lòng chọn đơn đăng ký phù hợp
       </p>
 
       {/* Buttons */}
@@ -40,7 +40,7 @@ export default function LandingPage() {
           onClick={handleBooking}
           className="w-full py-5 border border-[#80417A] text-black font-semibold text-base hover:bg-[#80417A] hover:text-white transition-colors rounded"
         >
-          ÄÄƒng kÃ½ giao hÃ ng
+          Đăng ký giao hàng
         </button>
 
         <Link
@@ -48,7 +48,7 @@ export default function LandingPage() {
           id="cta-guide-create"
           className="block w-full py-5 border border-[#80417A] text-black font-semibold text-base text-center hover:bg-[#80417A] hover:text-white transition-colors rounded"
         >
-          HÆ°á»›ng dáº«n táº¡o Ä‘Æ¡n
+          Hướng dẫn tạo đơn
         </Link>
 
         <Link
@@ -56,7 +56,7 @@ export default function LandingPage() {
           id="cta-guide-receiving"
           className="block w-full py-5 border border-[#80417A] text-black font-semibold text-base text-center hover:bg-[#80417A] hover:text-white transition-colors rounded"
         >
-          Quy trÃ¬nh giao nháº­n hÃ ng
+          Quy trình giao nhận hàng
         </Link>
       </div>
 
@@ -67,7 +67,7 @@ export default function LandingPage() {
           id="login-link"
           className="text-sm text-[#888888] hover:text-black transition-colors"
         >
-          ÄÄƒng nháº­p â†’
+          Đăng nhập →
         </Link>
       </div>
     </div>

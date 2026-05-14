@@ -78,7 +78,7 @@ export default function AdminPage() {
       )}
 
       {(activeTab === 'accounts' || activeTab === 'warehouses' || activeTab === 'suppliers') && (
-        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+        <main className="flex-1 lg:w-[80vw] max-w-none mx-auto w-full px-4 py-6">
           {activeTab === 'accounts' && <AccountsTab />}
           {activeTab === 'warehouses' && <WarehousesTab />}
           {activeTab === 'suppliers' && <SuppliersTab />}

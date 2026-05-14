@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { Button } from '@/shared/components/Button'
@@ -26,12 +26,12 @@ const EyeOffIcon = () => (
 )
 
 const STATUS_COLORS: Record<AccountStatus, string> = { pending: 'status-pending', active: 'status-confirmed', rejected: 'status-rejected' }
-const STATUS_LABELS: Record<AccountStatus, string> = { pending: 'Chá» xÃ¡c nháº­n', active: 'Äang hoáº¡t Ä‘á»™ng', rejected: 'ÄÃ£ tá»« chá»‘i' }
+const STATUS_LABELS: Record<AccountStatus, string> = { pending: 'Chờ xác nhận', active: 'Đang hoạt động', rejected: 'Đã từ chối' }
 const FILTER_OPTIONS: { value: AccountStatus | 'all'; label: string }[] = [
-  { value: 'pending', label: 'Chá» xÃ¡c nháº­n' },
-  { value: 'active', label: 'Äang hoáº¡t Ä‘á»™ng' },
-  { value: 'rejected', label: 'ÄÃ£ tá»« chá»‘i' },
-  { value: 'all', label: 'Táº¥t cáº£' },
+  { value: 'pending', label: 'Chờ xác nhận' },
+  { value: 'active', label: 'Đang hoạt động' },
+  { value: 'rejected', label: 'Đã từ chối' },
+  { value: 'all', label: 'Tất cả' },
 ]
 
 export function AccountsTab() {
@@ -146,13 +146,13 @@ export function AccountsTab() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#F5F5F5]">
-                <th className="table-header">Há» tÃªn</th>
+                <th className="table-header">Họ tên</th>
                 <th className="table-header">Username</th>
-                <th className="table-header">Máº­t kháº©u</th>
-                <th className="table-header">MÃ£ NCC</th>
-                <th className="table-header">ÄÄƒng kÃ½ lÃºc</th>
-                <th className="table-header">Tráº¡ng thÃ¡i</th>
-                <th className="table-header w-32">Thao tÃ¡c</th>
+                <th className="table-header">Mật khẩu</th>
+                <th className="table-header">Mã NCC</th>
+                <th className="table-header">Đăng ký lúc</th>
+                <th className="table-header">Trạng thái</th>
+                <th className="table-header w-32">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -164,78 +164,78 @@ export function AccountsTab() {
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono text-sm">
                         {revealedPws.has(a.id)
-                          ? (a.password ? a.password : <span className="text-[#BBBBBB] text-xs not-italic">ChÆ°a cÃ³</span>)
-                          : 'â—â—â—â—â—â—'}
+                          ? (a.password ? a.password : <span className="text-[#BBBBBB] text-xs not-italic">Chưa có</span>)
+                          : '●●●●●●'}
                       </span>
-                      <button type="button" onClick={() => togglePwReveal(a.id)} className="text-[#888888] hover:text-black transition-colors flex-shrink-0" aria-label={revealedPws.has(a.id) ? 'áº¨n' : 'Hiá»‡n'}>
+                      <button type="button" onClick={() => togglePwReveal(a.id)} className="text-[#888888] hover:text-black transition-colors flex-shrink-0" aria-label={revealedPws.has(a.id) ? 'Ẩn' : 'Hiện'}>
                         {revealedPws.has(a.id) ? <EyeOffIcon /> : <EyeIcon />}
                       </button>
                     </div>
                   </td>
-                  <td className="table-cell font-mono font-medium">{a.supplier_code_requested ?? <span className="text-[#BBBBBB]">â€”</span>}</td>
+                  <td className="table-cell font-mono font-medium">{a.supplier_code_requested ?? <span className="text-[#BBBBBB]">—</span>}</td>
                   <td className="table-cell text-xs">{formatDateTimeDisplay(a.created_at)}</td>
                   <td className="table-cell"><span className={STATUS_COLORS[a.status]}>{STATUS_LABELS[a.status]}</span></td>
                   <td className="table-cell">
                     <div className="flex gap-2 flex-wrap">
-                      {a.status === 'pending' && <LinkBtn onClick={() => setSelectedAccount(a)}>XÃ©t duyá»‡t</LinkBtn>}
-                      <LinkBtn onClick={() => { setPwAccountId(a.id); setNewPassword(''); setPwError(null) }}>Äáº·t láº¡i MK</LinkBtn>
+                      {a.status === 'pending' && <LinkBtn onClick={() => setSelectedAccount(a)}>Xét duyệt</LinkBtn>}
+                      <LinkBtn onClick={() => { setPwAccountId(a.id); setNewPassword(''); setPwError(null) }}>Đặt lại MK</LinkBtn>
                       <LinkBtn danger onClick={() => {
-                        if (window.confirm(`XÃ³a tÃ i khoáº£n "${a.username}"? KhÃ´ng thá»ƒ hoÃ n tÃ¡c.`)) deleteAccountMutation.mutate(a.id)
-                      }}>XÃ³a</LinkBtn>
+                        if (window.confirm(`Xóa tài khoản "${a.username}"? Không thể hoàn tác.`)) deleteAccountMutation.mutate(a.id)
+                      }}>Xóa</LinkBtn>
                     </div>
                   </td>
                 </tr>
               ))}
               {accounts.length === 0 && (
-                <tr><td colSpan={7} className="table-cell text-center text-[#888888] py-8">KhÃ´ng cÃ³ dá»¯ liá»‡u</td></tr>
+                <tr><td colSpan={7} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
               )}
             </tbody>
           </table>
         </div>
       )}
 
-      <Modal isOpen={!!selectedAccount} onClose={() => { setSelectedAccount(null); setRejectReason('') }} title="XÃ©t duyá»‡t tÃ i khoáº£n" size="md">
+      <Modal isOpen={!!selectedAccount} onClose={() => { setSelectedAccount(null); setRejectReason('') }} title="Xét duyệt tài khoản" size="md">
         {selectedAccount && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><p className="text-xs text-[#888888]">Há» tÃªn</p><p className="font-medium">{selectedAccount.full_name}</p></div>
+              <div><p className="text-xs text-[#888888]">Họ tên</p><p className="font-medium">{selectedAccount.full_name}</p></div>
               <div><p className="text-xs text-[#888888]">Username</p><p className="font-mono">{selectedAccount.username}</p></div>
-              <div><p className="text-xs text-[#888888]">MÃ£ NCC yÃªu cáº§u</p><p className="font-mono font-bold">{selectedAccount.supplier_code_requested ?? <span className="text-[#BBBBBB]">ChÆ°a cÃ³</span>}</p></div>
-              <div><p className="text-xs text-[#888888]">ÄÄƒng kÃ½ lÃºc</p><p>{formatDateTimeDisplay(selectedAccount.created_at)}</p></div>
+              <div><p className="text-xs text-[#888888]">Mã NCC yêu cầu</p><p className="font-mono font-bold">{selectedAccount.supplier_code_requested ?? <span className="text-[#BBBBBB]">Chưa có</span>}</p></div>
+              <div><p className="text-xs text-[#888888]">Đăng ký lúc</p><p>{formatDateTimeDisplay(selectedAccount.created_at)}</p></div>
             </div>
             <div>
-              <label className="text-xs text-[#888888] block mb-1">LiÃªn káº¿t NhÃ  cung cáº¥p <span className="text-[#CC0000]">*</span></label>
+              <label className="text-xs text-[#888888] block mb-1">Liên kết Nhà cung cấp <span className="text-[#CC0000]">*</span></label>
               <select value={selectedSupplierId} onChange={(e) => setSelectedSupplierId(e.target.value)} className="input-field">
-                <option value="">â€” Chá»n NCC â€”</option>
+                <option value="">— Chọn NCC —</option>
                 {suppliers.map((s) => <option key={s.id} value={s.id}>[{s.code}] {s.name}</option>)}
               </select>
             </div>
-            <Button variant="success" fullWidth loading={approveMutation.isPending} disabled={!selectedSupplierId} onClick={() => { if (!selectedSupplierId) return; approveMutation.mutate({ accountId: selectedAccount.id, supplierId: selectedSupplierId }) }}>PhÃª duyá»‡t</Button>
+            <Button variant="success" fullWidth loading={approveMutation.isPending} disabled={!selectedSupplierId} onClick={() => { if (!selectedSupplierId) return; approveMutation.mutate({ accountId: selectedAccount.id, supplierId: selectedSupplierId }) }}>Phê duyệt</Button>
             {approveMutation.isError && <p className="text-xs text-[#CC0000]">{(approveMutation.error as Error).message}</p>}
             <div>
-              <p className="text-sm font-medium mb-2 text-[#CC0000]">Hoáº·c tá»« chá»‘i:</p>
-              <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={2} className="input-field resize-none mb-2" placeholder="LÃ½ do tá»« chá»‘i..." />
-              <Button variant="danger-outline" fullWidth loading={rejectMutation.isPending} disabled={!rejectReason.trim()} onClick={() => rejectMutation.mutate({ accountId: selectedAccount.id, reason: rejectReason })}>Tá»« chá»‘i tÃ i khoáº£n</Button>
+              <p className="text-sm font-medium mb-2 text-[#CC0000]">Hoặc từ chối:</p>
+              <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={2} className="input-field resize-none mb-2" placeholder="Lý do từ chối..." />
+              <Button variant="danger-outline" fullWidth loading={rejectMutation.isPending} disabled={!rejectReason.trim()} onClick={() => rejectMutation.mutate({ accountId: selectedAccount.id, reason: rejectReason })}>Từ chối tài khoản</Button>
             </div>
           </div>
         )}
       </Modal>
 
-      <Modal isOpen={!!pwAccountId} onClose={() => { setPwAccountId(null); setNewPassword(''); setPwError(null) }} title="Äáº·t láº¡i máº­t kháº©u" size="sm">
+      <Modal isOpen={!!pwAccountId} onClose={() => { setPwAccountId(null); setNewPassword(''); setPwError(null) }} title="Đặt lại mật khẩu" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-[#888888]">Nháº­p máº­t kháº©u má»›i:</p>
+          <p className="text-sm text-[#888888]">Nhập mật khẩu mới:</p>
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Máº­t kháº©u má»›i..."
+            placeholder="Mật khẩu mới..."
             className="input-field"
             autoFocus
           />
           {pwError && <p className="text-xs text-[#CC0000]">{pwError}</p>}
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setPwAccountId(null)} className="flex-1">Há»§y</Button>
-            <Button variant="success" loading={pwSaving} disabled={!newPassword.trim()} onClick={() => void handlePasswordReset()} className="flex-1">LÆ°u</Button>
+            <Button variant="outline" onClick={() => setPwAccountId(null)} className="flex-1">Hủy</Button>
+            <Button variant="success" loading={pwSaving} disabled={!newPassword.trim()} onClick={() => void handlePasswordReset()} className="flex-1">Lưu</Button>
           </div>
         </div>
       </Modal>

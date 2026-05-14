@@ -1,4 +1,4 @@
-﻿import { useEffect } from 'react'
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 
 interface Props {
@@ -54,9 +54,9 @@ export function Modal({ isOpen, onClose, title, children, size = 'lg' }: Props) 
           <button
             onClick={onClose}
             className="text-[#888888] hover:text-black transition-colors text-xl leading-none"
-            aria-label="ÄÃ³ng"
+            aria-label="Đóng"
           >
-            Ã—
+            ×
           </button>
         </div>
 

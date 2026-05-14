@@ -467,7 +467,7 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
     .map(([k, color]) => ({ value: byStatus[k] ?? 0, color, label: STATUS_VI[k] }))
 
   const mainContent = (
-    <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
+    <main className="flex-1 lg:w-[80vw] max-w-none mx-auto w-full px-4 py-6">
       {/* Header + date filter */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-xl font-bold">Báo cáo tổng hợp</h1>
@@ -503,21 +503,20 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
             {/* Bookings by date */}
             <div className="lg:col-span-2 bg-white border border-[#ecdbe8] rounded-lg p-5">
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold">Booking theo ngày giao</p>
-                  <p className="text-xs text-[#888888]">Cột chồng theo trạng thái booking</p>
+              <p className="text-sm font-semibold mb-4">Booking theo ngày giao</p>
+              <div className="flex gap-4 items-start">
+                <div className="flex-1 min-w-0">
+                  <SVGBookingStackedBarChart data={dateSeries} height={220} />
                 </div>
-                <div className="flex max-w-md flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs">
+                <div className="flex flex-col gap-1.5 text-xs flex-shrink-0 pt-2">
                   {STACK_STATUS_ORDER.map((status) => (
                     <span key={status} className="inline-flex items-center gap-1.5">
-                      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: STATUS_COLORS[status] }} />
+                      <span className="h-2.5 w-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: STATUS_COLORS[status] }} />
                       {STATUS_VI[status]}
                     </span>
                   ))}
                 </div>
               </div>
-              <SVGBookingStackedBarChart data={dateSeries} height={220} />
             </div>
 
             {/* Status donut */}
