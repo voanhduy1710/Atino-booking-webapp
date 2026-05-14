@@ -4,6 +4,7 @@ import { supabase } from '@/shared/lib/supabase'
 import { Navbar } from '@/shared/components/Navbar'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
+import { Pagination } from '@/shared/components/Pagination'
 import { Link } from 'react-router-dom'
 import { formatDateDisplay, formatDateTimeDisplay } from '@/shared/lib/dateUtils'
 import { deriveBookingStatus } from '@/shared/lib/bookingStatus'
@@ -11,21 +12,22 @@ import { TIME_SLOT_LABELS, type BookingStatus, type TimeSlot } from '@/shared/ty
 import { getCurrentUser } from '@/shared/lib/auth'
 import { ROLE_TABS } from '@/shared/config/navTabs'
 
-const ReviewerPage   = lazy(() => import('@/features/warehouse/ReviewerPage'))
+const ReviewerPage = lazy(() => import('@/features/warehouse/ReviewerPage'))
 const WarehousesPage = lazy(() => import('@/features/warehouse/WarehousesPage'))
-const SuppliersPage  = lazy(() => import('@/features/supplier/SuppliersPage'))
-const ReportPage     = lazy(() => import('@/features/admin/ReportPage'))
+const SuppliersPage = lazy(() => import('@/features/supplier/SuppliersPage'))
+const ReportPage = lazy(() => import('@/features/admin/ReportPage'))
 
 type RoleView = 'warehouse_reviewer' | 'manager' | 'supplier'
-type PageId   = 'reviewer' | 'warehouses' | 'suppliers' | 'report'
+type PageId = 'reviewer' | 'warehouses' | 'suppliers' | 'report'
 
 const ROLE_LABELS: Record<RoleView, string> = {
   warehouse_reviewer: 'Reviewer',
-  manager:            'Manager',
-  supplier:           'Supplier',
+  manager: 'Manager',
+  supplier: 'Supplier',
 }
+const PAGE_SIZE = 10
 
-// â”€â”€ Supplier view â€” all bookings, read-only â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Supplier view — all bookings, read-only ───────────────────────────────────
 interface SupplierBooking {
   id: string
   booking_code: string
@@ -36,15 +38,18 @@ interface SupplierBooking {
   submitted_at: string
   supplier_name: string
   warehouse_name: string
+  ghi_chu: string | null
+  reject_reasons: string
 }
 
 function SupplierView() {
+  const [currentPage, setCurrentPage] = useState(1)
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ['viewas-supplier-bookings'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, suppliers!inner(name), warehouses!inner(name), booking_items(status)')
+        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, ghi_chu, suppliers!inner(name), warehouses!inner(name), booking_items(status, reject_reason)')
         .order('submitted_at', { ascending: false })
         .limit(200)
       if (error) throw error
@@ -56,8 +61,10 @@ function SupplierView() {
         time_slot: b.time_slot,
         status: deriveBookingStatus(b.status, b.booking_items ?? []),
         submitted_at: b.submitted_at,
-        supplier_name: b.suppliers?.name ?? 'â€”',
-        warehouse_name: b.warehouses?.name ?? 'â€”',
+        supplier_name: b.suppliers?.name ?? '—',
+        warehouse_name: b.warehouses?.name ?? '—',
+        ghi_chu: b.ghi_chu,
+        reject_reasons: (b.booking_items ?? []).map((item: any) => item.reject_reason).filter(Boolean).join('; '),
       })) as SupplierBooking[]
     },
   })
@@ -66,30 +73,37 @@ function SupplierView() {
     return <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>
   }
 
+  const totalPages = Math.max(1, Math.ceil(bookings.length / PAGE_SIZE))
+  const safePage = Math.min(currentPage, totalPages)
+  const paginatedBookings = bookings.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
   return (
     <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
-      <p className="text-xs text-[#888888] mb-4">Äang xem giao diá»‡n Supplier â€” hiá»ƒn thá»‹ táº¥t cáº£ booking (admin view)</p>
+      <p className="text-xs text-[#888888] mb-4">Đang xem giao diện Supplier — hiển thị tất cả booking (admin view)</p>
       {bookings.length === 0 ? (
-        <div className="bg-white border border-[#E0E0E0] rounded-lg p-16 text-center text-[#888888]">
-          <p>KhÃ´ng cÃ³ booking nÃ o</p>
+        <div className="bg-white border border-[#ecdbe8] rounded-lg p-16 text-center text-[#888888]">
+          <p>Không có booking nào</p>
         </div>
       ) : (
-        <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
-          <table className="w-full text-sm">
+        <div className="overflow-hidden bg-white border border-[#ecdbe8] rounded-lg">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm data-table">
             <thead>
-              <tr className="bg-[#F5F5F5]">
-                <th className="table-header">MÃ£ booking</th>
-                <th className="table-header">NhÃ  cung cáº¥p</th>
+              <tr>
+                <th className="table-header">Mã booking</th>
+                <th className="table-header">Nhà cung cấp</th>
                 <th className="table-header">Kho</th>
-                <th className="table-header w-24">NgÃ y giao</th>
-                <th className="table-header w-28">Khung giá»</th>
-                <th className="table-header w-32">ÄÄƒng kÃ½ lÃºc</th>
-                <th className="table-header">Tráº¡ng thÃ¡i</th>
+                <th className="table-header w-24">Ngày giao</th>
+                <th className="table-header w-28">Khung giờ</th>
+                <th className="table-header w-32">Đăng ký lúc</th>
+                <th className="table-header">Trạng thái</th>
+                <th className="table-header min-w-44">Ghi chú</th>
+                <th className="table-header min-w-44">Lí do</th>
               </tr>
             </thead>
             <tbody>
-              {bookings.map((b) => (
-                <tr key={b.id} className="border-t border-[#E0E0E0] hover:bg-[#F9F9F9]">
+              {paginatedBookings.map((b) => (
+                <tr key={b.id}>
                   <td className="table-cell font-mono font-bold">
                     <Link to={`/booking/${b.booking_token}`} className="hover:underline">{b.booking_code}</Link>
                   </td>
@@ -99,24 +113,33 @@ function SupplierView() {
                   <td className="table-cell">{TIME_SLOT_LABELS[b.time_slot]}</td>
                   <td className="table-cell text-xs text-[#888888]">{formatDateTimeDisplay(b.submitted_at)}</td>
                   <td className="table-cell"><StatusBadge status={b.status} /></td>
+                  <td className="table-cell max-w-52 text-xs text-[#555555]">{b.ghi_chu || <span className="text-[#BBBBBB]">—</span>}</td>
+                  <td className="table-cell max-w-52 text-xs text-[#CC0000]">{b.reject_reasons || <span className="text-[#BBBBBB]">—</span>}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
+          <Pagination
+            currentPage={safePage}
+            pageSize={PAGE_SIZE}
+            totalItems={bookings.length}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
     </main>
   )
 }
 
-// â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main ─────────────────────────────────────────────────────────────────────
 export default function ViewAsPage() {
   const user = getCurrentUser()
   const tabs = user ? (ROLE_TABS[user.role] ?? []) : []
   const [roleView, setRoleView] = useState<RoleView>('warehouse_reviewer')
-  const [pageId, setPageId]     = useState<PageId>('reviewer')
+  const [pageId, setPageId] = useState<PageId>('reviewer')
 
-  useEffect(() => { document.title = 'View as â€” Atino' }, [])
+  useEffect(() => { document.title = 'View as — Atino' }, [])
 
   useEffect(() => {
     const roleTabs = ROLE_TABS[roleView] ?? []
@@ -126,22 +149,21 @@ export default function ViewAsPage() {
   const roleTabs = ROLE_TABS[roleView] ?? []
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
+    <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={tabs} activeTab="viewas" />
 
       {/* Combined bar: page tabs (left) + role selector (right) */}
-      <div className="flex items-stretch justify-between border-b border-[#E3B2E2] bg-[#E3B2E2] px-4">
+      <div className="flex items-stretch justify-between border-b border-[#d5c0d5] bg-white px-4 shadow-sm">
         {/* Inner page tabs for the viewed role */}
         <div className="flex">
           {roleTabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setPageId(t.id as PageId)}
-              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
-                pageId === t.id
-                  ? 'border-[#AD58A6] bg-[#AD58A6] text-white font-bold'
-                  : 'border-transparent text-black font-bold hover:bg-[#D69AD4]'
-              }`}
+              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${pageId === t.id
+                  ? 'border-[#bf2ef0] bg-[#bf2ef0] text-white font-bold'
+                  : 'border-transparent text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+                }`}
             >
               {t.label}
             </button>
@@ -154,9 +176,8 @@ export default function ViewAsPage() {
             <button
               key={r}
               onClick={() => setRoleView(r)}
-              className={`px-4 py-3 text-sm font-medium transition-colors ${
-                roleView === r ? 'bg-[#AD58A6] text-white font-bold' : 'text-black font-bold hover:bg-[#D69AD4]'
-              }`}
+              className={`px-4 py-3 text-sm font-medium transition-colors ${roleView === r ? 'bg-[#bf2ef0] text-white font-bold' : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+                }`}
             >
               {ROLE_LABELS[r]}
             </button>
@@ -165,11 +186,11 @@ export default function ViewAsPage() {
       </div>
 
       <Suspense fallback={<div className="flex justify-center py-16"><LoadingSpinner /></div>}>
-        {roleView === 'supplier'                            && <SupplierView />}
-        {roleView !== 'supplier' && pageId === 'reviewer'  && <ReviewerPage embedded />}
-        {roleView !== 'supplier' && pageId === 'warehouses'&& <WarehousesPage embedded />}
+        {roleView === 'supplier' && <SupplierView />}
+        {roleView !== 'supplier' && pageId === 'reviewer' && <ReviewerPage embedded />}
+        {roleView !== 'supplier' && pageId === 'warehouses' && <WarehousesPage embedded />}
         {roleView !== 'supplier' && pageId === 'suppliers' && <SuppliersPage embedded />}
-        {roleView !== 'supplier' && pageId === 'report'    && <ReportPage embedded />}
+        {roleView !== 'supplier' && pageId === 'report' && <ReportPage embedded />}
       </Suspense>
     </div>
   )

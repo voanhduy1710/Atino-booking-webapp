@@ -1,4 +1,4 @@
-interface Props {
+﻿interface Props {
   size?: 'sm' | 'md' | 'lg'
   className?: string
 }
@@ -13,8 +13,8 @@ export function LoadingSpinner({ size = 'md', className = '' }: Props) {
   return (
     <div
       role="status"
-      aria-label="Đang tải..."
-      className={`${sizeMap[size]} border-[#E0E0E0] border-t-black rounded-full animate-spin ${className}`}
+      aria-label="Äang táº£i..."
+      className={`${sizeMap[size]} border-[#ecdbe8] border-t-black rounded-full animate-spin ${className}`}
     />
   )
 }

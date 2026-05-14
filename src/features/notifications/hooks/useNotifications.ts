@@ -5,7 +5,7 @@ import type { Notification } from '@/shared/types/domain'
 
 export function useNotifications() {
   const user = getCurrentUser()
-  const recipientId = user?.role === 'supplier' ? user.supplier_account_id : user?.sub
+  const recipientId = user?.role === 'supplier' ? user.supplier_account_id : (user?.sub ?? user?.username)
 
   return useQuery({
     queryKey: ['notifications', recipientId],
@@ -27,7 +27,7 @@ export function useNotifications() {
 
 export function useUnreadCount() {
   const user = getCurrentUser()
-  const recipientId = user?.role === 'supplier' ? user.supplier_account_id : user?.sub
+  const recipientId = user?.role === 'supplier' ? user.supplier_account_id : (user?.sub ?? user?.username)
 
   return useQuery({
     queryKey: ['notifications-unread', recipientId],
@@ -49,7 +49,7 @@ export function useUnreadCount() {
 export function useMarkRead() {
   const queryClient = useQueryClient()
   const user = getCurrentUser()
-  const recipientId = user?.role === 'supplier' ? user.supplier_account_id : user?.sub
+  const recipientId = user?.role === 'supplier' ? user.supplier_account_id : (user?.sub ?? user?.username)
 
   return useMutation({
     mutationFn: async (notificationId: string | 'all') => {

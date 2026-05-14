@@ -4,36 +4,36 @@ import { SUPPLIER_TABS } from '@/shared/constants/supplierTabs'
 
 export default function GuideReceiving() {
   useEffect(() => {
-    document.title = 'Quy trÃ¬nh giao nháº­n hÃ ng â€” Atino Booking'
+    document.title = 'Quy trình giao nhận hàng — Atino Booking'
   }, [])
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
+    <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={SUPPLIER_TABS} activeTab="guide" />
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
-        <div className="bg-white border border-[#E0E0E0] rounded-lg px-6 py-10">
-          <h1 className="text-2xl font-bold mb-2">Quy trÃ¬nh giao nháº­n hÃ ng</h1>
+        <div className="bg-white border border-[#ecdbe8] rounded-lg px-6 py-10">
+          <h1 className="text-2xl font-bold mb-2">Quy trình giao nhận hàng</h1>
           <p className="text-[#888888] text-sm mb-8">
-            Quy trÃ¬nh chuáº©n khi giao hÃ ng Ä‘áº¿n kho Atino.
+            Quy trình chuẩn khi giao hàng đến kho Atino.
           </p>
 
           <div className="space-y-8">
             {[
               {
                 step: 1,
-                title: 'ÄÄƒng kÃ½ trÆ°á»›c khi Ä‘áº¿n',
-                desc: 'NhÃ  cung cáº¥p pháº£i hoÃ n thÃ nh Ä‘Äƒng kÃ½ giao hÃ ng trÃªn há»‡ thá»‘ng. ÄÆ¡n hÃ ng cáº§n Ä‘Æ°á»£c xÃ¡c nháº­n bá»Ÿi nhÃ¢n viÃªn kho trÆ°á»›c khi Ä‘áº¿n giao.',
+                title: 'Đăng ký trước khi đến',
+                desc: 'Nhà cung cấp phải hoàn thành đăng ký giao hàng trên hệ thống. Đơn hàng cần được xác nhận bởi nhân viên kho trước khi đến giao.',
               },
               {
                 step: 2,
-                title: 'Äáº¿n kho Ä‘Ãºng khung giá» Ä‘Ã£ Ä‘Äƒng kÃ½',
-                desc: 'Xuáº¥t trÃ¬nh mÃ£ QR hoáº·c mÃ£ booking cho nhÃ¢n viÃªn kho táº¡i cá»•ng. HÃ ng hÃ³a pháº£i Ä‘Ãºng chá»§ng loáº¡i vÃ  sá»‘ lÆ°á»£ng Ä‘Ã£ Ä‘Äƒng kÃ½.',
+                title: 'Đến kho đúng khung giờ đã đăng ký',
+                desc: 'Xuất trình mã QR hoặc mã booking cho nhân viên kho tại cổng. Hàng hóa phải đúng chủng loại và số lượng đã đăng ký.',
               },
               {
                 step: 3,
-                title: 'NhÃ¢n viÃªn kho xÃ¡c nháº­n nháº­n hÃ ng',
-                desc: 'NhÃ¢n viÃªn sáº½ kiá»ƒm tra, Ä‘áº¿m sá»‘ lÆ°á»£ng thá»±c nháº­n vÃ  xÃ¡c nháº­n trÃªn há»‡ thá»‘ng. Náº¿u cÃ³ chÃªnh lá»‡ch, sáº½ Ä‘Æ°á»£c ghi nháº­n vÃ  xá»­ lÃ½ theo chÃ­nh sÃ¡ch cá»§a Atino.',
+                title: 'Nhân viên kho xác nhận nhận hàng',
+                desc: 'Nhân viên sẽ kiểm tra, đếm số lượng thực nhận và xác nhận trên hệ thống. Nếu có chênh lệch, sẽ được ghi nhận và xử lý theo chính sách của Atino.',
               },
             ].map(({ step, title, desc }) => (
               <div key={step} className="flex gap-5">
@@ -48,10 +48,10 @@ export default function GuideReceiving() {
             ))}
           </div>
 
-          <div className="mt-8 p-4 border border-[#E0E0E0] rounded-lg bg-[#F5F5F5]">
+          <div className="mt-8 p-4 border border-[#ecdbe8] rounded-lg bg-[#F5F5F5]">
             <p className="text-sm text-[#888888]">
-              <strong className="text-black">LÆ°u Ã½:</strong> HÃ ng giao thiáº¿u hoáº·c khÃ´ng Ä‘Ãºng chá»§ng loáº¡i sáº½ bá»‹ tráº£ vá».
-              Vui lÃ²ng Ä‘áº¿n Ä‘Ãºng khung giá» Ä‘Ã£ chá»n. Trá»… giá» cÃ³ thá»ƒ bá»‹ tá»« chá»‘i nháº­n hÃ ng.
+              <strong className="text-black">Lưu ý:</strong> Hàng giao thiếu hoặc không đúng chủng loại sẽ bị trả về.
+              Vui lòng đến đúng khung giờ đã chọn. Trễ giờ có thể bị từ chối nhận hàng.
             </p>
           </div>
         </div>

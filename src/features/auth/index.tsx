@@ -28,35 +28,33 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF5FF] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[#fdf8ff] flex flex-col items-center justify-center p-4">
       {/* Logo */}
       <a href="/" className="mb-8">
         <img src="/Atino Logo.svg" alt="Atino" className="h-10 w-auto" />
       </a>
 
       {/* Card */}
-      <div className="w-full max-w-md bg-white border border-[#E0E0E0] rounded-lg overflow-hidden">
+      <div className="w-full max-w-md bg-white border border-[#ecdbe8] rounded-lg overflow-hidden">
         {/* Tabs */}
-        <div className="flex border-b border-[#E3B2E2] bg-[#E3B2E2]">
+        <div className="flex border-b border-[#d5c0d5] bg-white">
           <button
             id="tab-login"
             onClick={() => setTab('login')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-              tab === 'login'
-                ? 'bg-[#AD58A6] text-white'
-                : 'text-black hover:bg-[#D69AD4]'
-            }`}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'login'
+                ? 'bg-[#bf2ef0] text-white'
+                : 'text-[#514253] hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+              }`}
           >
             Đăng nhập
           </button>
           <button
             id="tab-register"
             onClick={() => setTab('register')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-              tab === 'register'
-                ? 'bg-[#AD58A6] text-white'
-                : 'text-black hover:bg-[#D69AD4]'
-            }`}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'register'
+                ? 'bg-[#bf2ef0] text-white'
+                : 'text-[#514253] hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+              }`}
           >
             Đăng ký tài khoản
           </button>

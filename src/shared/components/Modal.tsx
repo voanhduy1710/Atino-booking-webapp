@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+﻿import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 
 interface Props {
@@ -45,18 +45,18 @@ export function Modal({ isOpen, onClose, title, children, size = 'lg' }: Props) 
       />
 
       {/* Panel */}
-      <div className={`relative bg-white rounded-lg border border-[#E0E0E0] w-full ${sizeMap[size]} max-h-[90vh] flex flex-col`}>
+      <div className={`relative bg-white rounded-lg border border-[#ecdbe8] w-full ${sizeMap[size]} max-h-[90vh] flex flex-col`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E0E0E0] flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#ecdbe8] flex-shrink-0">
           <h2 id="modal-title" className="text-base font-bold">
             {title}
           </h2>
           <button
             onClick={onClose}
             className="text-[#888888] hover:text-black transition-colors text-xl leading-none"
-            aria-label="Đóng"
+            aria-label="ÄÃ³ng"
           >
-            ×
+            Ã—
           </button>
         </div>
 

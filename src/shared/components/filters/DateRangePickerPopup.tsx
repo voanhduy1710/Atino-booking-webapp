@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatLocalDate, parseLocalDate } from './filterDateUtils'
 
 const VI_MONTHS = [
-  'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-  'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12',
+  'ThÃ¡ng 1', 'ThÃ¡ng 2', 'ThÃ¡ng 3', 'ThÃ¡ng 4', 'ThÃ¡ng 5', 'ThÃ¡ng 6',
+  'ThÃ¡ng 7', 'ThÃ¡ng 8', 'ThÃ¡ng 9', 'ThÃ¡ng 10', 'ThÃ¡ng 11', 'ThÃ¡ng 12',
 ]
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-const ACCENT = '#AD58A6'
+const ACCENT = '#80417A'
 
 interface DateRangePickerPopupProps {
   startDate: string
@@ -81,17 +81,17 @@ function getPresets() {
   const lastMonth = addMonths(thisMonth, -1)
 
   return [
-    { label: 'Hôm nay', start: today, end: today },
-    { label: 'Hôm qua', start: yesterday, end: yesterday },
-    { label: 'Hôm kia', start: twoDaysAgo, end: twoDaysAgo },
-    { label: 'Tuần nay', start: thisMonday, end: today },
-    { label: 'Tuần trước', start: lastMonday, end: lastSunday },
-    { label: 'Tháng này', start: thisMonth, end: today },
-    { label: 'Tháng trước', start: lastMonth, end: lastOfMonth(lastMonth) },
-    { label: '3 tháng', start: startOfMonth(addMonths(today, -3)), end: today },
-    { label: '6 tháng', start: startOfMonth(addMonths(today, -6)), end: today },
-    { label: '9 tháng', start: startOfMonth(addMonths(today, -9)), end: today },
-    { label: '12 tháng', start: startOfMonth(addMonths(today, -12)), end: today },
+    { label: 'HÃ´m nay', start: today, end: today },
+    { label: 'HÃ´m qua', start: yesterday, end: yesterday },
+    { label: 'HÃ´m kia', start: twoDaysAgo, end: twoDaysAgo },
+    { label: 'Tuáº§n nay', start: thisMonday, end: today },
+    { label: 'Tuáº§n trÆ°á»›c', start: lastMonday, end: lastSunday },
+    { label: 'ThÃ¡ng nÃ y', start: thisMonth, end: today },
+    { label: 'ThÃ¡ng trÆ°á»›c', start: lastMonth, end: lastOfMonth(lastMonth) },
+    { label: '3 thÃ¡ng', start: startOfMonth(addMonths(today, -3)), end: today },
+    { label: '6 thÃ¡ng', start: startOfMonth(addMonths(today, -6)), end: today },
+    { label: '9 thÃ¡ng', start: startOfMonth(addMonths(today, -9)), end: today },
+    { label: '12 thÃ¡ng', start: startOfMonth(addMonths(today, -12)), end: today },
   ].map((p) => ({ label: p.label, start: formatLocalDate(p.start), end: formatLocalDate(p.end) }))
 }
 
@@ -137,7 +137,7 @@ function TypedDateInput({
         }
       }}
       placeholder="dd-mm-yyyy"
-      className="w-32 rounded border border-[#E0E0E0] px-2 py-1 text-xs focus:border-[#AD58A6] focus:outline-none"
+      className="w-32 rounded border border-[#ecdbe8] px-2 py-1 text-xs focus:border-[#80417A] focus:outline-none"
     />
   )
 }
@@ -180,16 +180,16 @@ function MiniCal({
   return (
     <div className="w-72">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <button type="button" onClick={onPrev} className={`h-7 w-7 rounded text-sm ${onPrev ? 'hover:bg-[#F5F5F5]' : 'invisible'}`}>‹</button>
+        <button type="button" onClick={onPrev} className={`h-7 w-7 rounded text-sm ${onPrev ? 'hover:bg-[#F5F5F5]' : 'invisible'}`}>â€¹</button>
         <div className="flex items-center gap-1">
-          <select value={month} onChange={(e) => onMonthYear(year, Number(e.target.value))} className="rounded border border-[#E0E0E0] px-1 py-1 text-xs">
+          <select value={month} onChange={(e) => onMonthYear(year, Number(e.target.value))} className="rounded border border-[#ecdbe8] px-1 py-1 text-xs">
             {VI_MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
           </select>
-          <select value={year} onChange={(e) => onMonthYear(Number(e.target.value), month)} className="rounded border border-[#E0E0E0] px-1 py-1 text-xs">
+          <select value={year} onChange={(e) => onMonthYear(Number(e.target.value), month)} className="rounded border border-[#ecdbe8] px-1 py-1 text-xs">
             {yearRange.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
-        <button type="button" onClick={onNext} className={`h-7 w-7 rounded text-sm ${onNext ? 'hover:bg-[#F5F5F5]' : 'invisible'}`}>›</button>
+        <button type="button" onClick={onNext} className={`h-7 w-7 rounded text-sm ${onNext ? 'hover:bg-[#F5F5F5]' : 'invisible'}`}>â€º</button>
       </div>
       <p className="mb-1 text-xs font-semibold text-[#888888]">{label}</p>
       <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-[#888888]">
@@ -208,7 +208,7 @@ function MiniCal({
           if (disabled) className += 'cursor-not-allowed text-gray-300'
           else if (isStart || isEnd) className += 'font-bold text-white'
           else if (inRange) className += 'bg-[#F4E8F3] text-gray-900'
-          else if (isToday) className += 'border border-[#AD58A6] font-semibold text-black'
+          else if (isToday) className += 'border border-[#80417A] font-semibold text-black'
           else className += 'text-gray-800 hover:bg-[#F4E8F3]'
           if (outside) className += ' opacity-40'
 
@@ -331,7 +331,7 @@ export function DateRangePickerPopup({
 
   const triggerText = startDate || endDate
     ? `${fmtDisplay(startDate) || '...'} - ${fmtDisplay(endDate) || '...'}`
-    : 'Chọn ngày'
+    : 'Chá»n ngÃ y giao'
   const rootStyle = maxWidth === undefined ? undefined : { maxWidth: typeof maxWidth === 'number' ? `${maxWidth}px` : maxWidth }
 
   return (
@@ -341,19 +341,19 @@ export function DateRangePickerPopup({
         type="button"
         disabled={isLoading}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-2 rounded border border-[#E0E0E0] bg-white px-3 py-2 text-left text-sm transition-colors hover:border-[#AD58A6] focus:border-[#AD58A6] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center justify-between gap-2 rounded border border-[#ecdbe8] bg-white px-3 py-1.5 text-left text-sm transition-colors hover:border-[#80417A] focus:border-[#80417A] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span className={startDate || endDate ? 'text-black' : 'text-[#888888]'}>{triggerText}</span>
-        <span className="text-[#888888]">▾</span>
+        <span className="text-[#888888]">â–¾</span>
       </button>
 
       {open && (
         <div
           ref={popupRef}
-          className="absolute top-full z-50 mt-2 flex gap-4 rounded-lg border border-[#E0E0E0] bg-white p-4 shadow-xl"
+          className="absolute top-full z-50 mt-2 flex gap-4 rounded-lg border border-[#ecdbe8] bg-white p-4 shadow-xl"
           style={{ left: popupLeft ?? 0, visibility: popupLeft === undefined ? 'hidden' : 'visible' }}
         >
-          <div className="w-36 shrink-0 space-y-1 border-r border-[#E0E0E0] pr-3">
+          <div className="w-36 shrink-0 space-y-1 border-r border-[#ecdbe8] pr-3">
             {presets.map((preset) => {
               const active = startDate === preset.start && endDate === preset.end
               return (
@@ -366,7 +366,7 @@ export function DateRangePickerPopup({
                     setOpen(false)
                   }}
                   className={`block w-full rounded px-2 py-1.5 text-left text-xs ${active ? 'font-semibold text-white' : 'text-[#555555] hover:bg-[#F5F5F5]'}`}
-                  style={active ? { backgroundColor: '#AD58A6' } : undefined}
+                  style={active ? { backgroundColor: '#80417A' } : undefined}
                 >
                   {preset.label}
                 </button>
@@ -379,7 +379,7 @@ export function DateRangePickerPopup({
               <MiniCal
                 year={leftYM[0]}
                 month={leftYM[1]}
-                label="Từ ngày"
+                label="Tá»« ngÃ y"
                 start={iStart}
                 end={iEnd}
                 hover={hover}
@@ -396,7 +396,7 @@ export function DateRangePickerPopup({
               <MiniCal
                 year={rightYM[0]}
                 month={rightYM[1]}
-                label="Đến ngày"
+                label="Äáº¿n ngÃ y"
                 start={iStart}
                 end={iEnd}
                 hover={hover}
@@ -411,16 +411,16 @@ export function DateRangePickerPopup({
                 onMonthYear={setRightNav}
               />
             </div>
-            <div className="mt-4 flex items-center justify-between border-t border-[#E0E0E0] pt-3">
+            <div className="mt-4 flex items-center justify-between border-t border-[#ecdbe8] pt-3">
               <div className="flex items-center gap-2">
                 <TypedDateInput value={iStart} minDate={minDate} onCommit={setIStart} />
                 <span className="text-xs text-[#888888]">-</span>
                 <TypedDateInput value={iEnd} minDate={minDate} onCommit={setIEnd} />
               </div>
               <div className="flex items-center gap-2">
-                <button type="button" onClick={clear} className="rounded border border-[#E0E0E0] px-3 py-1.5 text-xs font-medium hover:bg-[#F5F5F5]">Xóa</button>
-                <button type="button" onClick={() => setOpen(false)} className="rounded border border-[#E0E0E0] px-3 py-1.5 text-xs font-medium hover:bg-[#F5F5F5]">Hủy</button>
-                <button type="button" onClick={apply} className="rounded border border-[#AD58A6] bg-[#AD58A6] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90">Áp dụng</button>
+                <button type="button" onClick={clear} className="rounded border border-[#ecdbe8] px-3 py-1.5 text-xs font-medium hover:bg-[#F5F5F5]">XÃ³a</button>
+                <button type="button" onClick={() => setOpen(false)} className="rounded border border-[#ecdbe8] px-3 py-1.5 text-xs font-medium hover:bg-[#F5F5F5]">Há»§y</button>
+                <button type="button" onClick={apply} className="rounded border border-[#80417A] bg-[#80417A] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90">Ãp dá»¥ng</button>
               </div>
             </div>
           </div>

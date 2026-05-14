@@ -23,7 +23,7 @@ export default function BookingConfirmationPage() {
   const listHref = user?.role === 'admin' ? '/reviewbooking' : '/my-bookings'
 
   useEffect(() => {
-    document.title = 'ÄÄƒng kÃ½ thÃ nh cÃ´ng â€” Atino Booking'
+    document.title = 'Đăng ký thành công — Atino Booking'
   }, [])
 
   useEffect(() => {
@@ -42,9 +42,9 @@ export default function BookingConfirmationPage() {
       <div className="min-h-screen flex flex-col">
         <Navbar tabs={tabs} activeTab={user?.role === 'admin' ? 'new-booking' : 'my-bookings'} />
         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-[#888888]">
-          <p>KhÃ´ng tÃ¬m tháº¥y thÃ´ng tin booking.</p>
+          <p>Không tìm thấy thông tin booking.</p>
           <Link to="/booking/new" className="btn-outline">
-            Táº¡o Ä‘Äƒng kÃ½ má»›i
+            Tạo đăng ký mới
           </Link>
         </div>
       </div>
@@ -63,29 +63,29 @@ export default function BookingConfirmationPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
+    <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={tabs} activeTab={user?.role === 'admin' ? 'new-booking' : 'my-bookings'} />
 
       <main className="flex-1 flex items-start justify-center px-4 py-10">
-        <div className="bg-white border border-[#E0E0E0] rounded-lg w-full max-w-lg p-8 text-center">
+        <div className="bg-white border border-[#ecdbe8] rounded-lg w-full max-w-lg p-8 text-center">
           <div className="w-16 h-16 rounded-full border-2 border-black flex items-center justify-center mx-auto mb-6 text-2xl">
-            âœ“
+            ✓
           </div>
 
-          <h1 className="text-lg font-bold mb-1">ÄÄƒng kÃ½ thÃ nh cÃ´ng!</h1>
+          <h1 className="text-lg font-bold mb-1">Đăng ký thành công!</h1>
           <p className="text-sm text-[#888888] mb-6">
-            Vui lÃ²ng lÆ°u hoáº·c in mÃ£ QR bÃªn dÆ°á»›i Ä‘á»ƒ sá»­ dá»¥ng khi Ä‘áº¿n giao hÃ ng.
+            Vui lòng lưu hoặc in mã QR bên dưới để sử dụng khi đến giao hàng.
           </p>
 
           <div className="flex justify-center mb-4">
-            <canvas ref={canvasRef} className="border border-[#E0E0E0] rounded" />
+            <canvas ref={canvasRef} className="border border-[#ecdbe8] rounded" />
           </div>
 
           <p className="font-mono text-base font-bold tracking-widest mb-1">
             {result.booking_code}
           </p>
           <p className="text-sm text-[#888888] mb-6">
-            Giao hÃ ng ngÃ y:{' '}
+            Giao hàng ngày:{' '}
             <strong className="text-black">{formatDateDisplay(result.delivery_date)}</strong>
           </p>
 
@@ -95,19 +95,19 @@ export default function BookingConfirmationPage() {
               className="btn-outline flex-1 text-center"
               id="view-booking-detail"
             >
-              Xem chi tiáº¿t
+              Xem chi tiết
             </Link>
             <button onClick={handleDownloadQR} className="btn-outline flex-1" id="download-qr">
-              Táº£i QR Code
+              Tải QR Code
             </button>
             <button onClick={handlePrint} className="btn-primary flex-1" id="print-confirmation">
-              In xÃ¡c nháº­n
+              In xác nhận
             </button>
           </div>
 
-          <div className="mt-6 pt-6 border-t border-[#E0E0E0]">
+          <div className="mt-6 pt-6 border-t border-[#ecdbe8]">
             <Link to={listHref} className="text-sm text-[#888888] hover:text-black transition-colors" id="go-to-my-bookings">
-              Xem danh sÃ¡ch Ä‘Äƒng kÃ½ â†’
+              Xem danh sách đăng ký →
             </Link>
           </div>
         </div>

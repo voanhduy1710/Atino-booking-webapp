@@ -29,7 +29,7 @@ export function Navbar({
   }
 
   return (
-    <nav className="bg-[#E3B2E2] border-b border-[#E3B2E2] px-4 sm:px-6 h-14 flex items-center justify-between flex-shrink-0">
+    <nav className="bg-white border-b border-[#d5c0d5] px-4 sm:px-6 h-14 flex items-center justify-between flex-shrink-0 shadow-sm">
       {/* Logo */}
       <Link to="/" className="flex items-center flex-shrink-0">
         <img src="/Atino Logo.svg" alt="Atino" className="h-7 w-auto" />
@@ -39,11 +39,10 @@ export function Navbar({
       {tabs && tabs.length > 0 && (
         <div className="flex items-stretch h-full gap-0 mx-4">
           {tabs.map((tab) => {
-            const cls = `px-4 text-sm transition-colors h-full flex items-center ${
-              activeTab === tab.id
-                ? 'bg-[#AD58A6] text-white font-bold'
-                : 'text-black font-bold hover:bg-[#D69AD4]'
-            }`
+            const cls = `px-4 text-sm transition-colors h-full flex items-center ${activeTab === tab.id
+                ? 'bg-[#bf2ef0] text-white font-bold'
+                : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+              }`
             return tab.href ? (
               <Link key={tab.id} id={`nav-tab-${tab.id}`} to={tab.href} className={cls}>
                 {tab.label}
@@ -77,7 +76,7 @@ export function Navbar({
         {user && (
           <button
             onClick={handleLogout}
-            className="text-sm font-semibold text-black hover:text-white transition-colors"
+            className="text-sm font-semibold text-[#bf2ef0] hover:text-[#77009a] transition-colors"
             id="logout-btn"
           >
             Đăng xuất

@@ -9,7 +9,6 @@
 import { Router, Request, Response } from 'express'
 import { createClient } from '@supabase/supabase-js'
 import { verifyJWT } from '../lib/jwt.js'
-import ws from 'ws'
 
 const router = Router()
 
@@ -20,7 +19,7 @@ function getSupabase() {
   const url = process.env.SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set')
-  return createClient(url, key, { realtime: { transport: ws } })
+  return createClient(url, key)
 }
 
 interface PoItem {

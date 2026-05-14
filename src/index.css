@@ -13,7 +13,7 @@
     font-size: 16px;
     line-height: 1.6;
     color: #000000;
-    background-color: #FFF5FF;
+    background-color: #fdf8ff;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -21,10 +21,15 @@
   body {
     margin: 0;
     min-height: 100vh;
-    background-color: #FFF5FF;
+    background-color: #fdf8ff;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-weight: 700;
     line-height: 1.3;
   }
@@ -33,14 +38,16 @@
     cursor: pointer;
   }
 
-  input, select, textarea {
+  input,
+  select,
+  textarea {
     font-family: inherit;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center px-6 py-3 bg-[#E3B2E2] text-black font-bold rounded border border-[#E3B2E2] transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center px-6 py-3 bg-[#bf2ef0] text-white font-bold rounded border border-[#bf2ef0] transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   .btn-sm {
@@ -52,7 +59,7 @@
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center px-6 py-3 bg-white text-black font-semibold rounded border border-[#AD58A6] transition-colors hover:bg-[#AD58A6] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center px-6 py-3 bg-white text-black font-semibold rounded border border-[#bf2ef0] transition-colors hover:bg-[#bf2ef0] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   .btn-danger-outline {
@@ -60,7 +67,7 @@
   }
 
   .input-field {
-    @apply w-full px-3 py-2 border border-[#E0E0E0] rounded bg-white text-black placeholder-[#888888] focus:outline-none focus:border-[#AD58A6] transition-colors;
+    @apply w-full px-3 py-2 border border-[#d5c0d5] rounded bg-white text-black placeholder-[#837285] focus:outline-none focus:border-[#bf2ef0] transition-colors;
   }
 
   .input-field-error {
@@ -68,7 +75,7 @@
   }
 
   .card {
-    @apply bg-white border border-[#E0E0E0] rounded-lg p-6;
+    @apply bg-white border border-[#ecdbe8] rounded-lg p-6;
   }
 
   .status-pending {
@@ -80,7 +87,7 @@
   }
 
   .status-partial {
-    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium border border-[#E3B2E2] text-black bg-[#FFF5FF];
+    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium border border-[#1a7a3e] text-[#1a7a3e] bg-[#EAF6EE];
   }
 
   .status-partial-rejected {
@@ -92,7 +99,7 @@
   }
 
   .status-rejected {
-    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium border border-[#F0B3B3] text-[#CC0000] bg-[#FFF5F5];
+    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium border border-[#CC0000] text-white bg-[#CC0000];
   }
 
   .status-received {
@@ -100,7 +107,7 @@
   }
 
   .section-header {
-    @apply text-sm font-bold tracking-widest uppercase text-black border-b border-[#E0E0E0] pb-2 mb-4;
+    @apply text-sm font-bold tracking-widest uppercase text-black border-b border-[#d5c0d5] pb-2 mb-4;
   }
 
   .form-label {
@@ -112,15 +119,35 @@
   }
 
   .table-header {
-    @apply text-left text-xs font-semibold text-[#888888] uppercase tracking-wider px-4 py-3 bg-[#F5F5F5] border-b border-[#E0E0E0];
+    @apply text-left text-xs font-semibold text-[#514253] uppercase tracking-wider px-4 py-3 bg-[#f7f1f9] border-b border-[#ecdbe8];
   }
 
   .table-cell {
-    @apply px-4 py-3 text-sm border-b border-[#E0E0E0];
+    @apply px-4 py-3 text-sm border-b border-[#ecdbe8];
   }
 
   .table-row-hover {
-    @apply hover:bg-[#F5F5F5] cursor-pointer transition-colors;
+    @apply hover:bg-[#f1ebf4] cursor-pointer transition-colors;
+  }
+
+  .data-table tbody tr {
+    @apply transition-colors;
+  }
+
+  .data-table tbody tr:nth-child(even) {
+    background-color: #faf3fc;
+  }
+
+  .data-table tbody tr:hover {
+    background-color: #f1ebf4;
+  }
+
+  .pagination-button {
+    @apply inline-flex h-8 min-w-8 items-center justify-center rounded border border-transparent px-2 text-sm font-medium text-[#514253] transition-colors hover:bg-[#f1ebf4] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .pagination-button-active {
+    @apply border-[#bf2ef0] bg-[#bf2ef0] text-white hover:bg-[#bf2ef0];
   }
 }
 
@@ -146,14 +173,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #F5F5F5;
+  background: #f4eef6;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #E3B2E2;
+  background: #d5c0d5;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #AD58A6;
+  background: #bf2ef0;
 }

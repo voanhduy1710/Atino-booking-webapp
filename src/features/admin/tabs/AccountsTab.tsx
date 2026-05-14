@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { Button } from '@/shared/components/Button'
@@ -15,23 +15,23 @@ interface SupplierAccountWithPw extends SupplierAccount { password?: string }
 
 const EyeIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
   </svg>
 )
 const EyeOffIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-    <line x1="1" y1="1" x2="23" y2="23"/>
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
   </svg>
 )
 
 const STATUS_COLORS: Record<AccountStatus, string> = { pending: 'status-pending', active: 'status-confirmed', rejected: 'status-rejected' }
-const STATUS_LABELS: Record<AccountStatus, string> = { pending: 'Chờ xác nhận', active: 'Đang hoạt động', rejected: 'Đã từ chối' }
+const STATUS_LABELS: Record<AccountStatus, string> = { pending: 'Chá» xÃ¡c nháº­n', active: 'Äang hoáº¡t Ä‘á»™ng', rejected: 'ÄÃ£ tá»« chá»‘i' }
 const FILTER_OPTIONS: { value: AccountStatus | 'all'; label: string }[] = [
-  { value: 'pending', label: 'Chờ xác nhận' },
-  { value: 'active', label: 'Đang hoạt động' },
-  { value: 'rejected', label: 'Đã từ chối' },
-  { value: 'all', label: 'Tất cả' },
+  { value: 'pending', label: 'Chá» xÃ¡c nháº­n' },
+  { value: 'active', label: 'Äang hoáº¡t Ä‘á»™ng' },
+  { value: 'rejected', label: 'ÄÃ£ tá»« chá»‘i' },
+  { value: 'all', label: 'Táº¥t cáº£' },
 ]
 
 export function AccountsTab() {
@@ -133,9 +133,8 @@ export function AccountsTab() {
           <button
             key={value}
             onClick={() => setStatusFilter(value)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              statusFilter === value ? 'bg-[#AD58A6] text-white border-[#AD58A6] font-bold' : 'bg-white border-[#E0E0E0] text-[#888888] hover:border-[#AD58A6] hover:text-black'
-            }`}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${statusFilter === value ? 'bg-[#80417A] text-white border-[#80417A] font-bold' : 'bg-white border-[#ecdbe8] text-[#888888] hover:border-[#80417A] hover:text-black'
+              }`}
           >
             {label}
           </button>
@@ -143,100 +142,100 @@ export function AccountsTab() {
       </div>
 
       {isLoading ? <LoadingSpinner className="mx-auto" /> : (
-        <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
+        <div className="overflow-x-auto bg-white border border-[#ecdbe8] rounded-lg">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#F5F5F5]">
-                <th className="table-header">Họ tên</th>
+                <th className="table-header">Há» tÃªn</th>
                 <th className="table-header">Username</th>
-                <th className="table-header">Mật khẩu</th>
-                <th className="table-header">Mã NCC</th>
-                <th className="table-header">Đăng ký lúc</th>
-                <th className="table-header">Trạng thái</th>
-                <th className="table-header w-32">Thao tác</th>
+                <th className="table-header">Máº­t kháº©u</th>
+                <th className="table-header">MÃ£ NCC</th>
+                <th className="table-header">ÄÄƒng kÃ½ lÃºc</th>
+                <th className="table-header">Tráº¡ng thÃ¡i</th>
+                <th className="table-header w-32">Thao tÃ¡c</th>
               </tr>
             </thead>
             <tbody>
               {accounts.map((a) => (
-                <tr key={a.id} className="border-t border-[#E0E0E0]">
+                <tr key={a.id} className="border-t border-[#ecdbe8]">
                   <td className="table-cell">{a.full_name}</td>
                   <td className="table-cell font-mono">{a.username}</td>
                   <td className="table-cell">
                     <div className="flex items-center gap-1.5">
                       <span className="font-mono text-sm">
                         {revealedPws.has(a.id)
-                          ? (a.password ? a.password : <span className="text-[#BBBBBB] text-xs not-italic">Chưa có</span>)
-                          : '●●●●●●'}
+                          ? (a.password ? a.password : <span className="text-[#BBBBBB] text-xs not-italic">ChÆ°a cÃ³</span>)
+                          : 'â—â—â—â—â—â—'}
                       </span>
-                      <button type="button" onClick={() => togglePwReveal(a.id)} className="text-[#888888] hover:text-black transition-colors flex-shrink-0" aria-label={revealedPws.has(a.id) ? 'Ẩn' : 'Hiện'}>
+                      <button type="button" onClick={() => togglePwReveal(a.id)} className="text-[#888888] hover:text-black transition-colors flex-shrink-0" aria-label={revealedPws.has(a.id) ? 'áº¨n' : 'Hiá»‡n'}>
                         {revealedPws.has(a.id) ? <EyeOffIcon /> : <EyeIcon />}
                       </button>
                     </div>
                   </td>
-                  <td className="table-cell font-mono font-medium">{a.supplier_code_requested ?? <span className="text-[#BBBBBB]">—</span>}</td>
+                  <td className="table-cell font-mono font-medium">{a.supplier_code_requested ?? <span className="text-[#BBBBBB]">â€”</span>}</td>
                   <td className="table-cell text-xs">{formatDateTimeDisplay(a.created_at)}</td>
                   <td className="table-cell"><span className={STATUS_COLORS[a.status]}>{STATUS_LABELS[a.status]}</span></td>
                   <td className="table-cell">
                     <div className="flex gap-2 flex-wrap">
-                      {a.status === 'pending' && <LinkBtn onClick={() => setSelectedAccount(a)}>Xét duyệt</LinkBtn>}
-                      <LinkBtn onClick={() => { setPwAccountId(a.id); setNewPassword(''); setPwError(null) }}>Đặt lại MK</LinkBtn>
+                      {a.status === 'pending' && <LinkBtn onClick={() => setSelectedAccount(a)}>XÃ©t duyá»‡t</LinkBtn>}
+                      <LinkBtn onClick={() => { setPwAccountId(a.id); setNewPassword(''); setPwError(null) }}>Äáº·t láº¡i MK</LinkBtn>
                       <LinkBtn danger onClick={() => {
-                        if (window.confirm(`Xóa tài khoản "${a.username}"? Không thể hoàn tác.`)) deleteAccountMutation.mutate(a.id)
-                      }}>Xóa</LinkBtn>
+                        if (window.confirm(`XÃ³a tÃ i khoáº£n "${a.username}"? KhÃ´ng thá»ƒ hoÃ n tÃ¡c.`)) deleteAccountMutation.mutate(a.id)
+                      }}>XÃ³a</LinkBtn>
                     </div>
                   </td>
                 </tr>
               ))}
               {accounts.length === 0 && (
-                <tr><td colSpan={7} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
+                <tr><td colSpan={7} className="table-cell text-center text-[#888888] py-8">KhÃ´ng cÃ³ dá»¯ liá»‡u</td></tr>
               )}
             </tbody>
           </table>
         </div>
       )}
 
-      <Modal isOpen={!!selectedAccount} onClose={() => { setSelectedAccount(null); setRejectReason('') }} title="Xét duyệt tài khoản" size="md">
+      <Modal isOpen={!!selectedAccount} onClose={() => { setSelectedAccount(null); setRejectReason('') }} title="XÃ©t duyá»‡t tÃ i khoáº£n" size="md">
         {selectedAccount && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <div><p className="text-xs text-[#888888]">Họ tên</p><p className="font-medium">{selectedAccount.full_name}</p></div>
+              <div><p className="text-xs text-[#888888]">Há» tÃªn</p><p className="font-medium">{selectedAccount.full_name}</p></div>
               <div><p className="text-xs text-[#888888]">Username</p><p className="font-mono">{selectedAccount.username}</p></div>
-              <div><p className="text-xs text-[#888888]">Mã NCC yêu cầu</p><p className="font-mono font-bold">{selectedAccount.supplier_code_requested ?? <span className="text-[#BBBBBB]">Chưa có</span>}</p></div>
-              <div><p className="text-xs text-[#888888]">Đăng ký lúc</p><p>{formatDateTimeDisplay(selectedAccount.created_at)}</p></div>
+              <div><p className="text-xs text-[#888888]">MÃ£ NCC yÃªu cáº§u</p><p className="font-mono font-bold">{selectedAccount.supplier_code_requested ?? <span className="text-[#BBBBBB]">ChÆ°a cÃ³</span>}</p></div>
+              <div><p className="text-xs text-[#888888]">ÄÄƒng kÃ½ lÃºc</p><p>{formatDateTimeDisplay(selectedAccount.created_at)}</p></div>
             </div>
             <div>
-              <label className="text-xs text-[#888888] block mb-1">Liên kết Nhà cung cấp <span className="text-[#CC0000]">*</span></label>
+              <label className="text-xs text-[#888888] block mb-1">LiÃªn káº¿t NhÃ  cung cáº¥p <span className="text-[#CC0000]">*</span></label>
               <select value={selectedSupplierId} onChange={(e) => setSelectedSupplierId(e.target.value)} className="input-field">
-                <option value="">— Chọn NCC —</option>
+                <option value="">â€” Chá»n NCC â€”</option>
                 {suppliers.map((s) => <option key={s.id} value={s.id}>[{s.code}] {s.name}</option>)}
               </select>
             </div>
-            <Button variant="success" fullWidth loading={approveMutation.isPending} disabled={!selectedSupplierId} onClick={() => { if (!selectedSupplierId) return; approveMutation.mutate({ accountId: selectedAccount.id, supplierId: selectedSupplierId }) }}>Phê duyệt</Button>
+            <Button variant="success" fullWidth loading={approveMutation.isPending} disabled={!selectedSupplierId} onClick={() => { if (!selectedSupplierId) return; approveMutation.mutate({ accountId: selectedAccount.id, supplierId: selectedSupplierId }) }}>PhÃª duyá»‡t</Button>
             {approveMutation.isError && <p className="text-xs text-[#CC0000]">{(approveMutation.error as Error).message}</p>}
             <div>
-              <p className="text-sm font-medium mb-2 text-[#CC0000]">Hoặc từ chối:</p>
-              <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={2} className="input-field resize-none mb-2" placeholder="Lý do từ chối..." />
-              <Button variant="danger-outline" fullWidth loading={rejectMutation.isPending} disabled={!rejectReason.trim()} onClick={() => rejectMutation.mutate({ accountId: selectedAccount.id, reason: rejectReason })}>Từ chối tài khoản</Button>
+              <p className="text-sm font-medium mb-2 text-[#CC0000]">Hoáº·c tá»« chá»‘i:</p>
+              <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} rows={2} className="input-field resize-none mb-2" placeholder="LÃ½ do tá»« chá»‘i..." />
+              <Button variant="danger-outline" fullWidth loading={rejectMutation.isPending} disabled={!rejectReason.trim()} onClick={() => rejectMutation.mutate({ accountId: selectedAccount.id, reason: rejectReason })}>Tá»« chá»‘i tÃ i khoáº£n</Button>
             </div>
           </div>
         )}
       </Modal>
 
-      <Modal isOpen={!!pwAccountId} onClose={() => { setPwAccountId(null); setNewPassword(''); setPwError(null) }} title="Đặt lại mật khẩu" size="sm">
+      <Modal isOpen={!!pwAccountId} onClose={() => { setPwAccountId(null); setNewPassword(''); setPwError(null) }} title="Äáº·t láº¡i máº­t kháº©u" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-[#888888]">Nhập mật khẩu mới:</p>
+          <p className="text-sm text-[#888888]">Nháº­p máº­t kháº©u má»›i:</p>
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Mật khẩu mới..."
+            placeholder="Máº­t kháº©u má»›i..."
             className="input-field"
             autoFocus
           />
           {pwError && <p className="text-xs text-[#CC0000]">{pwError}</p>}
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setPwAccountId(null)} className="flex-1">Hủy</Button>
-            <Button variant="success" loading={pwSaving} disabled={!newPassword.trim()} onClick={() => void handlePasswordReset()} className="flex-1">Lưu</Button>
+            <Button variant="outline" onClick={() => setPwAccountId(null)} className="flex-1">Há»§y</Button>
+            <Button variant="success" loading={pwSaving} disabled={!newPassword.trim()} onClick={() => void handlePasswordReset()} className="flex-1">LÆ°u</Button>
           </div>
         </div>
       </Modal>

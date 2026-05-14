@@ -22,7 +22,7 @@ export function NotificationBell() {
 
         {/* Unread badge */}
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-[#AD58A6] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-[#80417A] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}

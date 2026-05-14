@@ -1,4 +1,4 @@
-import { isPdfAttachment } from '@/shared/lib/attachments'
+﻿import { isPdfAttachment } from '@/shared/lib/attachments'
 
 interface Props {
   src: string
@@ -14,7 +14,7 @@ export function AttachmentThumbnail({ src, label, onClick, className = 'w-12 h-1
     <button
       type="button"
       onClick={onClick}
-      className={`group relative flex-shrink-0 overflow-hidden rounded border border-[#E0E0E0] bg-white hover:border-black transition-colors ${className}`}
+      className={`group relative flex-shrink-0 overflow-hidden rounded border border-[#ecdbe8] bg-white hover:border-black transition-colors ${className}`}
       title={label}
       aria-label={label}
     >

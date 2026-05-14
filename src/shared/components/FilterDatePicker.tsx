@@ -1,4 +1,4 @@
-import ReactDatePicker, { registerLocale } from 'react-datepicker'
+﻿import ReactDatePicker, { registerLocale } from 'react-datepicker'
 import { vi } from 'date-fns/locale'
 import 'react-datepicker/dist/react-datepicker.css'
 
@@ -7,7 +7,7 @@ const customVi = {
   localize: {
     ...vi.localize,
     day: (n: number) => ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][n],
-    month: (n: number) => `Tháng ${n + 1}`,
+    month: (n: number) => `ThÃ¡ng ${n + 1}`,
   },
 }
 registerLocale('vi', customVi as any)
@@ -58,7 +58,7 @@ export function FilterDatePicker({
       showYearDropdown
       dropdownMode="select"
       wrapperClassName={`inline-block ${wrapperClassName}`}
-      className={`border border-[#E0E0E0] rounded px-2 py-1 text-xs w-28 focus:outline-none focus:border-[#AD58A6] ${className}`}
+      className={`border border-[#ecdbe8] rounded px-2 py-1 text-xs w-28 focus:outline-none focus:border-[#80417A] ${className}`}
       popperPlacement="bottom-start"
     />
   )

@@ -15,12 +15,12 @@ type AdminTab = 'accounts' | 'warehouses' | 'suppliers' | 'reviewbookings' | 'ma
 type ManageViewsTab = 'reviewer' | 'manager'
 
 const ADMIN_TABS: NavTab[] = [
-  { id: 'accounts',       label: 'Tài khoản NCC',    href: '/admin/accounts' },
-  { id: 'warehouses',     label: 'Kho hàng',          href: '/admin/warehouses' },
-  { id: 'suppliers',      label: 'Nhà cung cấp',      href: '/admin/suppliers' },
-  { id: 'reviewbookings', label: 'Xác nhận booking',  href: '/admin/reviewbookings' },
-  { id: 'manageviews',    label: 'Manage views',       href: '/admin/manageviews' },
-  { id: 'report',         label: 'Báo cáo',            href: '/admin/report' },
+  { id: 'accounts', label: 'Tài khoản NCC', href: '/admin/accounts' },
+  { id: 'warehouses', label: 'Kho hàng', href: '/admin/warehouses' },
+  { id: 'suppliers', label: 'Nhà cung cấp', href: '/admin/suppliers' },
+  { id: 'reviewbookings', label: 'Xác nhận booking', href: '/admin/reviewbookings' },
+  { id: 'manageviews', label: 'Manage views', href: '/admin/manageviews' },
+  { id: 'report', label: 'Báo cáo', href: '/admin/report' },
 ]
 
 const VALID_TABS: AdminTab[] = ['accounts', 'warehouses', 'suppliers', 'reviewbookings', 'manageviews', 'report']
@@ -41,7 +41,7 @@ export default function AdminPage() {
   useEffect(() => { document.title = 'Admin — Atino' }, [])
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
+    <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={ADMIN_TABS} activeTab={activeTab} />
 
       {activeTab === 'reviewbookings' && (
@@ -58,14 +58,13 @@ export default function AdminPage() {
 
       {activeTab === 'manageviews' && (
         <div className="flex flex-col flex-1">
-          <div className="flex justify-end border-b border-[#E3B2E2] bg-[#E3B2E2] px-4">
+          <div className="flex justify-end border-b border-[#d5c0d5] bg-white px-4 shadow-sm">
             {(['reviewer', 'manager'] as ManageViewsTab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setManageViewsTab(t)}
-                className={`px-4 py-3 text-sm font-medium transition-colors ${
-                  manageViewsTab === t ? 'bg-[#AD58A6] text-white font-bold' : 'text-black font-bold hover:bg-[#D69AD4]'
-                }`}
+                className={`px-4 py-3 text-sm font-medium transition-colors ${manageViewsTab === t ? 'bg-[#bf2ef0] text-white font-bold' : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+                  }`}
               >
                 {t === 'reviewer' ? 'Reviewer' : 'Manager'}
               </button>
@@ -80,9 +79,9 @@ export default function AdminPage() {
 
       {(activeTab === 'accounts' || activeTab === 'warehouses' || activeTab === 'suppliers') && (
         <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
-          {activeTab === 'accounts'   && <AccountsTab />}
+          {activeTab === 'accounts' && <AccountsTab />}
           {activeTab === 'warehouses' && <WarehousesTab />}
-          {activeTab === 'suppliers'  && <SuppliersTab />}
+          {activeTab === 'suppliers' && <SuppliersTab />}
         </main>
       )}
     </div>

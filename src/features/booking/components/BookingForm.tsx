@@ -19,7 +19,7 @@ import { ROLE_TABS } from '@/shared/config/navTabs'
 export { SUPPLIER_TABS }
 
 const SESSION_ID = crypto.randomUUID()
-// In production: nginx proxies /api/* â†’ Express (same origin)
+// In production: nginx proxies /api/* → Express (same origin)
 // In local dev:  set VITE_API_URL=http://localhost:3001
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
@@ -77,7 +77,7 @@ export function BookingForm() {
   const poCount = watch('items').length
 
   useEffect(() => {
-    document.title = 'ÄÄƒng kÃ½ giao hÃ ng â€” Atino Booking'
+    document.title = 'Đăng ký giao hàng — Atino Booking'
   }, [])
 
   const handlePoCountChange = (newCount: number) => {
@@ -106,7 +106,7 @@ export function BookingForm() {
     const token = getToken()
     if (!token) return
     if (isAdmin && !adminSupplierAccountId) {
-      alert('Vui lÃ²ng chá»n tÃ i khoáº£n nhÃ  cung cáº¥p')
+      alert('Vui lòng chọn tài khoản nhà cung cấp')
       return
     }
 
@@ -131,7 +131,7 @@ export function BookingForm() {
       const result = await res.json()
 
       if (!res.ok) {
-        throw new Error((result as { error?: string }).error ?? 'CÃ³ lá»—i xáº£y ra')
+        throw new Error((result as { error?: string }).error ?? 'Có lỗi xảy ra')
       }
 
       const { booking_token } = result as { booking_token: string }
@@ -155,20 +155,20 @@ export function BookingForm() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
+    <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={navTabs} activeTab="new-booking" />
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
         <h1 className="text-xl font-bold tracking-wider uppercase text-center mb-4">
-          ÄÆ N ÄÄ‚NG KÃ â€” GIAO THEO ÄÆ N HÃ€NG
+          ĐƠN ĐĂNG KÝ — GIAO THEO ĐƠN HÀNG
         </h1>
 
-<form onSubmit={handleSubmit(onSubmit)} noValidate>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
           {/* Section I */}
-          <div className="bg-white border border-[#E0E0E0] rounded-lg mb-4">
-            <div className="px-6 py-4 border-b border-[#E0E0E0]">
+          <div className="bg-white border border-[#ecdbe8] rounded-lg mb-4">
+            <div className="px-6 py-4 border-b border-[#ecdbe8]">
               <h2 className="section-header !border-0 !pb-0 !mb-0">
-                I. THÃ”NG TIN NHÃ€ CUNG Cáº¤P
+                I. THÔNG TIN NHÀ CUNG CẤP
               </h2>
             </div>
 
@@ -176,35 +176,35 @@ export function BookingForm() {
               {isAdmin && (
                 <div className="grid grid-cols-3 gap-4 items-start">
                   <label className="form-label col-span-1 pt-2">
-                    TÃ i khoáº£n NCC <span className="text-[#CC0000]">*</span>
+                    Tài khoản NCC <span className="text-[#CC0000]">*</span>
                   </label>
                   <div className="col-span-2">
                     <Select
                       value={adminSupplierAccountId}
                       onChange={(e) => setAdminSupplierAccountId(e.target.value)}
-                      placeholder="â€” Chá»n tÃ i khoáº£n NCC â€”"
+                      placeholder="— Chọn tài khoản NCC —"
                     >
                       {supplierAccounts.map((account) => (
                         <option key={account.id} value={account.id}>
-                          {account.full_name} â€” {account.supplier_code} â€” {account.supplier_name}
+                          {account.full_name} — {account.supplier_code} — {account.supplier_name}
                         </option>
                       ))}
                     </Select>
                     {supplierAccounts.length === 0 && (
-                      <p className="form-error mt-1">ChÆ°a cÃ³ tÃ i khoáº£n NCC active Ä‘á»ƒ táº¡o booking</p>
+                      <p className="form-error mt-1">Chưa có tài khoản NCC active để tạo booking</p>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Cá»­a hÃ ng */}
+              {/* Cửa hàng */}
               <div className="grid grid-cols-3 gap-4 items-start">
                 <label className="form-label col-span-1 pt-2">
-                  Cá»­a hÃ ng <span className="text-[#CC0000]">*</span>
+                  Cửa hàng <span className="text-[#CC0000]">*</span>
                 </label>
                 <div className="col-span-2">
                   <Select
-                    placeholder="â€” Chá»n kho â€”"
+                    placeholder="— Chọn kho —"
                     error={errors.warehouse_id?.message}
                     {...register('warehouse_id')}
                   >
@@ -217,35 +217,35 @@ export function BookingForm() {
                 </div>
               </div>
 
-              {/* MÃ£ NCC */}
+              {/* Mã NCC */}
               <div className="grid grid-cols-3 gap-4 items-center">
-                <label className="form-label col-span-1">MÃ£ NCC</label>
+                <label className="form-label col-span-1">Mã NCC</label>
                 <div className="col-span-2">
                   <input
                     readOnly
                     value={effectiveSupplier?.code ?? ''}
                     className="input-field bg-[#F5F5F5] cursor-not-allowed"
-                    placeholder="â€”"
+                    placeholder="—"
                   />
                 </div>
               </div>
 
-              {/* TÃªn NCC */}
+              {/* Tên NCC */}
               <div className="grid grid-cols-3 gap-4 items-center">
-                <label className="form-label col-span-1">TÃªn NCC</label>
+                <label className="form-label col-span-1">Tên NCC</label>
                 <div className="col-span-2">
                   <input
                     readOnly
                     value={effectiveSupplier?.name ?? ''}
                     className="input-field bg-[#F5F5F5] cursor-not-allowed"
-                    placeholder="â€”"
+                    placeholder="—"
                   />
                 </div>
               </div>
 
-              {/* NgÃ y giao hÃ ng */}
+              {/* Ngày giao hàng */}
               <div className="grid grid-cols-3 gap-4 items-center">
-                <label className="form-label col-span-1">NgÃ y Ä‘Äƒng kÃ½ giao hÃ ng</label>
+                <label className="form-label col-span-1">Ngày đăng ký giao hàng</label>
                 <div className="col-span-2">
                   <div className="flex items-center gap-3">
                     <input
@@ -254,16 +254,16 @@ export function BookingForm() {
                       className="input-field bg-[#F5F5F5] cursor-not-allowed w-40"
                     />
                     <span className="text-xs text-[#888888]">
-                      (TrÆ°á»›c 18h â†’ N+1, tá»« 18h â†’ N+2)
+                      (Trước 18h → N+1, từ 18h → N+2)
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Sá»‘ lÆ°á»£ng Ä‘Æ¡n hÃ ng */}
+              {/* Số lượng đơn hàng */}
               <div className="grid grid-cols-3 gap-4 items-center">
                 <label className="form-label col-span-1">
-                  Sá»‘ lÆ°á»£ng Ä‘Æ¡n hÃ ng <span className="text-[#CC0000]">*</span>
+                  Số lượng đơn hàng <span className="text-[#CC0000]">*</span>
                 </label>
                 <div className="col-span-2">
                   <input
@@ -279,15 +279,15 @@ export function BookingForm() {
 
               {/* PO Table */}
               <div>
-                <div className="overflow-x-auto border border-[#E0E0E0] rounded">
+                <div className="overflow-x-auto border border-[#ecdbe8] rounded">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-[#F5F5F5]">
                         <th className="table-header w-10">STT</th>
-                        <th className="table-header">MÃ£ SP â€” MÃ£ QT</th>
-                        <th className="table-header w-32">Sá»‘ láº§n giao</th>
-                        <th className="table-header w-28">Kiá»‡n/thÃ¹ng</th>
-                        <th className="table-header">áº¢nh phiáº¿u giao</th>
+                        <th className="table-header">Mã SP — Mã QT</th>
+                        <th className="table-header w-32">Số lần giao</th>
+                        <th className="table-header w-28">Kiện/thùng</th>
+                        <th className="table-header">Ảnh phiếu giao</th>
                         <th className="table-header w-8"></th>
                       </tr>
                     </thead>
@@ -317,29 +317,28 @@ export function BookingForm() {
           </div>
 
           {/* Section II */}
-          <div className="bg-white border border-[#E0E0E0] rounded-lg mb-6">
-            <div className="px-6 py-4 border-b border-[#E0E0E0]">
+          <div className="bg-white border border-[#ecdbe8] rounded-lg mb-6">
+            <div className="px-6 py-4 border-b border-[#ecdbe8]">
               <h2 className="section-header !border-0 !pb-0 !mb-0">
-                II. THÃ”NG TIN Váº¬N CHUYá»‚N
+                II. THÔNG TIN VẬN CHUYỂN
               </h2>
             </div>
 
             <div className="px-6 py-5 space-y-4">
-              {/* Khung giá» */}
+              {/* Khung giờ */}
               <div>
                 <label className="form-label">
-                  Khung giá» giao hÃ ng <span className="text-[#CC0000]">*</span>
+                  Khung giờ giao hàng <span className="text-[#CC0000]">*</span>
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                   {(Object.entries(TIME_SLOT_LABELS) as [TimeSlot, string][]).map(
                     ([slot, label]) => (
                       <label
                         key={slot}
-                        className={`flex items-center justify-center gap-2 border rounded p-3 cursor-pointer text-sm font-medium transition-colors ${
-                          watch('time_slot') === slot
-                            ? 'bg-[#AD58A6] text-white border-[#AD58A6]'
-                            : 'border-[#E0E0E0] hover:border-[#AD58A6]'
-                        }`}
+                        className={`flex items-center justify-center gap-2 border rounded p-3 cursor-pointer text-sm font-medium transition-colors ${watch('time_slot') === slot
+                            ? 'bg-[#80417A] text-white border-[#80417A]'
+                            : 'border-[#ecdbe8] hover:border-[#80417A]'
+                          }`}
                       >
                         <input
                           type="radio"
@@ -357,15 +356,15 @@ export function BookingForm() {
                 )}
               </div>
 
-              {/* Ghi chÃº */}
+              {/* Ghi chú */}
               <div>
-                <label htmlFor="ghi-chu" className="form-label">Ghi chÃº</label>
+                <label htmlFor="ghi-chu" className="form-label">Ghi chú</label>
                 <textarea
                   id="ghi-chu"
                   rows={3}
                   maxLength={500}
                   className="input-field resize-none"
-                  placeholder="Ghi chÃº Ä‘áº·c biá»‡t vá» láº§n giao hÃ ng nÃ y (tuá»³ chá»n)..."
+                  placeholder="Ghi chú đặc biệt về lần giao hàng này (tuỳ chọn)..."
                   {...register('ghi_chu')}
                 />
                 {errors.ghi_chu?.message && (
@@ -375,8 +374,8 @@ export function BookingForm() {
 
               {/* Atino notice */}
               <div>
-                <label className="form-label">Ghi chÃº giao hÃ ng (Atino)</label>
-                <div className="p-3 bg-[#F5F5F5] border border-[#E0E0E0] rounded text-sm text-[#888888] leading-relaxed">
+                <label className="form-label">Ghi chú giao hàng (Atino)</label>
+                <div className="p-3 bg-[#F5F5F5] border border-[#ecdbe8] rounded text-sm text-[#888888] leading-relaxed">
                   {STANDARD_DELIVERY_NOTE}
                 </div>
               </div>
@@ -392,7 +391,7 @@ export function BookingForm() {
             id="booking-submit"
             className="text-base py-4"
           >
-            ÄÄƒng kÃ½
+            Đăng ký
           </Button>
         </form>
       </main>

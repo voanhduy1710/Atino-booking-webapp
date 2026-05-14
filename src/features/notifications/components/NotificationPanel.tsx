@@ -1,7 +1,8 @@
-import { useNavigate } from 'react-router-dom'
+﻿import { useNavigate } from 'react-router-dom'
 import { useNotifications, useMarkRead } from '@/features/notifications/hooks/useNotifications'
 import { relativeTime } from '@/shared/lib/dateUtils'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
+import { supabase } from '@/shared/lib/supabase'
 
 interface Props {
   isOpen: boolean
@@ -9,17 +10,17 @@ interface Props {
 }
 
 const EVENT_ICONS: Record<string, string> = {
-  booking_submitted: '📦',
-  booking_confirmed: '✅',
-  booking_rejected: '❌',
-  booking_received: '🏭',
-  account_pending: '⏳',
-  account_approved: '✅',
-  account_rejected: '❌',
-  amendment_requested: '✏️',
-  amendment_approved: '✅',
-  amendment_denied: '❌',
-  discrepancy_recorded: '⚠️',
+  booking_submitted: 'ðŸ“¦',
+  booking_confirmed: 'âœ…',
+  booking_rejected: 'âŒ',
+  booking_received: 'ðŸ­',
+  account_pending: 'â³',
+  account_approved: 'âœ…',
+  account_rejected: 'âŒ',
+  amendment_requested: 'ðŸ–',
+  amendment_approved: 'âœ…',
+  amendment_denied: 'âŒ',
+  discrepancy_recorded: 'âš ï¸',
 }
 
 export function NotificationPanel({ isOpen, onClose }: Props) {
@@ -31,10 +32,14 @@ export function NotificationPanel({ isOpen, onClose }: Props) {
     markRead.mutate('all')
   }
 
-  const handleNotificationClick = (id: string, bookingId: string | null) => {
+  const handleNotificationClick = async (id: string, bookingId: string | null) => {
     markRead.mutate(id)
     if (bookingId) {
-      navigate(`/booking/${bookingId}`)
+      const { data } = await (supabase.from('bookings') as any)
+        .select('booking_token')
+        .eq('id', bookingId)
+        .single()
+      navigate(`/booking/${data?.booking_token ?? bookingId}`)
     }
     onClose()
   }
@@ -43,39 +48,37 @@ export function NotificationPanel({ isOpen, onClose }: Props) {
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 transition-opacity duration-200 ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
+        className={`fixed inset-0 z-40 transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Panel */}
       <div
-        className={`fixed right-0 top-0 h-full z-50 bg-white border-l border-[#E0E0E0] w-full max-w-sm flex flex-col transition-transform duration-300 ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`fixed right-0 top-0 h-full z-50 bg-white border-l border-[#ecdbe8] w-full max-w-sm flex flex-col transition-transform duration-300 ${isOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
         role="dialog"
         aria-modal="true"
-        aria-label="Thông báo"
+        aria-label="ThÃ´ng bÃ¡o"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#E0E0E0]">
-          <h2 className="font-bold text-sm">Thông báo</h2>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#ecdbe8]">
+          <h2 className="font-bold text-sm">ThÃ´ng bÃ¡o</h2>
           <div className="flex items-center gap-3">
             <button
               onClick={handleMarkAllRead}
               className="text-xs text-[#888888] hover:text-black transition-colors"
               id="mark-all-read"
             >
-              Đánh dấu tất cả đã đọc
+              ÄÃ¡nh dáº¥u táº¥t cáº£ Ä‘Ã£ Ä‘á»c
             </button>
             <button
               onClick={onClose}
               className="text-[#888888] hover:text-black transition-colors text-xl"
-              aria-label="Đóng"
+              aria-label="ÄÃ³ng"
             >
-              ×
+              Ã—
             </button>
           </div>
         </div>
@@ -88,20 +91,19 @@ export function NotificationPanel({ isOpen, onClose }: Props) {
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-[#888888] text-sm">
-              <span className="text-2xl mb-2">🔔</span>
-              Chưa có thông báo
+              <span className="text-2xl mb-2">ðŸ””</span>
+              ChÆ°a cÃ³ thÃ´ng bÃ¡o
             </div>
           ) : (
             notifications.map((n) => (
               <button
                 key={n.id}
-                onClick={() => handleNotificationClick(n.id, n.booking_id)}
-                className={`w-full text-left px-4 py-3 border-b border-[#E0E0E0] hover:bg-[#F5F5F5] transition-colors flex gap-3 items-start ${
-                  !n.is_read ? 'bg-[#F9F9F9]' : ''
-                }`}
+                onClick={() => void handleNotificationClick(n.id, n.booking_id)}
+                className={`w-full text-left px-4 py-3 border-b border-[#ecdbe8] hover:bg-[#F5F5F5] transition-colors flex gap-3 items-start ${!n.is_read ? 'bg-[#F9F9F9]' : ''
+                  }`}
               >
                 <span className="text-lg flex-shrink-0 mt-0.5">
-                  {EVENT_ICONS[n.event_type] ?? '📢'}
+                  {EVENT_ICONS[n.event_type] ?? 'ðŸ“¢'}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm leading-snug ${!n.is_read ? 'font-medium' : 'text-[#888888]'}`}>

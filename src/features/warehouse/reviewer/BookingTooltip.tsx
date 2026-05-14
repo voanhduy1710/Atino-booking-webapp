@@ -1,4 +1,4 @@
-import { type RefObject } from 'react'
+﻿import { type RefObject } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { buildPhotoList } from '@/shared/lib/gcs'
@@ -16,10 +16,13 @@ export interface BookingRow {
   status: BookingStatus
   submitted_at: string
   supplier_name: string
+  supplier_account_id: string
   warehouse_name: string
   items_count: number
   item_status_counts: BookingItemStatusCounts
   status_tags: BookingStatusTag[]
+  ghi_chu: string | null
+  reject_reasons: string
 }
 
 interface Props {
@@ -55,7 +58,7 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
   return (
     <div
       ref={tooltipRef}
-      className="fixed z-40 w-80 bg-white border border-[#E0E0E0] rounded-lg shadow-xl p-3 pointer-events-auto"
+      className="fixed z-40 w-80 bg-white border border-[#ecdbe8] rounded-lg shadow-xl p-3 pointer-events-auto"
       style={{ left: clampedX, top: clampedY }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -63,13 +66,13 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
       <p className="font-mono font-bold text-xs mb-2">{row.booking_code}</p>
       <div className="space-y-1.5 mb-3">
         {([
-          ['Nhà cung cấp', row.supplier_name],
+          ['NhÃ  cung cáº¥p', row.supplier_name],
           ['Kho', row.warehouse_name],
-          ['Ngày giao', formatDateDisplay(row.delivery_date)],
-          ['Khung giờ', TIME_SLOT_LABELS[row.time_slot]],
+          ['NgÃ y giao', formatDateDisplay(row.delivery_date)],
+          ['Khung giá»', TIME_SLOT_LABELS[row.time_slot]],
           ['SL PO', String(row.items_count)],
-          ['Xử lý', formatBookingItemSummary(row.item_status_counts)],
-          ['Đăng ký lúc', formatDateTimeDisplay(row.submitted_at)],
+          ['Xá»­ lÃ½', formatBookingItemSummary(row.item_status_counts)],
+          ['ÄÄƒng kÃ½ lÃºc', formatDateTimeDisplay(row.submitted_at)],
         ] as [string, string][]).map(([label, value]) => (
           <div key={label} className="flex justify-between gap-2">
             <span className="text-[#888888] text-xs flex-shrink-0">{label}</span>
@@ -79,7 +82,7 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
       </div>
       {photos.length > 0 && (
         <div>
-          <p className="text-[10px] text-[#888888] uppercase tracking-wider mb-1.5">Ảnh đính kèm</p>
+          <p className="text-[10px] text-[#888888] uppercase tracking-wider mb-1.5">áº¢nh Ä‘Ã­nh kÃ¨m</p>
           <div className="flex flex-wrap gap-1.5">
             {photos.map((ph, i) => (
               <AttachmentThumbnail
@@ -96,11 +99,11 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
       <button
         type="button"
         onClick={onViewDetails}
-        className="mt-3 w-full rounded border border-[#AD58A6] px-3 py-1.5 text-xs font-medium hover:bg-[#AD58A6] hover:text-white transition-colors"
+        className="mt-3 w-full rounded border border-[#80417A] px-3 py-1.5 text-xs font-medium hover:bg-[#80417A] hover:text-white transition-colors"
       >
-        Xem chi tiết
+        Xem chi tiáº¿t
       </button>
-      {isPinned && <p className="text-[10px] text-[#BBBBBB] mt-2 text-right">Nhấn Esc để đóng</p>}
+      {isPinned && <p className="text-[10px] text-[#BBBBBB] mt-2 text-right">Nháº¥n Esc Ä‘á»ƒ Ä‘Ã³ng</p>}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+﻿import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 
 interface Props {
@@ -34,7 +34,7 @@ export function Drawer({ isOpen, onClose, title, children, width = 'max-w-2xl' }
 
       {/* Drawer panel */}
       <div
-        className={`fixed right-0 top-0 h-full z-50 bg-white border-l border-[#E0E0E0] shadow-xl flex flex-col transition-transform duration-300 w-full ${width} ${
+        className={`fixed right-0 top-0 h-full z-50 bg-white border-l border-[#ecdbe8] shadow-xl flex flex-col transition-transform duration-300 w-full ${width} ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         role="dialog"
@@ -42,16 +42,16 @@ export function Drawer({ isOpen, onClose, title, children, width = 'max-w-2xl' }
         aria-labelledby="drawer-title"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#E0E0E0] flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#ecdbe8] flex-shrink-0">
           <h2 id="drawer-title" className="text-base font-bold">
             {title}
           </h2>
           <button
             onClick={onClose}
             className="text-[#888888] hover:text-black transition-colors text-2xl leading-none"
-            aria-label="Đóng"
+            aria-label="ÄÃ³ng"
           >
-            ×
+            Ã—
           </button>
         </div>
 

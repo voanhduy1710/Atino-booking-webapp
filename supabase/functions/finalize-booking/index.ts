@@ -39,7 +39,7 @@ interface PoItem {
   delivery_round: number;
   is_final_round: boolean;
   quantity_booked: number;
-  vat_temp_path?: string;
+  vat_temp_paths?: string[];
   slip_temp_paths?: string[];
 }
 
@@ -64,6 +64,7 @@ Deno.serve(async (req: Request) => {
     const token = authHeader.slice(7);
     const payload = await verifyJWT(token);
     if (!payload || payload.role !== "supplier") return json({ error: "Unauthorized" }, 401);
+    if (!payload.supplier_account_id) return json({ error: "Unauthorized" }, 401);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -75,6 +76,9 @@ Deno.serve(async (req: Request) => {
 
     if (!account || account.status !== "active") {
       return json({ error: "Tài khoản chưa được kích hoạt" }, 403);
+    }
+    if (!account.supplier_id) {
+      return json({ error: "Tài khoản nhà cung cấp chưa được gán NCC" }, 400);
     }
 
     const body = await req.json() as {
@@ -114,8 +118,8 @@ Deno.serve(async (req: Request) => {
           delivery_round: item.delivery_round,
           is_final_round: item.is_final_round ?? false,
           quantity_booked: item.quantity_booked,
-          vat_invoice_url: item.vat_temp_path
-            ? `https://storage.googleapis.com/${GCS_BUCKET}/${GCS_PREFIX}/${item.vat_temp_path}`
+          vat_invoice_url: item.vat_temp_paths?.[0]
+            ? `https://storage.googleapis.com/${GCS_BUCKET}/${GCS_PREFIX}/${item.vat_temp_paths[0]}`
             : null,
         })
         .select("id")
@@ -124,8 +128,8 @@ Deno.serve(async (req: Request) => {
       if (ie || !ins) { console.error("Item error:", ie); continue; }
 
       const photoPaths = [
-        ...(item.slip_temp_paths ?? []).map(p => ({ path: p, type: "delivery_slip" as const })),
-        ...(item.vat_temp_path ? [{ path: item.vat_temp_path, type: "vat_invoice" as const }] : []),
+        ...(item.slip_temp_paths ?? []).map((p) => ({ path: p, type: "delivery_slip" as const })),
+        ...(item.vat_temp_paths ?? []).map((p) => ({ path: p, type: "vat_invoice" as const })),
       ];
 
       for (const { path, type } of photoPaths) {
@@ -143,13 +147,18 @@ Deno.serve(async (req: Request) => {
     const { data: sup } = await supabase
       .from("suppliers").select("name").eq("id", account.supplier_id).single();
 
-    await supabase.from("notifications").insert({
-      recipient_type: "staff",
-      recipient_id: "lethientinh",
-      event_type: "booking_submitted",
-      message: `Có booking mới từ ${sup?.name ?? "NCC"}: ${booking.booking_code}`,
-      booking_id: booking.id,
-    });
+    const STAFF_RECIPIENTS = ["voanhduy1710", "lethientinh", "lethiendung", "lethihong"];
+    const notificationMessage = `C\u00f3 booking m\u1edbi t\u1eeb ${sup?.name ?? "NCC"}: ${booking.booking_code}`;
+
+    await supabase.from("notifications").insert(
+      STAFF_RECIPIENTS.map((username) => ({
+        recipient_type: "staff",
+        recipient_id: username,
+        event_type: "booking_submitted",
+        message: notificationMessage,
+        booking_id: booking.id,
+      })),
+    );
 
     return json({
       booking_code: booking.booking_code,

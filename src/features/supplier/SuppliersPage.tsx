@@ -31,7 +31,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
   const [editCode, setEditCode] = useState('')
   const [editName, setEditName] = useState('')
 
-  useEffect(() => { document.title = 'NhÃ  cung cáº¥p â€” Atino' }, [])
+  useEffect(() => { document.title = 'Nhà cung cấp — Atino' }, [])
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['suppliers'],
@@ -76,22 +76,22 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
     <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
         <div className="flex justify-end mb-3">
           <button onClick={() => { setAdding(true); setNewCode(''); setNewName('') }} className="btn-green">
-            + ThÃªm NCC
+            + Thêm NCC
           </button>
         </div>
-        <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg">
+        <div className="overflow-x-auto bg-white border border-[#ecdbe8] rounded-lg">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#F5F5F5]">
-                <th className="table-header">MÃ£ NCC</th>
-                <th className="table-header">TÃªn NCC</th>
-                <th className="table-header">Tráº¡ng thÃ¡i</th>
-                <th className="table-header w-32">Thao tÃ¡c</th>
+                <th className="table-header">Mã NCC</th>
+                <th className="table-header">Tên NCC</th>
+                <th className="table-header">Trạng thái</th>
+                <th className="table-header w-32">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {suppliers.map((s) => (
-                <tr key={s.id} className="border-t border-[#E0E0E0]">
+                <tr key={s.id} className="border-t border-[#ecdbe8]">
                   <td className="table-cell font-mono">
                     {editing?.id === s.id ? (
                       <input autoFocus value={editCode} onChange={(e) => setEditCode(e.target.value.toUpperCase())} className="input-field py-1 text-xs font-mono w-28" />
@@ -103,25 +103,25 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                     ) : s.name}
                   </td>
                   <td className="table-cell">
-                    {s.active ? <span className="status-confirmed">Hoáº¡t Ä‘á»™ng</span> : <span className="status-rejected">Ngá»«ng</span>}
+                    {s.active ? <span className="status-confirmed">Hoạt động</span> : <span className="status-rejected">Ngừng</span>}
                   </td>
                   <td className="table-cell">
                     <div className="flex gap-3">
                       {editing?.id === s.id ? (
                         <>
                           <LinkBtn onClick={() => editMutation.mutate({ id: s.id, code: editCode, name: editName })}>
-                            {editMutation.isPending ? 'LÆ°u...' : 'LÆ°u'}
+                            {editMutation.isPending ? 'Lưu...' : 'Lưu'}
                           </LinkBtn>
-                          <LinkBtn onClick={() => setEditing(null)}>Há»§y</LinkBtn>
+                          <LinkBtn onClick={() => setEditing(null)}>Hủy</LinkBtn>
                         </>
                       ) : (
                         <>
-                          <LinkBtn onClick={() => { setEditing(s); setEditCode(s.code); setEditName(s.name) }}>Sá»­a</LinkBtn>
+                          <LinkBtn onClick={() => { setEditing(s); setEditCode(s.code); setEditName(s.name) }}>Sửa</LinkBtn>
                           {canDelete && (
                             <LinkBtn danger onClick={() => {
-                              if (window.confirm(`XÃ³a NCC "${s.name}"? KhÃ´ng thá»ƒ hoÃ n tÃ¡c.`)) deleteMutation.mutate(s.id)
+                              if (window.confirm(`Xóa NCC "${s.name}"? Không thể hoàn tác.`)) deleteMutation.mutate(s.id)
                             }}>
-                              XÃ³a
+                              Xóa
                             </LinkBtn>
                           )}
                         </>
@@ -131,20 +131,20 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 </tr>
               ))}
               {adding && (
-                <tr className="border-t border-[#E0E0E0] bg-[#FAFAFA]">
+                <tr className="border-t border-[#ecdbe8] bg-[#FAFAFA]">
                   <td className="table-cell">
                     <input autoFocus value={newCode} onChange={(e) => setNewCode(e.target.value.toUpperCase())} placeholder="VD: GC01" className="input-field py-1 text-xs font-mono w-28" />
                   </td>
                   <td className="table-cell">
-                    <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="TÃªn nhÃ  cung cáº¥p..." className="input-field py-1 text-xs" />
+                    <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Tên nhà cung cấp..." className="input-field py-1 text-xs" />
                   </td>
-                  <td className="table-cell text-[#888888] text-xs">Hoáº¡t Ä‘á»™ng</td>
+                  <td className="table-cell text-[#888888] text-xs">Hoạt động</td>
                   <td className="table-cell">
                     <div className="flex gap-3">
                       <LinkBtn onClick={() => addMutation.mutate({ code: newCode, name: newName })}>
-                        {addMutation.isPending ? 'LÆ°u...' : 'LÆ°u'}
+                        {addMutation.isPending ? 'Lưu...' : 'Lưu'}
                       </LinkBtn>
-                      <LinkBtn onClick={() => setAdding(false)}>Há»§y</LinkBtn>
+                      <LinkBtn onClick={() => setAdding(false)}>Hủy</LinkBtn>
                     </div>
                     {addMutation.isError && (
                       <p className="text-xs text-[#CC0000] mt-1">{(addMutation.error as Error).message}</p>
@@ -153,7 +153,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
                 </tr>
               )}
               {suppliers.length === 0 && !adding && (
-                <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">KhÃ´ng cÃ³ dá»¯ liá»‡u</td></tr>
+                <tr><td colSpan={4} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
               )}
             </tbody>
           </table>
@@ -163,7 +163,7 @@ export default function SuppliersPage({ embedded = false }: { embedded?: boolean
 
   if (embedded) return mainContent
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
+    <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={tabs} activeTab="suppliers" />
       {mainContent}
     </div>

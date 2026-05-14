@@ -4,6 +4,7 @@ import { supabase } from '@/shared/lib/supabase'
 import { Navbar } from '@/shared/components/Navbar'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
+import { Pagination } from '@/shared/components/Pagination'
 import { Lightbox } from '@/shared/components/Lightbox'
 import { DateRangePickerPopup } from '@/shared/components/filters'
 import { formatDateDisplay, formatDateTimeDisplay } from '@/shared/lib/dateUtils'
@@ -13,6 +14,21 @@ import { getCurrentUser } from '@/shared/lib/auth'
 import { ROLE_TABS } from '@/shared/config/navTabs'
 import { BookingTooltip, type BookingRow } from './BookingTooltip'
 import { BookingDetailModal, type SelectedBooking } from './BookingDetailModal'
+import type { CSSProperties } from 'react'
+
+const STATUS_FILTER_OPTIONS: Array<{
+  value: BookingStatusTag | 'all'
+  label: string
+  style: CSSProperties
+}> = [
+  { value: 'all', label: 'Tất cả trạng thái', style: { backgroundColor: '#FFFFFF', color: '#000000' } },
+  { value: 'pending', label: 'Chờ xác nhận', style: { backgroundColor: '#F5F5F5', color: '#555555' } },
+  { value: 'partially_approved', label: 'Duyệt một phần', style: { backgroundColor: '#EAF6EE', color: '#1a7a3e' } },
+  { value: 'partially_rejected', label: 'Từ chối một phần', style: { backgroundColor: '#FFF5F5', color: '#CC0000' } },
+  { value: 'confirmed', label: 'Đã xác nhận', style: { backgroundColor: '#1a7a3e', color: '#FFFFFF' } },
+  { value: 'rejected', label: 'Đã từ chối', style: { backgroundColor: '#CC0000', color: '#FFFFFF' } },
+]
+const PAGE_SIZE = 10
 
 export default function ReviewerPage({ embedded = false }: { embedded?: boolean }) {
   const [dateFrom, setDateFrom] = useState('')
@@ -22,6 +38,7 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [supplierFilter, setSupplierFilter] = useState('all')
   const [selectedBooking, setSelectedBooking] = useState<SelectedBooking | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const [tooltipRow, setTooltipRow] = useState<{ row: BookingRow; x: number; y: number } | null>(null)
   const [isTooltipPinned, setIsTooltipPinned] = useState(false)
@@ -32,12 +49,17 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
   const user = getCurrentUser()
   const canDelete = user?.role === 'admin'
   const tabs = user ? (ROLE_TABS[user.role] ?? []) : []
+  const selectedStatusStyle = STATUS_FILTER_OPTIONS.find((option) => option.value === statusFilter)?.style
 
-  useEffect(() => { document.title = 'XÃ¡c nháº­n booking â€” Atino' }, [])
+  useEffect(() => { document.title = 'Xác nhận booking — Atino' }, [])
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchInput), 300)
     return () => clearTimeout(t)
   }, [searchInput])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [dateFrom, dateTo, statusFilter, debouncedSearch, supplierFilter])
 
   useEffect(() => {
     if (!isTooltipPinned) return
@@ -91,7 +113,7 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
     queryFn: async () => {
       let q = supabase
         .from('bookings')
-        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, suppliers!inner(name), warehouses!inner(name), booking_items(id, status)')
+        .select('id, booking_code, booking_token, supplier_account_id, delivery_date, time_slot, status, submitted_at, ghi_chu, suppliers!inner(name), warehouses!inner(name), booking_items(id, status, reject_reason)')
         .order('submitted_at', { ascending: false })
       if (dateFrom) q = q.gte('delivery_date', dateFrom)
       if (dateTo) q = q.lte('delivery_date', dateTo)
@@ -104,17 +126,28 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
         const statusTags = getBookingStatusTags(items)
         return {
           id: b.id, booking_code: b.booking_code, booking_token: b.booking_token,
+          supplier_account_id: b.supplier_account_id,
           delivery_date: b.delivery_date, time_slot: b.time_slot, status: deriveBookingStatus(b.status, items),
-          submitted_at: b.submitted_at, supplier_name: b.suppliers?.name ?? 'â€”',
-          warehouse_name: b.warehouses?.name ?? 'â€”',
+          submitted_at: b.submitted_at, supplier_name: b.suppliers?.name ?? '—',
+          warehouse_name: b.warehouses?.name ?? '—',
           items_count: items.length,
           item_status_counts: countBookingItemStatuses(items),
           status_tags: statusTags,
+          ghi_chu: b.ghi_chu,
+          reject_reasons: items.map((item: any) => item.reject_reason).filter(Boolean).join('; '),
         }
       }) as BookingRow[]
       return statusFilter === 'all' ? rows : rows.filter((b) => b.status_tags.includes(statusFilter))
     },
   })
+
+  const totalPages = Math.max(1, Math.ceil(bookings.length / PAGE_SIZE))
+  const safePage = Math.min(currentPage, totalPages)
+  const paginatedBookings = bookings.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
+  useEffect(() => {
+    if (currentPage !== safePage) setCurrentPage(safePage)
+  }, [currentPage, safePage])
 
   const openBooking = async (row: BookingRow) => {
     const { data, error } = await supabase
@@ -147,31 +180,35 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
       {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
 
       <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
-        <h1 className="text-xl font-bold">XÃ¡c nháº­n booking</h1>
+        <h1 className="text-xl font-bold">Xác nhận booking</h1>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="TÃ¬m mÃ£ booking..."
+              placeholder="Tìm mã booking..."
               className="input-field text-sm py-1.5 pr-7 w-44"
             />
             {searchInput && (
-              <button type="button" onClick={() => { setSearchInput(''); setDebouncedSearch('') }} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#888888] hover:text-black text-base leading-none">âœ•</button>
+              <button type="button" onClick={() => { setSearchInput(''); setDebouncedSearch('') }} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#888888] hover:text-black text-base leading-none">✕</button>
             )}
           </div>
           <select value={supplierFilter} onChange={(e) => setSupplierFilter(e.target.value)} className="input-field text-sm py-1.5 w-44">
-            <option value="all">Táº¥t cáº£ NCC</option>
+            <option value="all">Tất cả NCC</option>
             {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as BookingStatusTag | 'all')} className="input-field text-sm py-1.5 w-44">
-            <option value="all">Táº¥t cáº£ tráº¡ng thÃ¡i</option>
-            <option value="pending">Chá» xÃ¡c nháº­n</option>
-            <option value="partially_approved">Duyá»‡t má»™t pháº§n</option>
-            <option value="partially_rejected">Tá»« chá»‘i má»™t pháº§n</option>
-            <option value="confirmed">ÄÃ£ xÃ¡c nháº­n</option>
-            <option value="rejected">ÄÃ£ tá»« chá»‘i</option>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as BookingStatusTag | 'all')}
+            className="input-field text-sm py-1.5 w-44"
+            style={selectedStatusStyle}
+          >
+            {STATUS_FILTER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value} style={option.style}>
+                {option.label}
+              </option>
+            ))}
           </select>
           <DateRangePickerPopup
             startDate={dateFrom}
@@ -188,30 +225,33 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
       {isLoading ? (
         <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>
       ) : bookings.length === 0 ? (
-        <div className="bg-white border border-[#E0E0E0] rounded-lg p-16 text-center text-[#888888]">
-          <p>KhÃ´ng cÃ³ booking nÃ o</p>
+        <div className="bg-white border border-[#ecdbe8] rounded-lg p-16 text-center text-[#888888]">
+          <p>Không có booking nào</p>
         </div>
       ) : (
-        <div className="overflow-x-auto bg-white border border-[#E0E0E0] rounded-lg relative">
-          <table className="w-full text-sm">
+        <div className="overflow-hidden bg-white border border-[#ecdbe8] rounded-lg relative">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm data-table">
             <thead>
-              <tr className="bg-[#F5F5F5]">
-                <th className="table-header">MÃ£ booking</th>
-                <th className="table-header">NhÃ  cung cáº¥p</th>
+              <tr>
+                <th className="table-header">Mã booking</th>
+                <th className="table-header">Nhà cung cấp</th>
                 <th className="table-header">Kho</th>
-                <th className="table-header w-24">NgÃ y giao</th>
-                <th className="table-header w-28">Khung giá»</th>
+                <th className="table-header w-24">Ngày giao</th>
+                <th className="table-header w-28">Khung giờ</th>
                 <th className="table-header w-20">SL PO</th>
-                <th className="table-header w-36">Tiáº¿n Ä‘á»™</th>
-                <th className="table-header w-32">ÄÄƒng kÃ½ lÃºc</th>
-                <th className="table-header whitespace-nowrap w-52">Tráº¡ng thÃ¡i</th>
+                <th className="table-header w-36">Tiến độ</th>
+                <th className="table-header w-32">Đăng ký lúc</th>
+                <th className="table-header whitespace-nowrap w-52">Trạng thái</th>
+                <th className="table-header min-w-44">Ghi chú</th>
+                <th className="table-header min-w-44">Lí do</th>
               </tr>
             </thead>
             <tbody>
-              {bookings.map((b) => (
+              {paginatedBookings.map((b) => (
                 <tr
                   key={b.id}
-                  className="border-t border-[#E0E0E0] hover:bg-[#F9F9F9] cursor-pointer"
+                  className="cursor-pointer"
                   onMouseEnter={(e) => showTooltip(b, e.currentTarget)}
                   onMouseLeave={hideTooltipDelayed}
                   onClick={() => void openBooking(b)}
@@ -222,9 +262,9 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
                   <td className="table-cell text-xs">{formatDateDisplay(b.delivery_date)}</td>
                   <td className="table-cell">{TIME_SLOT_LABELS[b.time_slot]}</td>
                   <td className="table-cell text-center">{b.items_count}</td>
-                  <td className="table-cell text-xs text-[#888888] whitespace-nowrap">
-                    <span className="block">{b.item_status_counts.confirmed}/{b.items_count} duyá»‡t</span>
-                    <span className="block">{b.item_status_counts.rejected}/{b.items_count} tá»« chá»‘i</span>
+                  <td className="table-cell text-xs text-[#514253] whitespace-nowrap">
+                    <span className="block">{b.item_status_counts.confirmed}/{b.items_count} duyệt</span>
+                    <span className="block">{b.item_status_counts.rejected}/{b.items_count} từ chối</span>
                   </td>
                   <td className="table-cell text-xs text-[#888888]">{formatDateTimeDisplay(b.submitted_at)}</td>
                   <td className="table-cell whitespace-nowrap">
@@ -232,10 +272,19 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
                       {b.status_tags.map((status) => <StatusBadge key={status} status={status} />)}
                     </div>
                   </td>
+                  <td className="table-cell max-w-52 text-xs text-[#555555]">{b.ghi_chu || <span className="text-[#BBBBBB]">—</span>}</td>
+                  <td className="table-cell max-w-52 text-xs text-[#CC0000]">{b.reject_reasons || <span className="text-[#BBBBBB]">—</span>}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
+          <Pagination
+            currentPage={safePage}
+            pageSize={PAGE_SIZE}
+            totalItems={bookings.length}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 
@@ -269,9 +318,9 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
     </main>
   )
 
-  if (embedded) return <div className="flex flex-col bg-[#FFF5FF]">{content}</div>
+  if (embedded) return <div className="flex flex-col bg-[#fdf8ff]">{content}</div>
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
+    <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={tabs} activeTab="reviewer" />
       {content}
     </div>

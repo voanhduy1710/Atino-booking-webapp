@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+﻿import { Link, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { getCurrentUser } from '@/shared/lib/auth'
 
@@ -7,7 +7,7 @@ export default function LandingPage() {
   const user = getCurrentUser()
 
   useEffect(() => {
-    document.title = 'Đơn Đăng Ký — Atino Booking'
+    document.title = 'ÄÆ¡n ÄÄƒng KÃ½ â€” Atino Booking'
   }, [])
 
   const handleBooking = () => {
@@ -19,7 +19,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF5FF] flex flex-col items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-[#fdf8ff] flex flex-col items-center justify-center px-4 py-12">
       {/* Logo */}
       <div className="mb-10">
         <img src="/Atino Logo.svg" alt="Atino" className="h-16 w-auto mx-auto" />
@@ -27,10 +27,10 @@ export default function LandingPage() {
 
       {/* Title */}
       <h1 className="text-3xl font-bold tracking-widest uppercase text-center mb-2">
-        ĐƠN ĐĂNG KÝ
+        ÄÆ N ÄÄ‚NG KÃ
       </h1>
       <p className="text-[#888888] text-center mb-10 text-sm">
-        Vui lòng chọn đơn đăng ký phù hợp
+        Vui lÃ²ng chá»n Ä‘Æ¡n Ä‘Äƒng kÃ½ phÃ¹ há»£p
       </p>
 
       {/* Buttons */}
@@ -38,25 +38,25 @@ export default function LandingPage() {
         <button
           id="cta-booking"
           onClick={handleBooking}
-          className="w-full py-5 border border-[#AD58A6] text-black font-semibold text-base hover:bg-[#AD58A6] hover:text-white transition-colors rounded"
+          className="w-full py-5 border border-[#80417A] text-black font-semibold text-base hover:bg-[#80417A] hover:text-white transition-colors rounded"
         >
-          Đăng ký giao hàng
+          ÄÄƒng kÃ½ giao hÃ ng
         </button>
 
         <Link
           to="/guide/create"
           id="cta-guide-create"
-          className="block w-full py-5 border border-[#AD58A6] text-black font-semibold text-base text-center hover:bg-[#AD58A6] hover:text-white transition-colors rounded"
+          className="block w-full py-5 border border-[#80417A] text-black font-semibold text-base text-center hover:bg-[#80417A] hover:text-white transition-colors rounded"
         >
-          Hướng dẫn tạo đơn
+          HÆ°á»›ng dáº«n táº¡o Ä‘Æ¡n
         </Link>
 
         <Link
           to="/guide/receiving"
           id="cta-guide-receiving"
-          className="block w-full py-5 border border-[#AD58A6] text-black font-semibold text-base text-center hover:bg-[#AD58A6] hover:text-white transition-colors rounded"
+          className="block w-full py-5 border border-[#80417A] text-black font-semibold text-base text-center hover:bg-[#80417A] hover:text-white transition-colors rounded"
         >
-          Quy trình giao nhận hàng
+          Quy trÃ¬nh giao nháº­n hÃ ng
         </Link>
       </div>
 
@@ -67,7 +67,7 @@ export default function LandingPage() {
           id="login-link"
           className="text-sm text-[#888888] hover:text-black transition-colors"
         >
-          Đăng nhập →
+          ÄÄƒng nháº­p â†’
         </Link>
       </div>
     </div>

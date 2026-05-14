@@ -1,5 +1,5 @@
 ﻿/**
- * ReportPage â€” BÃ¡o cÃ¡o tá»•ng há»£p
+ * ReportPage — Báo cáo tổng hợp
  * Shared between /admin/report and /manager/report
  * SVG-only charts, no external charting library (same pattern as DASHBOARD ARCHITECTURE.md)
  */
@@ -12,9 +12,9 @@ import { Navbar } from '@/shared/components/Navbar'
 import { getCurrentUser } from '@/shared/lib/auth'
 import { ROLE_TABS } from '@/shared/config/navTabs'
 import { type BookingStatus } from '@/shared/types/domain'
-import { deriveBookingStatus } from '@/shared/lib/bookingStatus'
+import { countBookingItemStatuses, deriveBookingStatus } from '@/shared/lib/bookingStatus'
 
-// â”€â”€ Color palette (same standard 10 from DASHBOARD ARCHITECTURE.md) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Color palette (same standard 10 from DASHBOARD ARCHITECTURE.md) ──────────
 const PALETTE = [
   '#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5',
   '#70AD47', '#9E480E', '#7030A0', '#C00000', '#00B0F0',
@@ -31,19 +31,19 @@ const STATUS_COLORS: Record<BookingStatus | string, string> = {
 }
 
 const STATUS_VI: Record<BookingStatus | string, string> = {
-  pending:   'Chá» xÃ¡c nháº­n',
-  partially_approved: 'Duyá»‡t má»™t pháº§n',
-  partially_rejected: 'Tá»« chá»‘i má»™t pháº§n',
-  confirmed: 'ÄÃ£ xÃ¡c nháº­n',
-  rejected:  'ÄÃ£ tá»« chá»‘i',
-  received:  'ÄÃ£ nháº­n hÃ ng',
-  cancelled: 'ÄÃ£ huá»·',
+  pending:   'Chờ xác nhận',
+  partially_approved: 'Duyệt một phần',
+  partially_rejected: 'Từ chối một phần',
+  confirmed: 'Đã xác nhận',
+  rejected:  'Đã từ chối',
+  received:  'Đã nhận hàng',
+  cancelled: 'Đã huỷ',
 }
 
-// â”€â”€ KPI Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── KPI Card ──────────────────────────────────────────────────────────────────
 function KPICard({ label, value, sub, color }: { label: string; value: number | string; sub?: string; color?: string }) {
   return (
-    <div className="bg-white border border-[#E0E0E0] rounded-lg p-5 flex flex-col gap-1">
+    <div className="bg-white border border-[#ecdbe8] rounded-lg p-5 flex flex-col gap-1">
       <p className="text-xs text-[#888888] font-medium uppercase tracking-wider">{label}</p>
       <p className="text-3xl font-bold" style={{ color: color ?? 'inherit' }}>{value}</p>
       {sub && <p className="text-xs text-[#888888]">{sub}</p>}
@@ -51,7 +51,7 @@ function KPICard({ label, value, sub, color }: { label: string; value: number | 
   )
 }
 
-// â”€â”€ useContainerWidth (ResizeObserver, same pattern as DASHBOARD ARCHITECTURE) â”€
+// ── useContainerWidth (ResizeObserver, same pattern as DASHBOARD ARCHITECTURE) ─
 function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>) {
   const [width, setWidth] = useState(0)
   useEffect(() => {
@@ -63,29 +63,45 @@ function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>) {
   return width
 }
 
-// â”€â”€ SVG Bar Chart â€” bookings by date â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-interface BarDatum { label: string; value: number; color?: string }
+// ── SVG Stacked Bar Chart — booking statuses by date ─────────────────────────
+interface BookingDateDatum {
+  label: string
+  total: number
+  statuses: Record<string, number>
+}
 
-function SVGBarChart({ data, height = 160 }: { data: BarDatum[]; height?: number }) {
+interface ItemDateDatum {
+  label: string
+  total: number
+  confirmed: number
+  rejected: number
+  pending: number
+}
+
+const STACK_STATUS_ORDER: BookingStatus[] = ['pending', 'partially_approved', 'confirmed', 'partially_rejected', 'rejected', 'received', 'cancelled']
+
+function SVGBookingStackedBarChart({ data, height = 220 }: { data: BookingDateDatum[]; height?: number }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const width = useContainerWidth(containerRef)
 
-  const maxVal = Math.max(...data.map((d) => d.value), 1)
+  const maxVal = Math.max(...data.map((d) => d.total), 1)
   const paddingLeft = 36
   const paddingRight = 8
   const paddingTop = 16
-  const paddingBottom = 28
+  const paddingBottom = 30
   const chartW = width - paddingLeft - paddingRight
   const chartH = height - paddingTop - paddingBottom
   const barGap = 4
   const barW = data.length > 0 ? Math.max(4, (chartW / data.length) - barGap) : 0
+  const xStep = data.length > 1 ? chartW / (data.length - 1) : chartW
+  const xForPoint = (i: number) => paddingLeft + (data.length > 1 ? i * xStep : chartW / 2)
+  const barXFor = (i: number) => paddingLeft + (i * chartW) / data.length + barGap / 2
 
-  // Compute visible x-axis labels using label-density algorithm
   const labelMinGap = 40
   const visibleLabels: boolean[] = new Array(data.length).fill(false)
   let lastLabelRight = -Infinity
   for (let i = 0; i < data.length; i++) {
-    const x = paddingLeft + (i + 0.5) * (chartW / data.length)
+    const x = xForPoint(i)
     const labelLeft = x - 20
     if (labelLeft >= lastLabelRight + labelMinGap || i === 0) {
       visibleLabels[i] = true
@@ -103,11 +119,10 @@ function SVGBarChart({ data, height = 160 }: { data: BarDatum[]; height?: number
         </div>
       ) : data.length === 0 ? (
         <div style={{ height }} className="flex items-center justify-center text-[#888888] text-sm">
-          KhÃ´ng cÃ³ dá»¯ liá»‡u
+          Không có dữ liệu
         </div>
       ) : (
-        <svg width={width} height={height} style={{ overflow: 'visible' }}>
-          {/* Y gridlines */}
+        <svg width={width} height={height} style={{ overflow: 'visible' }} aria-label="Booking theo ngày giao">
           {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
             const y = paddingTop + chartH * (1 - pct)
             const val = Math.round(maxVal * pct)
@@ -119,24 +134,36 @@ function SVGBarChart({ data, height = 160 }: { data: BarDatum[]; height?: number
             )
           })}
 
-          {/* Bars */}
           {data.map((d, i) => {
-            const x = paddingLeft + (i * chartW) / data.length + barGap / 2
-            const barHeight = (d.value / maxVal) * chartH
-            const y = paddingTop + chartH - barHeight
-            const color = d.color ?? PALETTE[i % PALETTE.length]
+            const x = barXFor(i)
+            let yCursor = paddingTop + chartH
             return (
               <g key={i}>
-                <rect x={x} y={y} width={barW} height={barHeight} fill={color} rx={2} />
-                {d.value > 0 && barHeight > 14 && (
-                  <text x={x + barW / 2} y={y + 11} textAnchor="middle" fontSize={9} fill="white" fontWeight="600">
-                    {d.value}
+                {STACK_STATUS_ORDER.map((status) => {
+                  const value = d.statuses[status] ?? 0
+                  if (value === 0) return null
+                  const h = (value / maxVal) * chartH
+                  yCursor -= h
+                  return (
+                    <rect
+                      key={status}
+                      x={x}
+                      y={yCursor}
+                      width={barW}
+                      height={h}
+                      fill={STATUS_COLORS[status]}
+                      rx={yCursor + h >= paddingTop + chartH - 1 ? 2 : 0}
+                    />
+                  )
+                })}
+                {d.total > 0 && (
+                  <text x={x + barW / 2} y={Math.max(paddingTop + 10, yCursor - 4)} textAnchor="middle" fontSize={9} fill="#555555" fontWeight="600">
+                    {d.total}
                   </text>
                 )}
-                {/* X-axis label */}
                 {visibleLabels[i] && (
                   <text
-                    x={x + barW / 2}
+                    x={xForPoint(i)}
                     y={paddingTop + chartH + 14}
                     textAnchor="middle"
                     fontSize={9}
@@ -154,7 +181,147 @@ function SVGBarChart({ data, height = 160 }: { data: BarDatum[]; height?: number
   )
 }
 
-// â”€â”€ SVG Donut / Pie Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SVG Line Chart — total items by date + hover tooltip ─────────────────────
+function SVGItemsLineChart({ data, height = 220 }: { data: ItemDateDatum[]; height?: number }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const width = useContainerWidth(containerRef)
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+
+  const maxVal = Math.max(...data.map((d) => d.total), 1)
+  const paddingLeft = 36
+  const paddingRight = 18
+  const paddingTop = 18
+  const paddingBottom = 30
+  const chartW = width - paddingLeft - paddingRight
+  const chartH = height - paddingTop - paddingBottom
+  const xStep = data.length > 1 ? chartW / (data.length - 1) : chartW
+  const xFor = (i: number) => paddingLeft + (data.length > 1 ? i * xStep : chartW / 2)
+  const yFor = (value: number) => paddingTop + chartH - (value / maxVal) * chartH
+  const points = data.map((d, i) => ({ x: xFor(i), y: yFor(d.total) }))
+  const hovered = hoveredIndex === null ? null : data[hoveredIndex]
+  const hoveredPoint = hoveredIndex === null ? null : points[hoveredIndex]
+
+  const linePath = points.reduce((path, point, i) => {
+    if (i === 0) return `M ${point.x} ${point.y}`
+    const p0 = points[i - 2] ?? points[i - 1]
+    const p1 = points[i - 1]
+    const p2 = point
+    const p3 = points[i + 1] ?? point
+    const t = 0.3
+    const cp1x = p1.x + (p2.x - p0.x) * t
+    const cp1y = p1.y + (p2.y - p0.y) * t
+    const cp2x = p2.x - (p3.x - p1.x) * t
+    const cp2y = p2.y - (p3.y - p1.y) * t
+    return `${path} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2.x} ${p2.y}`
+  }, '')
+
+  const cancelHide = () => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+  }
+  const hideDelayed = () => {
+    cancelHide()
+    hideTimerRef.current = setTimeout(() => setHoveredIndex(null), 200)
+  }
+
+  const labelMinGap = 40
+  const visibleLabels: boolean[] = new Array(data.length).fill(false)
+  let lastLabelRight = -Infinity
+  for (let i = 0; i < data.length; i++) {
+    const x = xFor(i)
+    const labelLeft = x - 20
+    if (labelLeft >= lastLabelRight + labelMinGap || i === 0) {
+      visibleLabels[i] = true
+      lastLabelRight = labelLeft + 40
+    }
+  }
+  if (data.length > 0) visibleLabels[data.length - 1] = true
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      {width === 0 ? (
+        <div style={{ height }} className="flex items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      ) : data.length === 0 ? (
+        <div style={{ height }} className="flex items-center justify-center text-[#888888] text-sm">
+          Không có dữ liệu
+        </div>
+      ) : (
+        <>
+          <svg width={width} height={height} style={{ overflow: 'visible' }} aria-label="Tổng kiện hàng theo ngày giao">
+            {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
+              const y = paddingTop + chartH * (1 - pct)
+              const val = Math.round(maxVal * pct)
+              return (
+                <g key={pct}>
+                  <line x1={paddingLeft} x2={paddingLeft + chartW} y1={y} y2={y} stroke="#E0E0E0" strokeDasharray={pct === 0 ? undefined : '3 3'} />
+                  <text x={paddingLeft - 4} y={y + 4} textAnchor="end" fontSize={9} fill="#888888">{val}</text>
+                </g>
+              )
+            })}
+
+            <g>
+              <path d={linePath} fill="none" stroke="#80417A" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+              {points.map((point, i) => (
+                <g key={data[i].label}>
+                  <rect
+                    x={point.x - Math.max(10, xStep / 2)}
+                    y={paddingTop}
+                    width={Math.max(20, xStep)}
+                    height={chartH}
+                    fill="transparent"
+                    onMouseEnter={() => { cancelHide(); setHoveredIndex(i) }}
+                    onMouseLeave={hideDelayed}
+                  />
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={hoveredIndex === i ? 5 : 3.5}
+                    fill="#80417A"
+                    stroke="white"
+                    strokeWidth={1.5}
+                    onMouseEnter={() => { cancelHide(); setHoveredIndex(i) }}
+                    onMouseLeave={hideDelayed}
+                  />
+                  <text x={point.x} y={point.y - 7} textAnchor="middle" fontSize={9} fill="#80417A" fontWeight="600">
+                    {data[i].total}
+                  </text>
+                </g>
+              ))}
+            </g>
+            {data.map((d, i) => visibleLabels[i] && (
+              <text key={d.label} x={xFor(i)} y={paddingTop + chartH + 14} textAnchor="middle" fontSize={9} fill="#888888">
+                {d.label}
+              </text>
+            ))}
+          </svg>
+          {hovered && hoveredPoint && (
+            <div
+              className="pointer-events-auto absolute z-20 w-48 rounded-lg border border-[#ecdbe8] bg-white p-3 text-xs shadow-xl"
+              style={{
+                left: Math.max(4, Math.min(hoveredPoint.x + 10, width - 200)),
+                top: Math.max(4, hoveredPoint.y - 28),
+              }}
+              onMouseEnter={cancelHide}
+              onMouseLeave={hideDelayed}
+            >
+              <p className="mb-2 font-semibold text-black">{hovered.label}</p>
+              <div className="space-y-1 text-[#555555]">
+                <div className="flex justify-between"><span>Tổng kiện hàng</span><span className="font-semibold text-black">{hovered.total}</span></div>
+                <div className="flex justify-between"><span>Đã duyệt</span><span className="font-semibold text-[#1a7a3e]">{hovered.confirmed}</span></div>
+                <div className="flex justify-between"><span>Từ chối</span><span className="font-semibold text-[#CC0000]">{hovered.rejected}</span></div>
+                <div className="flex justify-between"><span>Chờ</span><span className="font-semibold text-[#A06B00]">{hovered.pending}</span></div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── SVG Donut / Pie Chart ─────────────────────────────────────────────────────
 function SVGDonut({ slices, size = 120 }: { slices: { value: number; color: string; label: string }[]; size?: number }) {
   const total = slices.reduce((s, d) => s + d.value, 0)
   if (total === 0) return <div style={{ width: size, height: size }} className="flex items-center justify-center text-[#888888] text-xs">N/A</div>
@@ -193,7 +360,7 @@ function SVGDonut({ slices, size = 120 }: { slices: { value: number; color: stri
   )
 }
 
-// â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function ReportPage({ embedded = false }: { embedded?: boolean }) {
   const user = getCurrentUser()
   const tabs = user ? (ROLE_TABS[user.role] ?? []) : []
@@ -202,10 +369,10 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
   const [dateTo, setDateTo] = useState('')
 
   useEffect(() => {
-    document.title = 'BÃ¡o cÃ¡o â€” Atino'
+    document.title = 'Báo cáo — Atino'
   }, [])
 
-  // â”€â”€ Fetch all bookings in range â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Fetch all bookings in range ───────────────────────────────────────────
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ['report-bookings', dateFrom, dateTo],
     queryFn: async () => {
@@ -217,18 +384,22 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
       if (dateTo) q = q.lte('delivery_date', dateTo)
       const { data, error } = await q
       if (error) throw error
-      return (data ?? []).map((b: any) => ({
-        id: b.id,
-        status: deriveBookingStatus(b.status, b.booking_items ?? []),
-        delivery_date: b.delivery_date as string,
-        submitted_at: b.submitted_at as string,
-        supplier_name: b.suppliers?.name ?? 'â€”',
-        items_count: b.booking_items?.length ?? 0,
-      }))
+      return (data ?? []).map((b: any) => {
+        const items = b.booking_items ?? []
+        return {
+          id: b.id,
+          status: deriveBookingStatus(b.status, items),
+          delivery_date: b.delivery_date as string,
+          submitted_at: b.submitted_at as string,
+          supplier_name: b.suppliers?.name ?? '—',
+          items_count: items.length,
+          item_status_counts: countBookingItemStatuses(items),
+        }
+      })
     },
   })
 
-  // â”€â”€ Derived KPIs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Derived KPIs ─────────────────────────────────────────────────────────
   const total = bookings.length
   const byStatus = bookings.reduce((acc, b) => {
     acc[b.status] = (acc[b.status] ?? 0) + 1
@@ -239,37 +410,46 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
   const returned = (byStatus['rejected'] ?? 0)
   const received = (byStatus['received'] ?? 0)
 
-  // â”€â”€ Bookings by date (bar chart) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Bookings and items by date ───────────────────────────────────────────
   const byDate = bookings.reduce((acc, b) => {
-    acc[b.delivery_date] = (acc[b.delivery_date] ?? 0) + 1
+    const row = acc[b.delivery_date] ?? {
+      label: b.delivery_date.slice(5).replace('-', '/'),
+      total: 0,
+      statuses: {},
+      totalItems: 0,
+      confirmed: 0,
+      rejected: 0,
+      pending: 0,
+    }
+    row.total += 1
+    row.statuses[b.status] = (row.statuses[b.status] ?? 0) + 1
+    row.totalItems += b.items_count
+    row.confirmed += b.item_status_counts.confirmed
+    row.rejected += b.item_status_counts.rejected
+    row.pending += b.item_status_counts.pending
+    acc[b.delivery_date] = row
     return acc
-  }, {} as Record<string, number>)
+  }, {} as Record<string, BookingDateDatum & ItemDateDatum & { totalItems: number }>)
 
-  const dateSeries: BarDatum[] = Object.entries(byDate)
+  const dateRows = Object.entries(byDate)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, count]) => ({
-      label: date.slice(5).replace('-', '/'), // MM/DD
-      value: count,
-      color: '#4472C4',
-    }))
+    .map(([, row]) => row)
 
-  // â”€â”€ Returned/rejected by date â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const returnedByDate = bookings
-    .filter((b) => b.status === 'rejected')
-    .reduce((acc, b) => {
-      acc[b.delivery_date] = (acc[b.delivery_date] ?? 0) + 1
-      return acc
-    }, {} as Record<string, number>)
+  const dateSeries: BookingDateDatum[] = dateRows.map((row) => ({
+    label: row.label,
+    total: row.total,
+    statuses: row.statuses,
+  }))
 
-  const returnedSeries: BarDatum[] = Object.entries(returnedByDate)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, count]) => ({
-      label: date.slice(5).replace('-', '/'),
-      value: count,
-      color: '#C00000',
-    }))
+  const itemSeries: ItemDateDatum[] = dateRows.map((row) => ({
+    label: row.label,
+    total: row.totalItems,
+    confirmed: row.confirmed,
+    rejected: row.rejected,
+    pending: row.pending,
+  }))
 
-  // â”€â”€ By supplier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── By supplier ──────────────────────────────────────────────────────────
   const bySupplier = bookings.reduce((acc, b) => {
     acc[b.supplier_name] = (acc[b.supplier_name] ?? 0) + 1
     return acc
@@ -281,7 +461,7 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
 
   const supplierMax = supplierEntries[0]?.[1] ?? 1
 
-  // â”€â”€ Status donut slices â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Status donut slices ───────────────────────────────────────────────────
   const donutSlices = (Object.entries(STATUS_COLORS) as [string, string][])
     .filter(([k]) => byStatus[k])
     .map(([k, color]) => ({ value: byStatus[k] ?? 0, color, label: STATUS_VI[k] }))
@@ -290,7 +470,7 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
     <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">
       {/* Header + date filter */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <h1 className="text-xl font-bold">BÃ¡o cÃ¡o tá»•ng há»£p</h1>
+        <h1 className="text-xl font-bold">Báo cáo tổng hợp</h1>
         <DateRangePickerPopup
           startDate={dateFrom}
           endDate={dateTo}
@@ -305,18 +485,16 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
       ) : (
         <>
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            <KPICard label="Tá»•ng booking" value={total} sub={`${totalItems} Ä‘Æ¡n hÃ ng (PO)`} />
-            <KPICard label="Chá» xÃ¡c nháº­n" value={byStatus['pending'] ?? 0} color="#FFC000" />
-            <KPICard label="ÄÃ£ xÃ¡c nháº­n" value={byStatus['confirmed'] ?? 0} color="#70AD47" />
-            <KPICard label="ÄÃ£ nháº­n hÃ ng" value={received} color="#4472C4" />
-            <KPICard label="ÄÃ£ tá»« chá»‘i / Tráº£ hÃ ng" value={returned} color="#C00000" sub={total > 0 ? `${((returned / total) * 100).toFixed(1)}% tá»•ng booking` : undefined} />
-            <KPICard label="ÄÃ£ huá»·" value={byStatus['cancelled'] ?? 0} color="#A5A5A5" />
-            <KPICard label="Tá»•ng kiá»‡n hÃ ng" value={totalItems} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+            <KPICard label="Tổng booking" value={total} sub={`${totalItems} đơn hàng (PO)`} />
+            <KPICard label="Chờ xác nhận" value={byStatus['pending'] ?? 0} color="#FFC000" />
+            <KPICard label="Đã xác nhận" value={byStatus['confirmed'] ?? 0} color="#70AD47" />
+            <KPICard label="Đã từ chối / Trả hàng" value={returned} color="#C00000" sub={total > 0 ? `${((returned / total) * 100).toFixed(1)}% tổng booking` : undefined} />
+            <KPICard label="Tổng kiện hàng" value={totalItems} />
             <KPICard
-              label="Tá»‰ lá»‡ thÃ nh cÃ´ng"
-              value={total > 0 ? `${(((received + (byStatus['confirmed'] ?? 0)) / total) * 100).toFixed(1)}%` : 'â€”'}
-              sub="XÃ¡c nháº­n + Nháº­n hÃ ng"
+              label="Tỉ lệ thành công"
+              value={total > 0 ? `${(((received + (byStatus['confirmed'] ?? 0)) / total) * 100).toFixed(1)}%` : '—'}
+              sub="Xác nhận + Nhận hàng"
               color="#70AD47"
             />
           </div>
@@ -324,16 +502,29 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
           {/* Row: bar chart + donut */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
             {/* Bookings by date */}
-            <div className="lg:col-span-2 bg-white border border-[#E0E0E0] rounded-lg p-5">
-              <p className="text-sm font-semibold mb-4">Booking theo ngÃ y giao</p>
-              <SVGBarChart data={dateSeries} height={180} />
+            <div className="lg:col-span-2 bg-white border border-[#ecdbe8] rounded-lg p-5">
+              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Booking theo ngày giao</p>
+                  <p className="text-xs text-[#888888]">Cột chồng theo trạng thái booking</p>
+                </div>
+                <div className="flex max-w-md flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs">
+                  {STACK_STATUS_ORDER.map((status) => (
+                    <span key={status} className="inline-flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: STATUS_COLORS[status] }} />
+                      {STATUS_VI[status]}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <SVGBookingStackedBarChart data={dateSeries} height={220} />
             </div>
 
             {/* Status donut */}
-            <div className="bg-white border border-[#E0E0E0] rounded-lg p-5">
-              <p className="text-sm font-semibold mb-4">PhÃ¢n bá»‘ tráº¡ng thÃ¡i</p>
+            <div className="bg-white border border-[#ecdbe8] rounded-lg p-5">
+              <p className="text-sm font-semibold mb-4">Phân bố trạng thái</p>
               {total === 0 ? (
-                <div className="flex items-center justify-center h-32 text-[#888888] text-sm">KhÃ´ng cÃ³ dá»¯ liá»‡u</div>
+                <div className="flex items-center justify-center h-32 text-[#888888] text-sm">Không có dữ liệu</div>
               ) : (
                 <div className="flex flex-col items-center gap-4">
                   <SVGDonut slices={donutSlices} size={120} />
@@ -353,22 +544,20 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
             </div>
           </div>
 
-          {/* Returned by date */}
-          <div className="bg-white border border-[#E0E0E0] rounded-lg p-5 mb-4">
-            <p className="text-sm font-semibold mb-1">Booking tráº£ hÃ ng / tá»« chá»‘i theo ngÃ y giao</p>
-            <p className="text-xs text-[#888888] mb-4">Tráº¡ng thÃ¡i: ÄÃ£ tá»« chá»‘i</p>
-            {returnedSeries.length === 0 ? (
-              <div className="flex items-center justify-center h-24 text-[#888888] text-sm">KhÃ´ng cÃ³ booking nÃ o bá»‹ tá»« chá»‘i</div>
-            ) : (
-              <SVGBarChart data={returnedSeries} height={140} />
-            )}
+          {/* Items over time */}
+          <div className="bg-white border border-[#ecdbe8] rounded-lg p-5 mb-4">
+            <div className="mb-4">
+              <p className="text-sm font-semibold">Tổng kiện hàng theo ngày giao</p>
+              <p className="text-xs text-[#888888]">Di chuột vào từng điểm để xem đã duyệt / từ chối / chờ</p>
+            </div>
+            <SVGItemsLineChart data={itemSeries} height={220} />
           </div>
 
-          {/* By supplier â€” horizontal bars */}
-          <div className="bg-white border border-[#E0E0E0] rounded-lg p-5">
-            <p className="text-sm font-semibold mb-4">Top nhÃ  cung cáº¥p (theo sá»‘ booking)</p>
+          {/* By supplier — horizontal bars */}
+          <div className="bg-white border border-[#ecdbe8] rounded-lg p-5">
+            <p className="text-sm font-semibold mb-4">Top nhà cung cấp (theo số booking)</p>
             {supplierEntries.length === 0 ? (
-              <div className="text-[#888888] text-sm text-center py-6">KhÃ´ng cÃ³ dá»¯ liá»‡u</div>
+              <div className="text-[#888888] text-sm text-center py-6">Không có dữ liệu</div>
             ) : (
               <div className="space-y-2.5">
                 {supplierEntries.map(([name, count], i) => {
@@ -397,7 +586,7 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
 
   if (embedded) return mainContent
   return (
-    <div className="min-h-screen flex flex-col bg-[#FFF5FF]">
+    <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
       <Navbar tabs={tabs} activeTab="report" />
       {mainContent}
     </div>
