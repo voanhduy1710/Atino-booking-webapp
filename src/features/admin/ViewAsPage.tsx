@@ -87,38 +87,38 @@ function SupplierView() {
       ) : (
         <div className="overflow-hidden bg-white border border-[#ecdbe8] rounded-lg">
           <div className="overflow-x-auto">
-          <table className="w-full text-sm data-table">
-            <thead>
-              <tr>
-                <th className="table-header">Mã booking</th>
-                <th className="table-header">Nhà cung cấp</th>
-                <th className="table-header">Kho</th>
-                <th className="table-header w-24">Ngày giao</th>
-                <th className="table-header w-28">Khung giờ</th>
-                <th className="table-header w-32">Đăng ký lúc</th>
-                <th className="table-header">Trạng thái</th>
-                <th className="table-header min-w-44">Ghi chú</th>
-                <th className="table-header min-w-44">Lí do</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedBookings.map((b) => (
-                <tr key={b.id}>
-                  <td className="table-cell font-mono font-bold">
-                    <Link to={`/booking/${b.booking_token}`} className="hover:underline">{b.booking_code}</Link>
-                  </td>
-                  <td className="table-cell">{b.supplier_name}</td>
-                  <td className="table-cell">{b.warehouse_name}</td>
-                  <td className="table-cell text-xs">{formatDateDisplay(b.delivery_date)}</td>
-                  <td className="table-cell">{TIME_SLOT_LABELS[b.time_slot]}</td>
-                  <td className="table-cell text-xs text-[#888888]">{formatDateTimeDisplay(b.submitted_at)}</td>
-                  <td className="table-cell"><StatusBadge status={b.status} /></td>
-                  <td className="table-cell max-w-52 text-xs text-[#555555]">{b.ghi_chu || <span className="text-[#BBBBBB]">—</span>}</td>
-                  <td className="table-cell max-w-52 text-xs text-[#CC0000]">{b.reject_reasons || <span className="text-[#BBBBBB]">—</span>}</td>
+            <table className="w-full text-sm data-table">
+              <thead>
+                <tr>
+                  <th className="table-header">Mã booking</th>
+                  <th className="table-header">Nhà cung cấp</th>
+                  <th className="table-header">Kho</th>
+                  <th className="table-header w-24">Ngày giao</th>
+                  <th className="table-header w-28">Khung giờ</th>
+                  <th className="table-header w-32">Đăng ký lúc</th>
+                  <th className="table-header">Trạng thái</th>
+                  <th className="table-header min-w-44">Ghi chú</th>
+                  <th className="table-header min-w-44">Lí do</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {paginatedBookings.map((b) => (
+                  <tr key={b.id}>
+                    <td className="table-cell font-mono font-bold">
+                      <Link to={`/booking/${b.booking_token}`} className="hover:underline">{b.booking_code}</Link>
+                    </td>
+                    <td className="table-cell">{b.supplier_name}</td>
+                    <td className="table-cell">{b.warehouse_name}</td>
+                    <td className="table-cell text-xs">{formatDateDisplay(b.delivery_date)}</td>
+                    <td className="table-cell">{TIME_SLOT_LABELS[b.time_slot]}</td>
+                    <td className="table-cell text-xs text-[#888888]">{formatDateTimeDisplay(b.submitted_at)}</td>
+                    <td className="table-cell"><StatusBadge status={b.status} /></td>
+                    <td className="table-cell max-w-52 text-xs text-[#555555]">{b.ghi_chu || <span className="text-[#BBBBBB]">—</span>}</td>
+                    <td className="table-cell max-w-52 text-xs text-[#CC0000]">{b.reject_reasons || <span className="text-[#BBBBBB]">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
           <Pagination
             currentPage={safePage}
@@ -161,8 +161,8 @@ export default function ViewAsPage() {
               key={t.id}
               onClick={() => setPageId(t.id as PageId)}
               className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${pageId === t.id
-                  ? 'border-[#bf2ef0] bg-[#bf2ef0] text-white font-bold'
-                  : 'border-transparent text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+                ? 'border-[#9F27C7] bg-[#9F27C7] text-white font-bold'
+                : 'border-transparent text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
                 }`}
             >
               {t.label}
@@ -176,7 +176,7 @@ export default function ViewAsPage() {
             <button
               key={r}
               onClick={() => setRoleView(r)}
-              className={`px-4 py-3 text-sm font-medium transition-colors ${roleView === r ? 'bg-[#bf2ef0] text-white font-bold' : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+              className={`px-4 py-3 text-sm font-medium transition-colors ${roleView === r ? 'bg-[#9F27C7] text-white font-bold' : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
                 }`}
             >
               {ROLE_LABELS[r]}

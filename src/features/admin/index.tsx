@@ -63,7 +63,7 @@ export default function AdminPage() {
               <button
                 key={t}
                 onClick={() => setManageViewsTab(t)}
-                className={`px-4 py-3 text-sm font-medium transition-colors ${manageViewsTab === t ? 'bg-[#bf2ef0] text-white font-bold' : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+                className={`px-4 py-3 text-sm font-medium transition-colors ${manageViewsTab === t ? 'bg-[#9F27C7] text-white font-bold' : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
                   }`}
               >
                 {t === 'reviewer' ? 'Reviewer' : 'Manager'}

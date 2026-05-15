@@ -30,8 +30,8 @@ export default function GuidePage() {
           <button
             onClick={() => setTab('create')}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${tab === 'create'
-                ? 'border-[#bf2ef0] bg-[#bf2ef0] text-white font-bold'
-                : 'border-transparent text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+              ? 'border-[#B12BDE] bg-[#B12BDE] text-white font-bold'
+              : 'border-transparent text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#B12BDE]'
               }`}
           >
             Quy trình đăng ký
@@ -39,8 +39,8 @@ export default function GuidePage() {
           <button
             onClick={() => setTab('receiving')}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${tab === 'receiving'
-                ? 'border-[#bf2ef0] bg-[#bf2ef0] text-white font-bold'
-                : 'border-transparent text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+              ? 'border-[#B12BDE] bg-[#B12BDE] text-white font-bold'
+              : 'border-transparent text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#B12BDE]'
               }`}
           >
             Quy trình nhận hàng

@@ -40,8 +40,8 @@ export function Navbar({
         <div className="flex items-stretch h-full gap-0 mx-4">
           {tabs.map((tab) => {
             const cls = `px-4 text-sm transition-colors h-full flex items-center ${activeTab === tab.id
-                ? 'bg-[#bf2ef0] text-white font-bold'
-                : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+              ? 'bg-[#9F27C7] text-white font-bold'
+              : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
               }`
             return tab.href ? (
               <Link key={tab.id} id={`nav-tab-${tab.id}`} to={tab.href} className={cls}>
@@ -76,7 +76,7 @@ export function Navbar({
         {user && (
           <button
             onClick={handleLogout}
-            className="text-sm font-semibold text-[#bf2ef0] hover:text-[#77009a] transition-colors"
+            className="text-sm font-semibold text-[#9F27C7] hover:text-[#77009a] transition-colors"
             id="logout-btn"
           >
             Đăng xuất

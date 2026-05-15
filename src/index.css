@@ -47,7 +47,7 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center px-6 py-3 bg-[#bf2ef0] text-white font-bold rounded border border-[#bf2ef0] transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center px-6 py-3 bg-[#9F27C7] text-white font-bold rounded border border-[#9F27C7] transition-opacity hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   .btn-sm {
@@ -59,7 +59,7 @@
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center px-6 py-3 bg-white text-black font-semibold rounded border border-[#bf2ef0] transition-colors hover:bg-[#bf2ef0] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center px-6 py-3 bg-white text-black font-semibold rounded border border-[#9F27C7] transition-colors hover:bg-[#9F27C7] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
   .btn-danger-outline {
@@ -67,7 +67,7 @@
   }
 
   .input-field {
-    @apply w-full px-3 py-2 border border-[#d5c0d5] rounded bg-white text-black placeholder-[#837285] focus:outline-none focus:border-[#bf2ef0] transition-colors;
+    @apply w-full px-3 py-2 border border-[#d5c0d5] rounded bg-white text-black placeholder-[#837285] focus:outline-none focus:border-[#9F27C7] transition-colors;
   }
 
   .input-field-error {
@@ -147,7 +147,7 @@
   }
 
   .pagination-button-active {
-    @apply border-[#bf2ef0] bg-[#bf2ef0] text-white hover:bg-[#bf2ef0];
+    @apply border-[#9F27C7] bg-[#9F27C7] text-white hover:bg-[#9F27C7];
   }
 }
 
@@ -182,5 +182,5 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #bf2ef0;
+  background: #9F27C7;
 }

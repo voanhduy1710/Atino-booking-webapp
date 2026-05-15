@@ -42,8 +42,8 @@ export default function LoginPage() {
             id="tab-login"
             onClick={() => setTab('login')}
             className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'login'
-                ? 'bg-[#bf2ef0] text-white'
-                : 'text-[#514253] hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+              ? 'bg-[#9F27C7] text-white'
+              : 'text-[#514253] hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
               }`}
           >
             Đăng nhập
@@ -52,8 +52,8 @@ export default function LoginPage() {
             id="tab-register"
             onClick={() => setTab('register')}
             className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'register'
-                ? 'bg-[#bf2ef0] text-white'
-                : 'text-[#514253] hover:bg-[#f1ebf4] hover:text-[#bf2ef0]'
+              ? 'bg-[#9F27C7] text-white'
+              : 'text-[#514253] hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
               }`}
           >
             Đăng ký tài khoản
