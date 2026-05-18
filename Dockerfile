@@ -23,7 +23,7 @@ WORKDIR /app
 
 # Install only production server dependencies
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 # Copy the built frontend
 COPY --from=builder /app/dist /usr/share/nginx/html
@@ -36,7 +36,7 @@ COPY nginx.conf /etc/nginx/sites-available/default
 
 # Copy the startup script
 COPY start.sh /start.sh
-RUN chmod +x /start.sh
+RUN sed -i 's/\r$//' /start.sh && chmod +x /start.sh
 
 EXPOSE 8080
 

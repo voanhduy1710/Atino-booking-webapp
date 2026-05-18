@@ -24,7 +24,6 @@ const FIELDS = {
 } as const
 
 const CATALOG_SELECT_WITH_MAU = 'id, lark_record_id, product_name, order_code, warehouse_code, mau, order_date, total_quantity, size_s_28, size_m_29, size_l_30, size_xl_31, size_2xl_32, size_3xl_33, last_synced_at'
-const CATALOG_SELECT_WITHOUT_MAU = 'id, lark_record_id, product_name, order_code, warehouse_code, total_quantity, size_s_28, size_m_29, size_l_30, size_xl_31, size_2xl_32, size_3xl_33, last_synced_at'
 const CATALOG_SELECT_LEGACY = 'id, lark_record_id, product_name, order_code, last_synced_at'
 
 interface LarkRow {
