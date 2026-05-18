@@ -14,6 +14,7 @@ import { getCurrentUser } from '@/shared/lib/auth'
 import { ROLE_TABS } from '@/shared/config/navTabs'
 import { BookingTooltip, type BookingRow } from './BookingTooltip'
 import { BookingDetailModal, type SelectedBooking } from './BookingDetailModal'
+import { DEFAULT_PAGE_SIZE } from '@/shared/constants/ui'
 import type { CSSProperties } from 'react'
 
 const STATUS_FILTER_OPTIONS: Array<{
@@ -23,12 +24,21 @@ const STATUS_FILTER_OPTIONS: Array<{
 }> = [
   { value: 'all', label: 'Tất cả trạng thái', style: { backgroundColor: '#FFFFFF', color: '#000000' } },
   { value: 'pending', label: 'Chờ xác nhận', style: { backgroundColor: '#F5F5F5', color: '#555555' } },
-  { value: 'partially_approved', label: 'Duyệt một phần', style: { backgroundColor: '#EAF6EE', color: '#1a7a3e' } },
-  { value: 'partially_rejected', label: 'Từ chối một phần', style: { backgroundColor: '#FFF5F5', color: '#CC0000' } },
   { value: 'confirmed', label: 'Đã xác nhận', style: { backgroundColor: '#1a7a3e', color: '#FFFFFF' } },
   { value: 'rejected', label: 'Đã từ chối', style: { backgroundColor: '#CC0000', color: '#FFFFFF' } },
+  { value: 'returned', label: 'Trả hàng', style: { backgroundColor: '#FFF4E5', color: '#7A3E00' } },
 ]
-const PAGE_SIZE = 10
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
+const REVIEWER_BOOKING_SELECT =
+  'id, booking_code, booking_token, supplier_account_id, delivery_date, time_slot, status, submitted_at, ghi_chu, nhanh_draft_bill_id, suppliers!inner(name, code), warehouses!inner(name), booking_items(id, status, reject_reason, product_code, process_code, warehouse_code, mau, total_quantity, quantity_booked)'
+const REVIEWER_BOOKING_LEGACY_SELECT =
+  'id, booking_code, booking_token, supplier_account_id, delivery_date, time_slot, status, submitted_at, ghi_chu, suppliers!inner(name, code), warehouses!inner(name), booking_items(id, status, reject_reason, product_code, process_code, quantity_booked)'
+
+function isSchemaColumnError(error: unknown): boolean {
+  const message = String((error as { message?: string } | null)?.message ?? '')
+  const code = String((error as { code?: string } | null)?.code ?? '')
+  return code === 'PGRST204' || message.includes('schema cache') || message.includes('does not exist')
+}
 
 export default function ReviewerPage({ embedded = false }: { embedded?: boolean }) {
   const [dateFrom, setDateFrom] = useState('')
@@ -111,15 +121,24 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ['reviewer-bookings', dateFrom, dateTo, statusFilter, debouncedSearch, supplierFilter],
     queryFn: async () => {
-      let q = supabase
-        .from('bookings')
-        .select('id, booking_code, booking_token, supplier_account_id, delivery_date, time_slot, status, submitted_at, ghi_chu, suppliers!inner(name, code), warehouses!inner(name), booking_items(id, status, reject_reason, product_code, process_code)')
-        .order('submitted_at', { ascending: false })
-      if (dateFrom) q = q.gte('delivery_date', dateFrom)
-      if (dateTo) q = q.lte('delivery_date', dateTo)
-      if (debouncedSearch) q = q.ilike('booking_code', `%${debouncedSearch}%`)
-      if (supplierFilter !== 'all') q = q.eq('supplier_id', supplierFilter)
-      const { data, error } = await q
+      const buildQuery = (selectClause: string) => {
+        let q = supabase
+          .from('bookings')
+          .select(selectClause)
+          .order('submitted_at', { ascending: false })
+        if (dateFrom) q = q.gte('delivery_date', dateFrom)
+        if (dateTo) q = q.lte('delivery_date', dateTo)
+        if (debouncedSearch) q = q.ilike('booking_code', `%${debouncedSearch}%`)
+        if (supplierFilter !== 'all') q = q.eq('supplier_id', supplierFilter)
+        return q
+      }
+
+      let { data, error } = await buildQuery(REVIEWER_BOOKING_SELECT)
+      if (error && isSchemaColumnError(error)) {
+        const legacyResult = await buildQuery(REVIEWER_BOOKING_LEGACY_SELECT)
+        data = legacyResult.data
+        error = legacyResult.error
+      }
       if (error) throw error
       const rows = (data ?? []).map((b: any) => {
         const items = b.booking_items ?? []
@@ -137,6 +156,7 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
           ghi_chu: b.ghi_chu,
           reject_reasons: items.map((item: any) => item.reject_reason).filter(Boolean).join('; '),
           item_codes: items.map((item: any) => ({ product_code: item.product_code, process_code: item.process_code })),
+          nhanh_draft_bill_id: b.nhanh_draft_bill_id,
         }
       }) as BookingRow[]
       return statusFilter === 'all' ? rows : rows.filter((b) => b.status_tags.includes(statusFilter))
@@ -168,6 +188,7 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
       status_tags: getBookingStatusTags(items),
       ghi_chu: d.ghi_chu,
       delivery_note: d.delivery_note,
+      nhanh_draft_bill_id: d.nhanh_draft_bill_id,
     })
   }
 
@@ -268,11 +289,12 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
                   <td className="table-cell text-xs text-[#514253] whitespace-nowrap">
                     <span className="block">{b.item_status_counts.confirmed}/{b.items_count} duyệt</span>
                     <span className="block">{b.item_status_counts.rejected}/{b.items_count} từ chối</span>
+                    <span className="block">{b.item_status_counts.returned}/{b.items_count} trả hàng</span>
                   </td>
                   <td className="table-cell text-xs text-[#888888]">{formatDateTimeDisplay(b.submitted_at)}</td>
                   <td className="table-cell">
                     <div className="space-y-0.5">
-                      {(b as any).item_codes?.map((ic: any, i: number) => (
+                      {b.item_codes.map((ic, i) => (
                         <p key={i} className="font-mono text-[10px] whitespace-nowrap">{ic.product_code} · {ic.process_code}</p>
                       ))}
                     </div>

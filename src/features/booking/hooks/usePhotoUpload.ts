@@ -1,42 +1,38 @@
-import { useRef, useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { ALLOWED_UPLOAD_MIME_TYPES, MAX_UPLOAD_MB } from '@/shared/constants/uploads'
+import { apiUrl, postForm } from '@/shared/lib/apiClient'
 
 export interface UploadedFileEntry {
   file: File
-  /** The full GCS path, e.g. duy_booking_images/temp/{sessionId}/slip_0_1.jpg */
+  /** The relative temp path under the configured GCS prefix. */
   tempPath: string
-  /** Public GCS URL — https://storage.googleapis.com/atino-media/{tempPath} */
+  /** Public GCS URL. */
   publicUrl: string
   status: 'uploading' | 'done' | 'error'
   progress: number
   errorMsg?: string
 }
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
-const MAX_MB = 10
-
-// In production: nginx proxies /api/* → Express on port 3001 (same origin)
-// In local dev:  VITE_API_URL=http://localhost:3001 overrides the base
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
-const GCS_UPLOAD_URL = `${API_BASE}/api/upload/gcs`
+const GCS_UPLOAD_PATH = '/api/upload/gcs'
 
 export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
   const [files, setFiles] = useState<UploadedFileEntry[]>([])
   const countRef = useRef(0)
 
   const validate = (file: File): string | null => {
-    if (!ALLOWED_TYPES.includes(file.type)) return 'Chỉ chấp nhận jpg, png, pdf'
-    if (file.size > MAX_MB * 1024 * 1024) return `Tệp vượt quá ${MAX_MB}MB`
+    if (!ALLOWED_UPLOAD_MIME_TYPES.includes(file.type)) return 'Chỉ chấp nhận jpg, png, pdf'
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) return `Tệp vượt quá ${MAX_UPLOAD_MB}MB`
     return null
   }
 
   const upload = useCallback(
-    async (file: File, _prefix: string): Promise<string | null> => {
+    async (file: File, prefix: string): Promise<string | null> => {
       const validationError = validate(file)
       if (validationError) return null
 
       countRef.current += 1
       const ext = file.name.split('.').pop() ?? 'jpg'
-      const relativePath = `temp/${sessionId}/${supplierCode}_${_prefix}_${countRef.current}.${ext}`
+      const relativePath = `temp/${sessionId}/${supplierCode}_${prefix}_${countRef.current}.${ext}`
 
       const entry: UploadedFileEntry = {
         file,
@@ -52,18 +48,9 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
         form.append('file', file)
         form.append('path', relativePath)
 
-        console.log('[upload] POST', GCS_UPLOAD_URL, { path: relativePath, size: file.size, type: file.type })
-        const res = await fetch(GCS_UPLOAD_URL, {
-          method: 'POST',
-          body: form,
-        })
-
-        const result = await res.json() as { url?: string; error?: string }
-        console.log('[upload] response', res.status, result)
-
-        if (!res.ok || !result.url) {
-          throw new Error(result.error ?? 'Upload thất bại')
-        }
+        console.log('[upload] POST', apiUrl(GCS_UPLOAD_PATH), { path: relativePath, size: file.size, type: file.type })
+        const result = await postForm<{ url?: string }>(GCS_UPLOAD_PATH, form)
+        if (!result.url) throw new Error('Upload thất bại')
 
         setFiles((prev) =>
           prev.map((f) =>
@@ -72,7 +59,7 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
               : f
           )
         )
-        console.log('[upload] success → tempPath:', relativePath)
+        console.log('[upload] success -> tempPath:', relativePath)
         return relativePath
       } catch (err) {
         const msg = (err as Error).message
@@ -89,7 +76,6 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
   )
 
   const remove = useCallback((tempPath: string) => {
-    // Remove from local state only — GCS temp files are cleaned up server-side
     setFiles((prev) => prev.filter((f) => f.tempPath !== tempPath))
   }, [])
 

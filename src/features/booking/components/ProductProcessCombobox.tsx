@@ -9,9 +9,10 @@ interface Props {
   getLabel: (option: ProductProcessCatalog) => string
   onSelect: (id: string) => void
   error?: boolean
+  inputClassName?: string
 }
 
-export function ProductProcessCombobox({ placeholder, selectedId, options, getLabel, onSelect, error }: Props) {
+export function ProductProcessCombobox({ placeholder, selectedId, options, getLabel, onSelect, error, inputClassName = '' }: Props) {
   const selected = options.find((option) => option.id === selectedId)
   const [query, setQuery] = useState(selected ? getLabel(selected) : '')
   const [isOpen, setIsOpen] = useState(false)
@@ -64,7 +65,7 @@ export function ProductProcessCombobox({ placeholder, selectedId, options, getLa
       .slice(0, 30)
   }, [options, query])
 
-  const menuWidth = menuRect ? Math.min(448, window.innerWidth - 16) : 0
+  const menuWidth = menuRect ? Math.min(360, window.innerWidth - 16) : 0
   const menuLeft = menuRect ? Math.max(8, Math.min(menuRect.left, window.innerWidth - menuWidth - 8)) : 0
 
   return (
@@ -80,7 +81,7 @@ export function ProductProcessCombobox({ placeholder, selectedId, options, getLa
           if (selectedId || !value) onSelect('')
         }}
         onFocus={openMenu}
-        className={`input-field text-sm ${error ? 'input-field-error' : ''}`}
+        className={`input-field text-sm ${inputClassName} ${error ? 'input-field-error' : ''}`}
         placeholder={placeholder}
         autoComplete="off"
       />

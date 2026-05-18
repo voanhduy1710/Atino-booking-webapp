@@ -7,45 +7,58 @@ import { Navbar } from '@/shared/components/Navbar'
 import { Button } from '@/shared/components/Button'
 import { Select } from '@/shared/components/Select'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
+import { FilterDatePicker } from '@/shared/components/FilterDatePicker'
 import { bookingFormSchema, type BookingFormData } from '@/features/booking/schemas'
 import { useActiveSupplierAccounts, useWarehouses, useSupplierInfo } from '@/features/booking/hooks/useBookingData'
 import { PoRow } from './PoRow'
 import { TIME_SLOT_LABELS, STANDARD_DELIVERY_NOTE, type TimeSlot, type ProductProcessCatalog } from '@/shared/types/domain'
-import { computeDeliveryDatePreview, formatDateDisplay } from '@/shared/lib/dateUtils'
+import { formatDateDisplay, getDeliveryDateWindow } from '@/shared/lib/dateUtils'
 import { getCurrentUser, getToken } from '@/shared/lib/auth'
 import { SUPPLIER_TABS } from '@/shared/constants/supplierTabs'
 import { ROLE_TABS } from '@/shared/config/navTabs'
-import { supabase } from '@/shared/lib/supabase'
 import { pageMainClass } from '@/shared/config/pageLayout'
+import { MAX_BOOKING_ITEMS } from '@/shared/constants/booking'
+import { getJson, postJson } from '@/shared/lib/apiClient'
 
 // Re-export for any legacy imports
 export { SUPPLIER_TABS }
 
 const SESSION_ID = crypto.randomUUID()
-// In production: nginx proxies /api/* → Express (same origin)
-// In local dev:  set VITE_API_URL=http://localhost:3001
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const DEFAULT_WAREHOUSE_NAME = 'Tân Hoàng Long'
 
+const emptyItem = {
+  product_code: '',
+  process_code: '',
+  warehouse_code: '',
+  mau: '',
+  delivery_round: 1,
+  is_final_round: false,
+  quantity_booked: 1,
+  total_quantity: 0,
+  size_s_28: null,
+  size_m_29: null,
+  size_l_30: null,
+  size_xl_31: null,
+  size_2xl_32: null,
+  size_3xl_33: null,
+  vat_temp_paths: [],
+  slip_temp_paths: [],
+}
 
 export function BookingForm() {
   const navigate = useNavigate()
   const user = getCurrentUser()
   const isAdmin = user?.role === 'admin'
   const [adminSupplierAccountId, setAdminSupplierAccountId] = useState('')
+  const [attachmentNames, setAttachmentNames] = useState<Record<string, string>>({})
   const { data: warehouses = [], isLoading: warehousesLoading } = useWarehouses()
   const { data: supplier } = useSupplierInfo()
   const { data: supplierAccounts = [], isLoading: supplierAccountsLoading } = useActiveSupplierAccounts(isAdmin)
   const { data: productProcessOptions = [], isLoading: productProcessLoading } = useQuery({
     queryKey: ['product-process-catalog'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('product_process_catalog')
-        .select('*')
-        .eq('active', true)
-        .order('product_name', { ascending: true })
-        .order('order_code', { ascending: true })
-      if (error) throw error
-      return (data ?? []) as ProductProcessCatalog[]
+      const data = await getJson<{ items: ProductProcessCatalog[] }>('/api/product-process')
+      return data.items
     },
   })
   const selectedAdminSupplierAccount = useMemo(
@@ -59,36 +72,28 @@ export function BookingForm() {
     : supplier
   const navTabs = isAdmin ? (ROLE_TABS.admin ?? []) : SUPPLIER_TABS
 
-  const deliveryDatePreview = formatDateDisplay(computeDeliveryDatePreview())
+  const deliveryWindow = useMemo(() => getDeliveryDateWindow(), [])
 
   const {
     register,
     control,
     handleSubmit,
     watch,
+    getValues,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
       warehouse_id: '',
+      delivery_date: deliveryWindow.minISO,
       time_slot: undefined,
       ghi_chu: '',
-      items: [
-        {
-          product_code: '',
-          process_code: '',
-          delivery_round: 1,
-          is_final_round: false,
-          quantity_booked: 1,
-          vat_temp_paths: [],
-          slip_temp_paths: [],
-        },
-      ],
+      items: [emptyItem],
     },
   })
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'items' })
+  const { fields, append, insert, remove } = useFieldArray({ control, name: 'items' })
 
   const poCount = watch('items').length
 
@@ -96,26 +101,40 @@ export function BookingForm() {
     document.title = 'Đăng ký giao hàng — Atino Booking'
   }, [])
 
+  useEffect(() => {
+    const current = watch('warehouse_id')
+    if (current || warehouses.length === 0) return
+    const defaultWarehouse = warehouses.find((warehouse) => warehouse.name.trim().toLowerCase() === DEFAULT_WAREHOUSE_NAME.toLowerCase())
+    if (defaultWarehouse) setValue('warehouse_id', defaultWarehouse.id, { shouldValidate: true })
+  }, [warehouses, setValue, watch])
+
   const handlePoCountChange = (newCount: number) => {
-    const clamped = Math.max(1, Math.min(99, newCount))
+    const clamped = Math.max(1, Math.min(MAX_BOOKING_ITEMS, newCount))
     const current = fields.length
     if (clamped > current) {
       for (let i = current; i < clamped; i++) {
-        append({
-          product_code: '',
-          process_code: '',
-          delivery_round: 1,
-          is_final_round: false,
-          quantity_booked: 1,
-          vat_temp_paths: [],
-          slip_temp_paths: [],
-        })
+        append({ ...emptyItem })
       }
     } else if (clamped < current) {
       for (let i = current - 1; i >= clamped; i--) {
         remove(i)
       }
     }
+  }
+
+  const copyRow = (index: number, copiedAttachmentNames: Record<string, string> = {}) => {
+    if (fields.length >= MAX_BOOKING_ITEMS) return
+    setAttachmentNames((current) => ({ ...current, ...copiedAttachmentNames }))
+    const source = getValues(`items.${index}`)
+    insert(index + 1, {
+      ...source,
+      vat_temp_paths: [...(source.vat_temp_paths ?? [])],
+      slip_temp_paths: [...(source.slip_temp_paths ?? [])],
+    })
+  }
+
+  const rememberAttachmentName = (path: string, name: string) => {
+    setAttachmentNames((current) => ({ ...current, [path]: name }))
   }
 
   const onSubmit = async (data: BookingFormData) => {
@@ -127,30 +146,22 @@ export function BookingForm() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/booking/finalize`, {
-        method: 'POST',
+      const result = await postJson<{ booking_token: string }>('/api/booking/finalize', {
+        warehouse_id: data.warehouse_id,
+        delivery_date: data.delivery_date,
+        time_slot: data.time_slot,
+        ghi_chu: data.ghi_chu || null,
+        delivery_note: STANDARD_DELIVERY_NOTE,
+        session_id: SESSION_ID,
+        ...(isAdmin ? { supplier_account_id: adminSupplierAccountId } : {}),
+        items: data.items,
+      }, {
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          warehouse_id: data.warehouse_id,
-          time_slot: data.time_slot,
-          ghi_chu: data.ghi_chu || null,
-          delivery_note: STANDARD_DELIVERY_NOTE,
-          session_id: SESSION_ID,
-          ...(isAdmin ? { supplier_account_id: adminSupplierAccountId } : {}),
-          items: data.items,
-        }),
       })
 
-      const result = await res.json()
-
-      if (!res.ok) {
-        throw new Error((result as { error?: string }).error ?? 'Có lỗi xảy ra')
-      }
-
-      const { booking_token } = result as { booking_token: string }
+      const { booking_token } = result
       navigate(`/booking/${booking_token}/confirmation`, {
         state: result,
       })
@@ -264,15 +275,23 @@ export function BookingForm() {
                 <label className="form-label col-span-1">Ngày đăng ký giao hàng</label>
                 <div className="col-span-2">
                   <div className="flex items-center gap-3">
-                    <input
-                      readOnly
-                      value={deliveryDatePreview}
-                      className="input-field bg-[#F5F5F5] cursor-not-allowed w-40"
+                    <FilterDatePicker
+                      value={watch('delivery_date')}
+                      onChange={(value) => setValue('delivery_date', value, { shouldValidate: true })}
+                      minDate={deliveryWindow.minISO}
+                      maxDate={deliveryWindow.maxISO}
+                      isClearable={false}
+                      className="!w-44 !px-3 !py-2 !text-sm"
+                      wrapperClassName="!inline-block"
                     />
+                    <input type="hidden" {...register('delivery_date')} />
                     <span className="text-xs text-[#888888]">
-                      (Trước 18h → N+1, từ 18h → N+2)
+                      Cho phép {formatDateDisplay(deliveryWindow.minISO)} - {formatDateDisplay(deliveryWindow.maxISO)}
                     </span>
                   </div>
+                  {errors.delivery_date?.message && (
+                    <p className="form-error mt-1">{errors.delivery_date.message}</p>
+                  )}
                 </div>
               </div>
 
@@ -285,7 +304,7 @@ export function BookingForm() {
                   <input
                     type="number"
                     min={1}
-                    max={99}
+                    max={MAX_BOOKING_ITEMS}
                     value={poCount}
                     onChange={(e) => handlePoCountChange(Number(e.target.value))}
                     className="input-field w-28"
@@ -295,17 +314,25 @@ export function BookingForm() {
 
               {/* PO Table */}
               <div>
-                <div className="overflow-x-auto overflow-y-visible border border-[#ecdbe8] rounded">
-                  <table className="w-full text-sm">
+                <div className="overflow-visible border border-[#ecdbe8] rounded">
+                  <table className="w-full table-fixed text-xs">
                     <thead>
                       <tr className="bg-[#F5F5F5]">
-                        <th className="table-header w-10">STT</th>
-                        <th className="table-header min-w-64">Mã SP</th>
-                        <th className="table-header min-w-64">Mã QT</th>
-                        <th className="table-header w-32">Số lần giao</th>
-                        <th className="table-header w-28">Kiện/thùng</th>
-                        <th className="table-header">Ảnh phiếu giao</th>
-                        <th className="table-header w-8"></th>
+                        <th className="table-header !px-1 !py-2 w-[3%]">STT</th>
+                        <th className="table-header !px-1 !py-2 w-[6%]">Tên SP</th>
+                        <th className="table-header !px-1 !py-2 w-[6%]">Mã đơn</th>
+                        <th className="table-header !px-1 !py-2 w-[11%]">Mã kho</th>
+                        <th className="table-header !px-1 !py-2 w-[7%]">Màu</th>
+                        <th className="table-header !px-1 !py-2 w-[7%]">Tổng SL</th>
+                        <th className="table-header !px-1 !py-2 text-center w-[6%]">S/28</th>
+                        <th className="table-header !px-1 !py-2 text-center w-[6%]">M/29</th>
+                        <th className="table-header !px-1 !py-2 text-center w-[6%]">L/30</th>
+                        <th className="table-header !px-1 !py-2 text-center w-[6%]">XL/31</th>
+                        <th className="table-header !px-1 !py-2 text-center w-[6%]">2XL/32</th>
+                        <th className="table-header !px-1 !py-2 text-center w-[6%]">3XL/33</th>
+                        <th className="table-header !px-1 !py-2 w-[8%]">Lần giao</th>
+                        <th className="table-header !px-1 !py-2 w-[9%]">Ảnh phiếu giao</th>
+                        <th className="table-header !px-1 !py-2 w-[7%]"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -318,10 +345,13 @@ export function BookingForm() {
                           errors={errors}
                           sessionId={SESSION_ID}
                           supplierCode={effectiveSupplier?.code ?? 'NCC'}
+                          onCopy={(copiedAttachmentNames) => copyRow(index, copiedAttachmentNames)}
                           onRemove={fields.length > 1 ? () => remove(index) : undefined}
                           setValue={setValue}
                           watch={watch}
                           productProcessOptions={productProcessOptions}
+                          attachmentNames={attachmentNames}
+                          onAttachmentName={rememberAttachmentName}
                         />
                       ))}
                     </tbody>

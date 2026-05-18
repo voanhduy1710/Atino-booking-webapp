@@ -74,6 +74,16 @@
     @apply border-[#CC0000] focus:border-[#CC0000];
   }
 
+  .number-input-clean {
+    -moz-appearance: textfield;
+  }
+
+  .number-input-clean::-webkit-outer-spin-button,
+  .number-input-clean::-webkit-inner-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+  }
+
   .card {
     @apply bg-white border border-[#ecdbe8] rounded-lg p-6;
   }
@@ -104,6 +114,10 @@
 
   .status-received {
     @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium bg-[#1a7a3e] text-white;
+  }
+
+  .status-returned {
+    @apply inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded text-xs font-medium border border-[#7A3E00] text-[#7A3E00] bg-[#FFF4E5];
   }
 
   .section-header {

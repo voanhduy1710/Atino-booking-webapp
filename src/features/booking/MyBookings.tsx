@@ -6,12 +6,14 @@ import { Navbar } from '@/shared/components/Navbar'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { formatDateDisplay } from '@/shared/lib/dateUtils'
-import { deriveBookingStatus, getBookingStatusTags } from '@/shared/lib/bookingStatus'
 import { TIME_SLOT_LABELS, type BookingStatus, type TimeSlot } from '@/shared/types/domain'
 import { Link } from 'react-router-dom'
 import { SUPPLIER_TABS } from '@/features/booking/components/BookingForm'
 
+type SupplierFilter = 'all' | 'confirmed' | 'rejected' | 'returned'
+
 interface MyBooking {
+  row_id: string
   id: string
   booking_code: string
   booking_token: string
@@ -21,69 +23,71 @@ interface MyBooking {
   submitted_at: string
   warehouse_name: string
   warehouse_code: string
-  status_tags: BookingStatus[]
   ghi_chu: string | null
   reject_reasons: string
-  booking_items?: Array<{ status: string; reject_reason: string | null }>
+  item_count: number
+  total_quantity: number
 }
 
 export default function MyBookingsPage() {
   const user = getCurrentUser()
-  const [statusFilter, setStatusFilter] = useState<BookingStatus | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<SupplierFilter>('all')
 
   useEffect(() => {
-    document.title = 'Lịch sử đăng ký — Atino Booking'
+    document.title = 'Lich su dang ky - Atino Booking'
   }, [])
 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ['my-bookings', user?.supplier_account_id, statusFilter],
     queryFn: async () => {
       if (!user?.supplier_account_id) return []
-      const q = supabase
+      const { data, error } = await supabase
         .from('bookings')
-        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, ghi_chu, warehouses!inner(name, code), booking_items(status, reject_reason)')
+        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, ghi_chu, warehouses!inner(name, code), booking_items(id, status, reject_reason, total_quantity, quantity_booked)')
         .eq('supplier_account_id', user.supplier_account_id)
         .order('submitted_at', { ascending: false })
         .limit(100)
 
-      const { data, error } = await q
       if (error) throw error
 
-      const rows = (data ?? []).map((b: any) => {
+      const rows = (data ?? []).flatMap((b: any) => {
         const items = b.booking_items ?? []
-        const status = deriveBookingStatus(b.status, items)
-        const itemStatusTags = getBookingStatusTags(items)
-        const statusTags = status === 'received' || status === 'cancelled'
-          ? [status]
-          : itemStatusTags.length > 0 ? itemStatusTags : [status]
-        return {
+        const groups = [
+          { status: 'confirmed' as BookingStatus, items: items.filter((item: any) => item.status === 'confirmed') },
+          { status: 'rejected' as BookingStatus, items: items.filter((item: any) => item.status === 'rejected') },
+          { status: 'returned' as BookingStatus, items: items.filter((item: any) => item.status === 'returned') },
+          { status: 'pending' as BookingStatus, items: items.filter((item: any) => item.status === 'pending') },
+        ].filter((group) => group.items.length > 0)
+
+        return groups.map((group) => ({
+          row_id: `${b.id}-${group.status}`,
           id: b.id,
           booking_code: b.booking_code,
           booking_token: b.booking_token,
           delivery_date: b.delivery_date,
           time_slot: b.time_slot,
-          status,
-          status_tags: statusTags,
+          status: group.status,
           ghi_chu: b.ghi_chu,
-          reject_reasons: items.map((item: any) => item.reject_reason).filter(Boolean).join('; '),
+          reject_reasons: group.items.map((item: any) => item.reject_reason).filter(Boolean).join('; '),
           submitted_at: b.submitted_at,
           warehouse_name: b.warehouses?.name ?? '',
           warehouse_code: b.warehouses?.code ?? '',
-        }
+          item_count: group.items.length,
+          total_quantity: group.items.reduce((sum: number, item: any) => sum + Number(item.total_quantity ?? item.quantity_booked ?? 0), 0),
+        }))
       }) as MyBooking[]
-      return statusFilter === 'all' ? rows : rows.filter((b) => b.status_tags.includes(statusFilter))
+
+      if (statusFilter === 'all') return rows
+      return rows.filter((b) => b.status === statusFilter)
     },
     enabled: !!user?.supplier_account_id,
   })
 
-  const STATUS_TABS: { label: string; value: BookingStatus | 'all' }[] = [
+  const STATUS_TABS: { label: string; value: SupplierFilter }[] = [
     { label: 'Tất cả', value: 'all' },
-    { label: 'Chờ xác nhận', value: 'pending' },
-    { label: 'Duyệt một phần', value: 'partially_approved' },
-    { label: 'Từ chối một phần', value: 'partially_rejected' },
-    { label: 'Đã xác nhận', value: 'confirmed' },
-    { label: 'Đã nhận hàng', value: 'received' },
-    { label: 'Đã từ chối', value: 'rejected' },
+    { label: 'Xác nhận', value: 'confirmed' },
+    { label: 'Từ chối', value: 'rejected' },
+    { label: 'Trả hàng', value: 'returned' },
   ]
 
   return (
@@ -128,7 +132,7 @@ export default function MyBookingsPage() {
           <div className="space-y-2">
             {bookings.map((b) => (
               <Link
-                key={b.id}
+                key={b.row_id}
                 to={`/booking/${b.booking_token}`}
                 className="block bg-white border border-[#ecdbe8] rounded-lg px-5 py-4 hover:border-[#80417A] transition-colors"
               >
@@ -136,16 +140,16 @@ export default function MyBookingsPage() {
                   <div className="min-w-0">
                     <p className="font-mono text-sm font-bold">{b.booking_code}</p>
                     <p className="text-xs text-[#888888] mt-0.5">
-                      {b.warehouse_name} • Giao ngày {formatDateDisplay(b.delivery_date)} •{' '}
-                      {TIME_SLOT_LABELS[b.time_slot]}
+                      {b.warehouse_name} • Giao ngày {formatDateDisplay(b.delivery_date)} • {TIME_SLOT_LABELS[b.time_slot]}
                     </p>
-                    <div className="mt-2 grid gap-1 text-xs text-[#555555] sm:grid-cols-2">
+                    <div className="mt-2 grid gap-1 text-xs text-[#555555] sm:grid-cols-3">
                       <p><span className="font-semibold text-black">Ghi chú:</span> {b.ghi_chu || <span className="text-[#BBBBBB]">—</span>}</p>
                       <p><span className="font-semibold text-black">Lý do:</span> {b.reject_reasons || <span className="text-[#BBBBBB]">—</span>}</p>
+                      <p><span className="font-semibold text-black">SL:</span> {b.total_quantity} / {b.item_count} dòng</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    {b.status_tags.map((status) => <StatusBadge key={status} status={status} />)}
+                    <StatusBadge status={b.status} />
                   </div>
                 </div>
               </Link>

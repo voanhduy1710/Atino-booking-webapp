@@ -1,12 +1,3 @@
-/**
- * server/index.ts
- * Express backend — runs on port 3001.
- *
- * Routes:
- *   POST /api/upload/gcs       — GCS photo upload
- *   POST /api/booking/finalize — create booking + items + notify reviewer
- */
-
 import { config } from 'dotenv'
 config()
 
@@ -17,6 +8,7 @@ import { randomUUID } from 'crypto'
 import uploadRouter from './routes/upload.js'
 import bookingRouter from './routes/booking.js'
 import productProcessRouter from './routes/productProcess.js'
+import nhanhRouter from './routes/nhanh.js'
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -28,7 +20,6 @@ declare module 'express-serve-static-core' {
 const app = express()
 const PORT = 3001
 
-// ── Middleware ─────────────────────────────────────────────────────────────
 app.use(cors())
 app.use(express.json({
   verify: (_req, _res, buf) => {
@@ -49,33 +40,30 @@ app.use(express.json({
   },
 }))
 
-// ── Request logger ─────────────────────────────────────────────────────────
 app.use((req: Request, res: Response, next: NextFunction) => {
   req.id = randomUUID().slice(0, 8)
   req.startMs = Date.now()
   const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0].trim()
     ?? req.socket.remoteAddress ?? '?'
   const len = req.headers['content-length'] ? ` body=${req.headers['content-length']}b` : ''
-  console.log(`[req:${req.id}] → ${req.method} ${req.path}${len} ip=${ip}`)
+  console.log(`[req:${req.id}] --> ${req.method} ${req.path}${len} ip=${ip}`)
   res.on('finish', () => {
     const ms = Date.now() - req.startMs
     const level = res.statusCode >= 500 ? 'ERROR' : res.statusCode >= 400 ? 'WARN' : 'OK'
-    console.log(`[req:${req.id}] ← ${res.statusCode} ${level} ${ms}ms`)
+    console.log(`[req:${req.id}] <-- ${res.statusCode} ${level} ${ms}ms`)
   })
   next()
 })
 
-// ── Routes ─────────────────────────────────────────────────────────────────
 app.use('/api/upload/gcs', uploadRouter)
 app.use('/api/booking/finalize', bookingRouter)
 app.use('/api/product-process', productProcessRouter)
+app.use('/api/nhanh', nhanhRouter)
 
-// ── Health check ───────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', ts: new Date().toISOString() })
 })
 
-// ── Global error handler ───────────────────────────────────────────────────
 const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   void next
   console.error(`[req:${req.id}] UNHANDLED ${err.name}: ${err.message}`)
@@ -85,7 +73,6 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
 
 app.use(errorHandler)
 
-// ── Start ──────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`[server] Express running on port ${PORT}`)
   console.log(`[server] NODE_ENV=${process.env.NODE_ENV ?? 'development'}`)

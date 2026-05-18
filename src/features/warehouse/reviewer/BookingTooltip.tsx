@@ -24,14 +24,19 @@ export interface BookingRow {
   status_tags: BookingStatusTag[]
   ghi_chu: string | null
   reject_reasons: string
+  item_codes: Array<{ product_code: string; process_code: string }>
+  nhanh_draft_bill_id?: string | null
 }
 
 interface TooltipItem {
   product_code: string
   process_code: string
+  warehouse_code: string | null
+  mau: string | null
   delivery_round: number
   is_final_round: boolean
   quantity_booked: number
+  total_quantity: number | null
 }
 
 interface Props {
@@ -47,21 +52,41 @@ interface Props {
   onViewDetails: () => void
 }
 
+const TOOLTIP_ITEM_SELECT = 'product_code, process_code, warehouse_code, mau, delivery_round, is_final_round, quantity_booked, total_quantity, vat_invoice_url, booking_item_photos(storage_path, photo_type)'
+const TOOLTIP_ITEM_LEGACY_SELECT = 'product_code, process_code, delivery_round, is_final_round, quantity_booked, vat_invoice_url, booking_item_photos(storage_path, photo_type)'
+
+function isSchemaColumnError(error: unknown): boolean {
+  const message = String((error as { message?: string } | null)?.message ?? '')
+  const code = String((error as { code?: string } | null)?.code ?? '')
+  return code === 'PGRST204' || message.includes('schema cache') || message.includes('does not exist')
+}
+
 export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, onMouseLeave, onPhotoClick, onPin, onViewDetails }: Props) {
   const { data } = useQuery({
     queryKey: ['tooltip-items', row.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('booking_items')
-        .select('product_code, process_code, delivery_round, is_final_round, quantity_booked, vat_invoice_url, booking_item_photos(storage_path, photo_type)')
+        .select(TOOLTIP_ITEM_SELECT)
         .eq('booking_id', row.id)
+      if (error && isSchemaColumnError(error)) {
+        const legacyResult = await supabase
+          .from('booking_items')
+          .select(TOOLTIP_ITEM_LEGACY_SELECT)
+          .eq('booking_id', row.id)
+        data = legacyResult.data
+        error = legacyResult.error
+      }
       if (error) return { items: [], photos: [] }
       const items: TooltipItem[] = (data ?? []).map((d: any) => ({
         product_code: d.product_code,
         process_code: d.process_code,
+        warehouse_code: d.warehouse_code,
+        mau: d.mau,
         delivery_round: d.delivery_round,
         is_final_round: d.is_final_round,
         quantity_booked: d.quantity_booked,
+        total_quantity: d.total_quantity,
       }))
       const photos = (data ?? []).flatMap((item) => buildPhotoList(item as any))
       return { items, photos }
@@ -71,18 +96,11 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
 
   const items = data?.items ?? []
   const photos = data?.photos ?? []
-
-  const clampedX = Math.max(4, Math.min(x, window.innerWidth - 360))
+  const clampedX = Math.max(4, Math.min(x, window.innerWidth - 400))
   const clampedY = Math.max(4, Math.min(y, window.innerHeight - 400))
 
   return (
-    <div
-      ref={tooltipRef}
-      className="fixed z-40 w-80 bg-white border border-[#ecdbe8] rounded-lg shadow-xl p-3 pointer-events-auto"
-      style={{ left: clampedX, top: clampedY }}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
+    <div ref={tooltipRef} className="fixed z-40 w-96 bg-white border border-[#ecdbe8] rounded-lg shadow-xl p-3 pointer-events-auto" style={{ left: clampedX, top: clampedY }} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <p className="font-mono font-bold text-xs mb-2">{row.booking_code}</p>
       <div className="space-y-1.5 mb-3">
         {([
@@ -107,8 +125,9 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
             <table className="w-full text-[10px]">
               <thead>
                 <tr className="bg-[#F5F5F5]">
-                  <th className="px-2 py-1 text-left text-[#888888] font-medium">Mã SP</th>
-                  <th className="px-2 py-1 text-left text-[#888888] font-medium">Mã QT</th>
+                  <th className="px-2 py-1 text-left text-[#888888] font-medium">Tên SP</th>
+                  <th className="px-2 py-1 text-left text-[#888888] font-medium">Mã đơn</th>
+                  <th className="px-2 py-1 text-left text-[#888888] font-medium">Kho/Màu</th>
                   <th className="px-2 py-1 text-center text-[#888888] font-medium">Lần</th>
                   <th className="px-2 py-1 text-right text-[#888888] font-medium">SL</th>
                 </tr>
@@ -118,8 +137,9 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
                   <tr key={i} className="border-t border-[#ecdbe8]">
                     <td className="px-2 py-1 font-mono">{item.product_code}</td>
                     <td className="px-2 py-1 font-mono">{item.process_code}</td>
+                    <td className="px-2 py-1">{[item.warehouse_code, item.mau].filter(Boolean).join(' / ') || '-'}</td>
                     <td className="px-2 py-1 text-center">{item.is_final_round ? 'Cuối' : item.delivery_round}</td>
-                    <td className="px-2 py-1 text-right">{item.quantity_booked}</td>
+                    <td className="px-2 py-1 text-right">{item.total_quantity ?? item.quantity_booked}</td>
                   </tr>
                 ))}
               </tbody>
@@ -132,23 +152,11 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
         <div>
           <p className="text-[10px] text-[#888888] uppercase tracking-wider mb-1.5">Ảnh đính kèm</p>
           <div className="flex flex-wrap gap-1.5">
-            {photos.map((ph, i) => (
-              <AttachmentThumbnail
-                key={i}
-                src={ph.src}
-                label={ph.label}
-                onClick={() => { onPin(); onPhotoClick(ph.src) }}
-                className="w-16 h-16"
-              />
-            ))}
+            {photos.map((ph, i) => <AttachmentThumbnail key={i} src={ph.src} label={ph.label} onClick={() => { onPin(); onPhotoClick(ph.src) }} className="w-16 h-16" />)}
           </div>
         </div>
       )}
-      <button
-        type="button"
-        onClick={onViewDetails}
-        className="mt-3 w-full rounded border border-[#80417A] px-3 py-1.5 text-xs font-medium hover:bg-[#80417A] hover:text-white transition-colors"
-      >
+      <button type="button" onClick={onViewDetails} className="mt-3 w-full rounded border border-[#80417A] px-3 py-1.5 text-xs font-medium hover:bg-[#80417A] hover:text-white transition-colors">
         Xem chi tiết
       </button>
       {isPinned && <p className="text-[10px] text-[#BBBBBB] mt-2 text-right">Nhấn Esc để đóng</p>}

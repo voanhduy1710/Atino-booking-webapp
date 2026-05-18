@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
+import { apiUrl } from '@/shared/lib/apiClient'
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 let hasRequestedProductProcessSync = false
 
 export function AppStartupSync() {
@@ -8,7 +8,7 @@ export function AppStartupSync() {
     if (hasRequestedProductProcessSync) return
     hasRequestedProductProcessSync = true
 
-    fetch(`${API_BASE}/api/product-process/sync`, { method: 'POST' }).catch(() => {
+    fetch(apiUrl('/api/product-process/sync'), { method: 'POST' }).catch(() => {
       // Startup sync is opportunistic; pages still render cached Supabase data.
     })
   }, [])

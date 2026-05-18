@@ -5,9 +5,7 @@
  */
 
 import { Storage } from '@google-cloud/storage'
-
-const BUCKET = 'atino-media'
-const PREFIX = 'duy_booking_images'
+import { buildGcsPath, buildGcsPublicUrl, GCS_BUCKET } from '../config/storage.js'
 
 let _storage: Storage | null = null
 
@@ -44,14 +42,14 @@ export async function uploadToGCS(
   relativePath: string
 ): Promise<UploadResult> {
   const storage = getStorage()
-  const gcsPath = `${PREFIX}/${relativePath}`
+  const gcsPath = buildGcsPath(relativePath)
 
-  const file = storage.bucket(BUCKET).file(gcsPath)
+  const file = storage.bucket(GCS_BUCKET).file(gcsPath)
   await file.save(fileBuffer, {
     contentType,
     resumable: false,
   })
 
-  const publicUrl = `https://storage.googleapis.com/${BUCKET}/${gcsPath}`
+  const publicUrl = buildGcsPublicUrl(gcsPath)
   return { url: publicUrl, path: gcsPath }
 }

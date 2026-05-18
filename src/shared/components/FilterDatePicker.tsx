@@ -1,5 +1,6 @@
 import ReactDatePicker, { registerLocale } from 'react-datepicker'
 import { vi } from 'date-fns/locale'
+import { formatLocalDate, parseLocalDate } from '@/shared/components/filters/filterDateUtils'
 import 'react-datepicker/dist/react-datepicker.css'
 
 const customVi = {
@@ -11,17 +12,6 @@ const customVi = {
   },
 }
 registerLocale('vi', customVi as any)
-
-function parseLocalDate(dateStr: string): Date | null {
-  if (!dateStr) return null
-  const [y, m, d] = dateStr.split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
-
-function formatLocalDate(date: Date | null): string {
-  if (!date) return ''
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
 
 interface FilterDatePickerProps {
   value: string

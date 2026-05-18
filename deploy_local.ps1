@@ -1,123 +1,141 @@
 # deploy_local.ps1
-# Starts Vite frontend + Express backend together, streams logs with [FE]/[BE] prefixes.
-# Ctrl+C cleanly stops both jobs.
-# Usage: .\deploy_local.ps1
+# Run the local Atino Booking frontend and backend in one terminal.
 
-# ---------- Log control flags -------------------------------------------------
-# Toggle to silence noisy output. Comment out = OFF, uncomment = ON.
-#
-# $showFrontendLogs = $true          # [FE] Vite output (hot-reload, build errors)
-$showBackendLogs = $true             # [BE] Express HTTP request lines
-# $showBackendDetailLogs = $true     # [BE] Full verbose Express output
-# ------------------------------------------------------------------------------
+$ErrorActionPreference = "Continue"
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+try { chcp 65001 | Out-Null } catch {}
 
-# Guard: .env must exist
+$frontendPort = 5173
+$backendPort = 3001
+$repoRoot = (Get-Location).Path
+
+function Stop-PortProcess {
+    param([int]$Port)
+
+    $connections = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue
+    if (-not $connections) {
+        Write-Host "  Port $Port is already free" -ForegroundColor DarkGray
+        return
+    }
+
+    $processIds = $connections |
+        Select-Object -ExpandProperty OwningProcess -Unique |
+        Where-Object { $_ -and $_ -ne 0 }
+
+    if (-not $processIds) {
+        Write-Host "  Port $Port has no stoppable process" -ForegroundColor DarkGray
+        return
+    }
+
+    foreach ($processId in $processIds) {
+        try {
+            Stop-Process -Id $processId -Force -ErrorAction Stop
+            Write-Host "  Killed process on port $Port (PID: $processId)" -ForegroundColor Yellow
+        } catch {
+            Write-Host "  Could not kill process on port $Port (PID: $processId)" -ForegroundColor Red
+        }
+    }
+}
+
+function Write-ServiceLine {
+    param(
+        [object]$Line,
+        [ConsoleColor]$Color
+    )
+
+    $text = [string]$Line
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return
+    }
+
+    # dotenv v17 prints a decorative tip line; on Windows it can render as mojibake.
+    if ($text -match "injected env" -and $text -match "from \.env") {
+        return
+    }
+
+    Write-Host $text -ForegroundColor $Color
+}
+
+Write-Host "Starting deploy_local.ps1..." -ForegroundColor Green
+Write-Host "Starting local development environment..." -ForegroundColor Green
+
 if (-not (Test-Path ".env")) {
     Write-Host "[WARN] .env not found. Copy .env.example and fill in values." -ForegroundColor Yellow
 }
 
-# Auto-install deps
 if (-not (Test-Path "node_modules")) {
     Write-Host "[INFO] node_modules missing - running npm install..." -ForegroundColor Cyan
     npm install
 }
 
-# Kill existing processes on used ports
-foreach ($port in @(5173, 5174, 3001)) {
-    $pids = netstat -ano | Select-String ":$port " | ForEach-Object {
-        ($_ -split "\s+")[-1]
-    } | Where-Object { $_ -match "^\d+$" -and $_ -ne "0" } | Sort-Object -Unique
-    foreach ($p in $pids) {
-        try { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } catch {}
+Write-Host "Checking for existing processes on ports $backendPort and $frontendPort..." -ForegroundColor Yellow
+Stop-PortProcess -Port $backendPort
+Stop-PortProcess -Port $frontendPort
+Start-Sleep -Milliseconds 1500
+
+if (Test-Path ".env") {
+    Get-Content ".env" | Where-Object { $_ -match "^[^#\s]" } | ForEach-Object {
+        if ($_ -match "^(.+?)=(.*)$") {
+            [System.Environment]::SetEnvironmentVariable($Matches[1].Trim(), $Matches[2].Trim(), "Process")
+        }
     }
 }
 
-# Load .env into this process so Express inherits all vars
-Get-Content ".env" | Where-Object { $_ -match "^[^#\s]" } | ForEach-Object {
-    if ($_ -match "^(.+?)=(.*)$") {
-        [System.Environment]::SetEnvironmentVariable($Matches[1].Trim(), $Matches[2].Trim(), "Process")
-    }
-}
-$env:VITE_API_URL = "http://localhost:3001"
+$env:VITE_API_URL = "http://localhost:$backendPort"
+$env:DOTENV_CONFIG_QUIET = "true"
 
-# Banner
-Write-Host ""
-Write-Host "======================================================" -ForegroundColor DarkGray
-Write-Host "  Atino Booking Webapp - Local Dev"                     -ForegroundColor White
-Write-Host "  Frontend : http://localhost:5173  (Vite)"             -ForegroundColor Green
-Write-Host "  Backend  : http://localhost:3001  (Express)"          -ForegroundColor Green
-Write-Host "  Health   : http://localhost:3001/api/health"          -ForegroundColor Cyan
-Write-Host "  Supabase : https://deuuuibkqletkkbrsmxd.supabase.co"  -ForegroundColor DarkGray
-Write-Host "  Ctrl+C   : stops both services cleanly"               -ForegroundColor DarkGray
-Write-Host "======================================================"  -ForegroundColor DarkGray
-Write-Host ""
-
-# Capture env pairs before jobs start (jobs don't inherit parent env)
-$env_pairs = [System.Environment]::GetEnvironmentVariables("Process").GetEnumerator() |
+$envPairs = [System.Environment]::GetEnvironmentVariables("Process").GetEnumerator() |
     ForEach-Object { [PSCustomObject]@{ Key = $_.Key; Value = $_.Value } }
 
-# Start frontend job
-$feJob = Start-Job -ScriptBlock {
-    Set-Location $using:PWD
-    & cmd /c "npm run dev" 2>&1
+Write-Host "Starting Frontend (Vite on port $frontendPort)..." -ForegroundColor Cyan
+$frontendJob = Start-Job -ScriptBlock {
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+    Set-Location $using:repoRoot
+    foreach ($kv in $using:envPairs) {
+        [System.Environment]::SetEnvironmentVariable($kv.Key, $kv.Value, "Process")
+    }
+    & cmd /c "npm run dev -- --host 0.0.0.0 --port 5173" 2>&1
 }
 
-# Start backend job
-$beJob = Start-Job -ScriptBlock {
-    Set-Location $using:PWD
-    foreach ($kv in $using:env_pairs) {
+Write-Host "Starting Backend (Express on port $backendPort)..." -ForegroundColor Cyan
+$backendJob = Start-Job -ScriptBlock {
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+    Set-Location $using:repoRoot
+    foreach ($kv in $using:envPairs) {
         [System.Environment]::SetEnvironmentVariable($kv.Key, $kv.Value, "Process")
     }
     & cmd /c "npm run server:dev" 2>&1
 }
 
-# Wait briefly then hit health endpoint
 Start-Sleep -Seconds 3
-try {
-    $health = Invoke-RestMethod "http://localhost:3001/api/health" -TimeoutSec 5 -ErrorAction Stop
-    Write-Host "[BE] Health: $($health | ConvertTo-Json -Compress)" -ForegroundColor Green
-} catch {
-    Write-Host "[BE] Health check pending (server still starting)..." -ForegroundColor DarkGray
-}
 
-# Stream logs
-Write-Host "[INFO] Streaming logs (Ctrl+C to stop)..." -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "Local development environment started!" -ForegroundColor Green
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "Frontend: http://localhost:$frontendPort" -ForegroundColor Cyan
+Write-Host "API:      http://localhost:$backendPort/api" -ForegroundColor Cyan
+Write-Host "Health:   http://localhost:$backendPort/api/health" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Green
+Write-Host "Streaming logs below. Press Ctrl+C to stop all."
 Write-Host ""
 
 try {
     while ($true) {
-        # Frontend logs
-        if ($feJob.HasMoreData) {
-            $feLines = Receive-Job $feJob 2>$null
-            if ($showFrontendLogs -and $feLines) {
-                foreach ($line in $feLines) {
-                    Write-Host "[FE] $line" -ForegroundColor DarkCyan
-                }
+        if ($frontendJob.HasMoreData) {
+            Receive-Job -Job $frontendJob 2>$null | ForEach-Object {
+                Write-ServiceLine -Line $_ -Color Cyan
             }
         }
 
-        # Backend logs
-        if ($beJob.HasMoreData) {
-            $beLines = Receive-Job $beJob 2>$null
-            if ($showBackendLogs -and $beLines) {
-                foreach ($line in $beLines) {
-                    if ($showBackendDetailLogs -or
-                        $line -match "^(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD) " -or
-                        $line -match "^\[req:" -or
-                        $line -match "^\[booking" -or
-                        $line -match "^\[upload" -or
-                        $line -match "^\[body\]" -or
-                        $line -match "^\[server\]" -or
-                        $line -match "Express running" -or
-                        $line -match "\b(ERROR|WARN|FATAL|MISSING)\b") {
-                        Write-Host "[BE] $line" -ForegroundColor Yellow
-                    }
-                }
+        if ($backendJob.HasMoreData) {
+            Receive-Job -Job $backendJob 2>$null | ForEach-Object {
+                Write-ServiceLine -Line $_ -Color White
             }
         }
 
-        # Exit if both jobs died unexpectedly
-        if ($feJob.State -ne 'Running' -and $beJob.State -ne 'Running') {
+        if ($frontendJob.State -ne "Running" -and $backendJob.State -ne "Running") {
             Write-Host "[WARN] Both services stopped unexpectedly." -ForegroundColor Red
             break
         }
@@ -126,17 +144,10 @@ try {
     }
 } finally {
     Write-Host ""
-    Write-Host "[INFO] Stopping services..." -ForegroundColor Cyan
-    Stop-Job  $feJob, $beJob -ErrorAction SilentlyContinue
-    Remove-Job $feJob, $beJob -Force -ErrorAction SilentlyContinue
-
-    foreach ($port in @(5173, 3001)) {
-        $pids = netstat -ano | Select-String ":$port " | ForEach-Object {
-            ($_ -split "\s+")[-1]
-        } | Where-Object { $_ -match "^\d+$" -and $_ -ne "0" } | Sort-Object -Unique
-        foreach ($p in $pids) {
-            try { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } catch {}
-        }
-    }
-    Write-Host "[INFO] Done." -ForegroundColor Green
+    Write-Host "Stopping services..." -ForegroundColor Yellow
+    Stop-Job -Job $frontendJob, $backendJob -ErrorAction SilentlyContinue
+    Remove-Job -Job $frontendJob, $backendJob -Force -ErrorAction SilentlyContinue
+    Stop-PortProcess -Port $backendPort
+    Stop-PortProcess -Port $frontendPort
+    Write-Host "Services stopped." -ForegroundColor Green
 }

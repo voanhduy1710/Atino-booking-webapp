@@ -2,14 +2,16 @@ import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navbar } from '@/shared/components/Navbar'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
-import { supabase } from '@/shared/lib/supabase'
 import { ROLE_TABS } from '@/shared/config/navTabs'
 import { getCurrentUser } from '@/shared/lib/auth'
-import { formatDateTimeDisplay } from '@/shared/lib/dateUtils'
+import { formatDateDisplay, formatDateTimeDisplay } from '@/shared/lib/dateUtils'
 import { pageMainClass } from '@/shared/config/pageLayout'
+import { getJson, postJson } from '@/shared/lib/apiClient'
 import type { ProductProcessCatalog } from '@/shared/types/domain'
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+function displayQuantity(value: number | null | undefined): string {
+  return value ? String(value) : ''
+}
 
 export default function ProductProcessPage() {
   const user = getCurrentUser()
@@ -22,14 +24,8 @@ export default function ProductProcessPage() {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['product-process-catalog'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('product_process_catalog')
-        .select('*')
-        .eq('active', true)
-        .order('product_name', { ascending: true })
-        .order('order_code', { ascending: true })
-      if (error) throw error
-      return (data ?? []) as ProductProcessCatalog[]
+      const result = await getJson<{ items: ProductProcessCatalog[] }>('/api/product-process')
+      return result.items ?? []
     },
   })
 
@@ -38,7 +34,10 @@ export default function ProductProcessPage() {
     if (!q) return rows
     return rows.filter((row) =>
       row.product_name.toLowerCase().includes(q) ||
-      row.order_code.toLowerCase().includes(q)
+      row.order_code.toLowerCase().includes(q) ||
+      (row.warehouse_code ?? '').toLowerCase().includes(q) ||
+      (row.mau ?? '').toLowerCase().includes(q) ||
+      (row.order_date ?? '').toLowerCase().includes(q)
     )
   }, [rows, search])
 
@@ -51,9 +50,7 @@ export default function ProductProcessPage() {
     setIsSyncing(true)
     setSyncError('')
     try {
-      const res = await fetch(`${API_BASE}/api/product-process/sync`, { method: 'POST' })
-      const result = await res.json() as { error?: string }
-      if (!res.ok) throw new Error(result.error ?? 'Không thể đồng bộ dữ liệu')
+      await postJson('/api/product-process/sync')
       await queryClient.invalidateQueries({ queryKey: ['product-process-catalog'] })
     } catch (err) {
       setSyncError((err as Error).message)
@@ -69,7 +66,7 @@ export default function ProductProcessPage() {
       <main className={pageMainClass('productProcess')}>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div>
-            <h1 className="text-xl font-bold">Danh mục Mã SP / Mã QT</h1>
+            <h1 className="text-xl font-bold">Danh mục Tên SP / Mã đơn</h1>
             <p className="text-xs text-[#888888] mt-1">
               {lastSync ? `Đồng bộ lần cuối: ${formatDateTimeDisplay(lastSync)}` : 'Chưa có dữ liệu đồng bộ'}
             </p>
@@ -79,14 +76,15 @@ export default function ProductProcessPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="input-field text-sm py-1.5 w-64"
-              placeholder="Tìm Tên SP hoặc Mã đơn..."
+              placeholder="Tìm Tên SP, Mã đơn, Mã kho hoặc Màu..."
             />
             <button
               type="button"
               onClick={() => void handleRefresh()}
               disabled={isSyncing}
-              className="btn-primary text-sm py-2 disabled:opacity-50"
+              className="btn-primary inline-flex items-center gap-2 text-sm py-2 disabled:opacity-50"
             >
+              <span aria-hidden="true" className={isSyncing ? 'animate-spin' : ''}>↻</span>
               {isSyncing ? 'Đang đồng bộ...' : 'Làm mới'}
             </button>
           </div>
@@ -109,6 +107,16 @@ export default function ProductProcessPage() {
                     <th className="table-header w-16">STT</th>
                     <th className="table-header">Tên SP</th>
                     <th className="table-header">Mã đơn</th>
+                    <th className="table-header">Mã kho</th>
+                    <th className="table-header">Màu</th>
+                    <th className="table-header">Ngày đặt</th>
+                    <th className="table-header text-right">Tổng số lượng</th>
+                    <th className="table-header text-right">S/28</th>
+                    <th className="table-header text-right">M/29</th>
+                    <th className="table-header text-right">L/30</th>
+                    <th className="table-header text-right">XL/31</th>
+                    <th className="table-header text-right">2XL/32</th>
+                    <th className="table-header text-right">3XL/33</th>
                     <th className="table-header w-44">Thời gian đồng bộ</th>
                   </tr>
                 </thead>
@@ -118,12 +126,22 @@ export default function ProductProcessPage() {
                       <td className="table-cell text-center text-[#888888]">{index + 1}</td>
                       <td className="table-cell font-medium">{row.product_name}</td>
                       <td className="table-cell font-mono">{row.order_code}</td>
+                      <td className="table-cell font-mono">{row.warehouse_code ?? '—'}</td>
+                      <td className="table-cell">{row.mau ?? '—'}</td>
+                      <td className="table-cell">{row.order_date ? formatDateDisplay(row.order_date) : '—'}</td>
+                      <td className="table-cell text-right">{displayQuantity(row.total_quantity)}</td>
+                      <td className="table-cell text-right">{displayQuantity(row.size_s_28)}</td>
+                      <td className="table-cell text-right">{displayQuantity(row.size_m_29)}</td>
+                      <td className="table-cell text-right">{displayQuantity(row.size_l_30)}</td>
+                      <td className="table-cell text-right">{displayQuantity(row.size_xl_31)}</td>
+                      <td className="table-cell text-right">{displayQuantity(row.size_2xl_32)}</td>
+                      <td className="table-cell text-right">{displayQuantity(row.size_3xl_33)}</td>
                       <td className="table-cell text-xs text-[#888888]">{formatDateTimeDisplay(row.last_synced_at)}</td>
                     </tr>
                   ))}
                   {filteredRows.length === 0 && (
                     <tr>
-                      <td className="table-cell text-center text-[#888888] py-10" colSpan={4}>
+                      <td className="table-cell text-center text-[#888888] py-10" colSpan={14}>
                         Không có dữ liệu
                       </td>
                     </tr>

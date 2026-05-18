@@ -1,28 +1,58 @@
 import { z } from 'zod'
+import { MAX_BOOKING_ITEMS, MAX_NOTE_LENGTH } from '@/shared/constants/booking'
+
+const sizeNumber = z.preprocess((value) => {
+  if (value === '' || value == null) return null
+  return value
+}, z.coerce.number().int().min(0).max(999_999).nullable())
 
 export const poRowSchema = z.object({
-  product_code: z.string().min(1, 'Vui lòng nhập mã sản phẩm').max(100),
-  process_code: z.string().min(1, 'Vui lòng nhập mã quy trình').max(100),
-  delivery_round: z.number().int().min(1, 'Số lần giao phải ≥ 1'),
+  product_code: z.string().min(1, 'Vui lòng chọn mã sản phẩm').max(100),
+  process_code: z.string().min(1, 'Vui lòng chọn mã đơn').max(100),
+  warehouse_code: z.string().min(1, 'Vui lòng chọn mã kho').max(100),
+  mau: z.string().min(1, 'Vui lòng chọn màu').max(100),
+  delivery_round: z.coerce.number().int().min(1, 'Số lần giao phải >= 1'),
   is_final_round: z.boolean(),
-  quantity_booked: z.number().int().min(1, 'Số kiện/thùng phải ≥ 1'),
+  quantity_booked: z.coerce.number().int().min(1).optional(),
+  total_quantity: z.coerce.number().int().min(1, 'Tổng số lượng phải >= 1'),
+  size_s_28: sizeNumber,
+  size_m_29: sizeNumber,
+  size_l_30: sizeNumber,
+  size_xl_31: sizeNumber,
+  size_2xl_32: sizeNumber,
+  size_3xl_33: sizeNumber,
   vat_temp_paths: z.array(z.string()).optional(),
   slip_temp_paths: z.array(z.string()).min(1, 'Vui lòng tải lên ít nhất 1 ảnh phiếu giao'),
 })
 
 export const bookingFormSchema = z.object({
   warehouse_id: z.string().min(1, 'Vui lòng chọn kho'),
+  delivery_date: z.string().min(1, 'Vui lòng chọn ngày giao hàng'),
   time_slot: z.enum(['07-09', '09-11', '13-15', '15-17'], {
     required_error: 'Vui lòng chọn khung giờ',
   }),
-  ghi_chu: z.string().max(500, 'Ghi chú tối đa 500 ký tự').optional(),
+  ghi_chu: z.string().max(MAX_NOTE_LENGTH, `Ghi chú tối đa ${MAX_NOTE_LENGTH} ký tự`).optional(),
   items: z
     .array(poRowSchema)
     .min(1, 'Phải có ít nhất 1 đơn hàng')
-    .max(99),
+    .max(MAX_BOOKING_ITEMS),
 })
   .superRefine((data, ctx) => {
     data.items.forEach((item, idx) => {
+      const total =
+        (item.size_s_28 ?? 0) +
+        (item.size_m_29 ?? 0) +
+        (item.size_l_30 ?? 0) +
+        (item.size_xl_31 ?? 0) +
+        (item.size_2xl_32 ?? 0) +
+        (item.size_3xl_33 ?? 0)
+      if (total !== item.total_quantity) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Tổng số lượng phải bằng tổng các size',
+          path: ['items', idx, 'total_quantity'],
+        })
+      }
       if (item.delivery_round === 1 && (!item.vat_temp_paths || item.vat_temp_paths.length === 0)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

@@ -13,32 +13,13 @@ import { getCurrentUser } from '@/shared/lib/auth'
 import { ROLE_TABS } from '@/shared/config/navTabs'
 import { type BookingStatus } from '@/shared/types/domain'
 import { countBookingItemStatuses, deriveBookingStatus } from '@/shared/lib/bookingStatus'
+import { BOOKING_STATUS_HEX_COLORS, BOOKING_STATUS_LABELS } from '@/shared/constants/status'
+import { CHART_PALETTE } from '@/shared/constants/ui'
 
 // ── Color palette (same standard 10 from DASHBOARD ARCHITECTURE.md) ──────────
-const PALETTE = [
-  '#4472C4', '#ED7D31', '#A5A5A5', '#FFC000', '#5B9BD5',
-  '#70AD47', '#9E480E', '#7030A0', '#C00000', '#00B0F0',
-]
-
-const STATUS_COLORS: Record<BookingStatus | string, string> = {
-  pending:   '#FFC000',
-  partially_approved: '#5B9BD5',
-  partially_rejected: '#ED7D31',
-  confirmed: '#70AD47',
-  rejected:  '#C00000',
-  received:  '#4472C4',
-  cancelled: '#A5A5A5',
-}
-
-const STATUS_VI: Record<BookingStatus | string, string> = {
-  pending:   'Chờ xác nhận',
-  partially_approved: 'Duyệt một phần',
-  partially_rejected: 'Từ chối một phần',
-  confirmed: 'Đã xác nhận',
-  rejected:  'Đã từ chối',
-  received:  'Đã nhận hàng',
-  cancelled: 'Đã huỷ',
-}
+const PALETTE = CHART_PALETTE
+const STATUS_COLORS = BOOKING_STATUS_HEX_COLORS
+const STATUS_VI = BOOKING_STATUS_LABELS
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 function KPICard({ label, value, sub, color }: { label: string; value: number | string; sub?: string; color?: string }) {
@@ -462,7 +443,7 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
   const supplierMax = supplierEntries[0]?.[1] ?? 1
 
   // ── Status donut slices ───────────────────────────────────────────────────
-  const donutSlices = (Object.entries(STATUS_COLORS) as [string, string][])
+  const donutSlices = (Object.entries(STATUS_COLORS) as [BookingStatus, string][])
     .filter(([k]) => byStatus[k])
     .map(([k, color]) => ({ value: byStatus[k] ?? 0, color, label: STATUS_VI[k] }))
 

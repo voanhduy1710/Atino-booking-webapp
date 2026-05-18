@@ -11,6 +11,7 @@ import { deriveBookingStatus } from '@/shared/lib/bookingStatus'
 import { TIME_SLOT_LABELS, type BookingStatus, type TimeSlot } from '@/shared/types/domain'
 import { getCurrentUser } from '@/shared/lib/auth'
 import { ROLE_TABS } from '@/shared/config/navTabs'
+import { DEFAULT_PAGE_SIZE } from '@/shared/constants/ui'
 
 const ReviewerPage = lazy(() => import('@/features/warehouse/ReviewerPage'))
 const WarehousesPage = lazy(() => import('@/features/warehouse/WarehousesPage'))
@@ -25,7 +26,7 @@ const ROLE_LABELS: Record<RoleView, string> = {
   manager: 'Manager',
   supplier: 'Supplier',
 }
-const PAGE_SIZE = 10
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 // ── Supplier view — all bookings, read-only ───────────────────────────────────
 interface SupplierBooking {

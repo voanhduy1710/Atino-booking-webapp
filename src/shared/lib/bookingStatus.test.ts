@@ -41,8 +41,8 @@ describe('booking status helpers', () => {
       { status: 'pending' },
     ])
 
-    expect(counts).toEqual({ total: 4, pending: 2, confirmed: 1, rejected: 1 })
-    expect(formatBookingItemSummary(counts)).toBe('1/4 duyệt · 1/4 từ chối · 2/4 chờ')
+    expect(counts).toEqual({ total: 4, pending: 2, confirmed: 1, rejected: 1, returned: 0 })
+    expect(formatBookingItemSummary(counts)).toBe('1/4 duyệt · 1/4 từ chối · 0/4 trả hàng · 2/4 chờ')
   })
 
   it('returns every matching status tag for mixed item states', () => {
@@ -52,6 +52,13 @@ describe('booking status helpers', () => {
       { status: 'pending' },
     ])
 
-    expect(tags).toEqual(['pending', 'partially_approved', 'partially_rejected'])
+    expect(tags).toEqual(['pending', 'confirmed', 'rejected'])
+  })
+
+  it('marks returned rows with the returned tag', () => {
+    const items = [{ status: 'returned' }, { status: 'pending' }]
+
+    expect(deriveBookingStatus('pending', items)).toBe('returned')
+    expect(getBookingStatusTags(items)).toEqual(['pending', 'returned'])
   })
 })

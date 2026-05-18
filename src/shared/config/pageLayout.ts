@@ -2,7 +2,7 @@ export type PageWidthKey = 'defaultWide' | 'bookingNew' | 'productProcess'
 
 export const PAGE_WIDTH_CLASS: Record<PageWidthKey, string> = {
   defaultWide: 'lg:w-[80vw]',
-  bookingNew: 'lg:w-[60vw]',
+  bookingNew: 'lg:w-[80vw]',
   productProcess: 'lg:w-[60vw]',
 }
 
