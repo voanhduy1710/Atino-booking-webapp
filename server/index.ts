@@ -9,6 +9,14 @@ import uploadRouter from './routes/upload.js'
 import bookingRouter from './routes/booking.js'
 import productProcessRouter from './routes/productProcess.js'
 import nhanhRouter from './routes/nhanh.js'
+import authRouter from './routes/auth.js'
+import accountsRouter from './routes/accounts.js'
+import reviewerRouter from './routes/reviewer.js'
+import receiverRouter from './routes/receiver.js'
+import amendmentsRouter from './routes/amendments.js'
+import adminResourcesRouter from './routes/adminResources.js'
+import notificationsRouter from './routes/notifications.js'
+import { logger } from './lib/logger.js'
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -50,11 +58,13 @@ app.use(express.json({
       }
     }
     if (badBytes.length > 0) {
-      console.error('[body] BAD CONTROL CHARS:', JSON.stringify(badBytes))
       const firstPos = badBytes[0].pos
       const start = Math.max(0, firstPos - 40)
       const end = Math.min(buf.length, firstPos + 40)
-      console.error('[body] context:', JSON.stringify(buf.slice(start, end).toString('utf8')))
+      logger.warn('body contains control characters', {
+        badBytes,
+        context: buf.slice(start, end).toString('utf8'),
+      })
     }
   },
 }))
@@ -71,9 +81,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     const ms = Date.now() - req.startMs
     const statusText = getStatusText(res.statusCode)
     if (!isProduction || ms > 500) {
-      console.log(`${req.method} ${req.path} → ${res.statusCode} [${ms}ms]`)
+      logger.debug('request completed', { id: req.id, method: req.method, path: req.path, statusCode: res.statusCode, ms })
     }
-    console.log(`INFO:     ${client} - "${req.method} ${requestTarget} ${httpVersion}" ${res.statusCode} ${statusText}`)
+    logger.info('http access', { id: req.id, client, method: req.method, requestTarget, httpVersion, statusCode: res.statusCode, statusText, ms })
   })
   next()
 })
@@ -82,6 +92,13 @@ app.use('/api/upload/gcs', uploadRouter)
 app.use('/api/booking/finalize', bookingRouter)
 app.use('/api/product-process', productProcessRouter)
 app.use('/api/nhanh', nhanhRouter)
+app.use('/api/auth', authRouter)
+app.use('/api/accounts', accountsRouter)
+app.use('/api/reviewer', reviewerRouter)
+app.use('/api/receiver', receiverRouter)
+app.use('/api/amendments', amendmentsRouter)
+app.use('/api/admin-resources', adminResourcesRouter)
+app.use('/api/notifications', notificationsRouter)
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', ts: new Date().toISOString() })
@@ -89,17 +106,15 @@ app.get('/api/health', (_req, res) => {
 
 const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   void next
-  console.error(`ERROR:    ${req.id} - ${err.name}: ${err.message}`)
-  if (err.stack) console.error(err.stack)
-  res.status(500).json({ error: err.message })
+  logger.errorObj('unhandled request error', err, { id: req.id })
+  res.status(500).json({ error: isProduction ? 'Internal server error' : err.message })
 }
 
 app.use(errorHandler)
 
 app.listen(PORT, () => {
-  console.log(`[server] Express running on port ${PORT}`)
-  console.log(`[server] NODE_ENV=${process.env.NODE_ENV ?? 'development'}`)
-  console.log(`[server] SUPABASE_URL=${process.env.SUPABASE_URL ? 'set' : 'MISSING'}`)
-  console.log(`[server] SUPABASE_SERVICE_ROLE_KEY=${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'MISSING'}`)
-  console.log(`[server] GCS_SERVICE_ACCOUNT_JSON=${process.env.GCS_SERVICE_ACCOUNT_JSON ? 'set' : 'MISSING'}`)
+  logger.info('Express server started', { port: PORT, nodeEnv: process.env.NODE_ENV ?? 'development' })
+  for (const name of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'GCS_SERVICE_ACCOUNT_JSON']) {
+    if (!process.env[name]) logger.warn('required environment variable missing', { name })
+  }
 })

@@ -12,6 +12,9 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "debug:audit": "node debug/run-project-audit.mjs",
+    "debug:audit:strict": "node debug/run-project-audit.mjs --strict",
+    "server:typecheck": "tsc -p tsconfig.server.json --noEmit",
     "server:dev": "tsx watch server/index.ts",
     "server:start": "tsx server/index.ts"
   },

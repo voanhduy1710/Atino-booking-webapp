@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LinkBtn } from '@/shared/components/LinkBtn'
+import { postJson } from '@/shared/lib/apiClient'
 import { supabase } from '@/shared/lib/supabase'
 import type { Warehouse } from '@/shared/types/domain'
 
@@ -28,8 +29,7 @@ export function WarehouseTable({ canDelete = false, queryKey = 'warehouses' }: P
 
   const addMutation = useMutation({
     mutationFn: async ({ code, name }: { code: string; name: string }) => {
-      const { error } = await supabase.from('warehouses').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true } as any)
-      if (error) throw error
+      await postJson<{ ok: true }>('/api/admin-resources/warehouses', { code, name })
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [queryKey] })
@@ -41,8 +41,7 @@ export function WarehouseTable({ canDelete = false, queryKey = 'warehouses' }: P
 
   const editMutation = useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      const { error } = await (supabase.from('warehouses') as any).update({ name: name.trim() }).eq('id', id)
-      if (error) throw error
+      await postJson<{ ok: true }>(`/api/admin-resources/warehouses/${id}`, { name }, { method: 'PUT' })
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [queryKey] })
@@ -52,8 +51,7 @@ export function WarehouseTable({ canDelete = false, queryKey = 'warehouses' }: P
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('warehouses').delete().eq('id', id)
-      if (error) throw error
+      await postJson<{ ok: true }>(`/api/admin-resources/warehouses/${id}`, undefined, { method: 'DELETE' })
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: [queryKey] }),
   })

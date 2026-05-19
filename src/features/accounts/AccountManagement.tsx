@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { Modal } from '@/shared/components/Modal'
 import { ACCOUNT_STATUS_CLASSES, ACCOUNT_STATUS_FILTER_OPTIONS, ACCOUNT_STATUS_LABELS } from '@/shared/constants/status'
 import { sha256 } from '@/shared/lib/crypto'
+import { postJson } from '@/shared/lib/apiClient'
 import { formatDateTimeDisplay } from '@/shared/lib/dateUtils'
 import { supabase } from '@/shared/lib/supabase'
 import type { AccountStatus, Supplier, SupplierAccount } from '@/shared/types/domain'
@@ -110,8 +111,7 @@ export function AccountManagement({
 
   const deleteAccountMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('supplier_accounts').delete().eq('id', id)
-      if (error) throw error
+      await postJson<{ ok: true }>(`/api/accounts/${id}`, undefined, { method: 'DELETE' })
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: [accountsQueryKey] }),
   })
@@ -123,12 +123,10 @@ export function AccountManagement({
     try {
       const plaintext = newPassword.trim()
       const hash = await sha256(plaintext)
-      const { error } = await supabase.rpc('admin_reset_supplier_password' as any, {
-        p_account_id: pwAccountId,
-        p_password_hash: hash,
-        p_plaintext_password: plaintext,
-      } as any)
-      if (error) throw error
+      await postJson<{ ok: true }>(`/api/accounts/${pwAccountId}/reset-password`, {
+        password_hash: hash,
+        plaintext_password: plaintext,
+      })
       setPwAccountId(null)
       setNewPassword('')
       void queryClient.invalidateQueries({ queryKey: [accountsQueryKey] })

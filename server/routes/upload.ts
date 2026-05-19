@@ -2,7 +2,6 @@
  * server/routes/upload.ts
  * POST /api/upload/gcs
  *
- * Migrated from supabase/functions/gcs-upload/index.ts
  * Accepts multipart/form-data with:
  *   - file: the image/PDF file
  *   - path: relative path, e.g. "temp/{sessionId}/GC01_1.jpg"
@@ -11,6 +10,7 @@
 import { Router, Request, Response } from 'express'
 import multer from 'multer'
 import { uploadToGCS } from '../lib/gcs.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 
@@ -40,15 +40,15 @@ router.post(
       res.status(400).json({ error: 'Missing file or path' })
       return
     }
-    console.log(`[upload:${req.id}] file=${file.originalname} size=${file.size}b mime=${file.mimetype} dest=${path}`)
+    logger.debug('upload received', { id: req.id, size: file.size, mime: file.mimetype })
 
     try {
       const result = await uploadToGCS(file.buffer, file.mimetype, path)
-      console.log(`[upload:${req.id}] GCS OK url=${result.url}`)
+      logger.info('upload complete', { id: req.id })
       res.json({ url: result.url, path: result.path })
     } catch (err) {
       const msg = (err as Error).message ?? String(err)
-      console.error(`[upload:${req.id}] GCS FAILED: ${msg}`)
+      logger.errorObj('upload failed', err, { id: req.id })
       res.status(500).json({ error: msg })
     }
   }

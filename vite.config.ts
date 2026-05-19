@@ -4,6 +4,10 @@ import path from 'path'
 import type { ViteDevServer } from 'vite'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
+function devLog(message: string): void {
+  process.stdout.write(`${message}\n`)
+}
+
 const devTimingPlugin = {
   name: 'dev-timing',
   configureServer(server: ViteDevServer) {
@@ -21,7 +25,7 @@ const devTimingPlugin = {
       req.on('end', () => {
         try {
           const { event, ms } = JSON.parse(body) as { event?: string; ms?: number }
-          if (event && typeof ms === 'number') console.log(`[CLICK] ${event} | ${ms}ms`)
+          if (event && typeof ms === 'number') devLog(`[CLICK] ${event} | ${ms}ms`)
         } catch {
           // Ignore malformed dev timing payloads.
         }
@@ -66,15 +70,16 @@ export default defineConfig({
             const ms = Date.now() - (trackedReq._proxyStart ?? Date.now())
             const method = trackedReq._proxyMethod ?? req.method ?? '?'
             const url = trackedReq._proxyUrl ?? req.url ?? ''
-            console.log(`[FE→BE] ${method} ${url} → ${proxyRes.statusCode} [${ms}ms]`)
+            devLog(`[FE->BE] ${method} ${url} -> ${proxyRes.statusCode} [${ms}ms]`)
           })
           proxy.on('error', (_err, req) => {
             const trackedReq = req as IncomingMessage & { _proxyUrl?: string }
             const url = trackedReq._proxyUrl ?? req.url ?? ''
-            console.log(`[FE→BE] ERROR ${url}`)
+            devLog(`[FE->BE] ERROR ${url}`)
           })
         },
       },
     },
   },
 })
+

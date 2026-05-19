@@ -53,7 +53,7 @@ router.post('/draft-products', async (req: Request, res: Response): Promise<void
         dataOptions: {},
       }),
     })
-    const json = await upstream.json()
+    const json = await upstream.json() as { message?: string; code?: string | number; data?: unknown[] }
     if (!upstream.ok) {
       res.status(upstream.status).json({ error: json?.message ?? upstream.statusText })
       return

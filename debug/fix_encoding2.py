@@ -1,20 +1,18 @@
 """
-Third-pass fix: remaining mojibake where continuation byte 0xA0 (NBSP)
-was normalized to regular space 0x20, so run-based fixer couldn't catch it.
-
-'Ã ' -> 'à'  is safe in all these files since Ã never occurs in correct Vietnamese.
+Third-pass fix for a historical encoding issue where the UTF-8 continuation
+byte 0xA0 was normalized to a regular space. Kept for archive/debug use.
 """
-import os, glob
+import glob
+import os
 
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 src = os.path.join(root, "src")
 
-# Also check all tsx/ts in src
 files = glob.glob(os.path.join(src, "**", "*.tsx"), recursive=True) + \
         glob.glob(os.path.join(src, "**", "*.ts"), recursive=True)
 
-REPLACEMENT = "Ã "  # U+00C3 + U+0020
-CORRECT = "à"      # U+00E0
+REPLACEMENT = "\u00c3 "  # U+00C3 + U+0020
+CORRECT = "\u00e0"       # U+00E0
 
 fixed_count = 0
 for path in sorted(files):

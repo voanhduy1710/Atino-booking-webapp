@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
 import { getCurrentUser } from '@/shared/lib/auth'
+import { postJson } from '@/shared/lib/apiClient'
 import type { Notification } from '@/shared/types/domain'
 
 export function useNotifications() {
@@ -54,13 +55,7 @@ export function useMarkRead() {
   return useMutation({
     mutationFn: async (notificationId: string | 'all') => {
       if (!recipientId) return
-      // supabase stub schema types 'notifications' as never — cast to bypass
-      const sb = supabase as any
-      if (notificationId === 'all') {
-        await sb.from('notifications').update({ is_read: true }).eq('recipient_id', recipientId).eq('is_read', false)
-      } else {
-        await sb.from('notifications').update({ is_read: true }).eq('id', notificationId)
-      }
+      await postJson<{ ok: true }>('/api/notifications/read', { notification_id: notificationId })
     },
 
     onSuccess: () => {
@@ -69,3 +64,4 @@ export function useMarkRead() {
     },
   })
 }
+

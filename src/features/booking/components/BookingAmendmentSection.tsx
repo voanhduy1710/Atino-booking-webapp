@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
+import { postJson } from '@/shared/lib/apiClient'
 import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
 import { FilterDatePicker } from '@/shared/components/FilterDatePicker'
@@ -73,15 +74,11 @@ export function BookingAmendmentSection({ booking, user }: Props) {
 
   const requestAmendmentMutation = useMutation({
     mutationFn: async ({ type, note, proposed_changes }: { type: string; note: string; proposed_changes?: object }) => {
-      const { data, error } = await supabase.rpc('request_booking_amendment' as any, {
-        p_booking_id: booking.id,
-        p_supplier_account_id: user?.supplier_account_id,
-        p_type: type,
-        p_note: note,
-        p_proposed_changes: proposed_changes ?? null,
-      } as any)
-      if (error) throw error
-      if ((data as any)?.error) throw new Error((data as any).error)
+      await postJson<{ ok: true }>(`/api/amendments/bookings/${booking.id}/request`, {
+        type,
+        note,
+        proposed_changes: proposed_changes ?? null,
+      })
     },
     onSuccess: () => {
       setAmendModal(null); setAmendNote(''); setAmendError(''); setEditForm(null)

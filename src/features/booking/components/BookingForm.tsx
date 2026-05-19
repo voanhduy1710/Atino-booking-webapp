@@ -357,7 +357,7 @@ export function BookingForm() {
                         Cho phép {formatDateDisplay(allowedMinISO)} - {formatDateDisplay(allowedMaxISO)}
                       </span>
                     </div>
-                    <span className={`text-xs whitespace-nowrap ${exceedsDeliveryCapacity ? 'text-[#CC0000]' : 'text-[#555555]'}`}>
+                    <span className="text-xs whitespace-nowrap text-[#CC0000]">
                       Tổng số lượng đã được đặt giao ngày này: {deliveryCapacityLoading ? 'đang tải...' : usedDeliveryQuantity.toLocaleString('vi-VN')} / {maxDeliveryQuantity.toLocaleString('vi-VN')}
                     </span>
                   </div>

@@ -344,7 +344,6 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
           onBookingRefresh={refreshSelectedBooking}
           onActionComplete={closeTooltip}
           canDelete={canDelete}
-          userSub={user?.sub ?? ''}
         />
       )}
     </main>

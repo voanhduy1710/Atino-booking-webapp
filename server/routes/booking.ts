@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { verifyJWT } from '../lib/jwt.js'
 import { buildGcsPublicUrl } from '../config/storage.js'
 import { getSupabase } from '../lib/supabase.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 
@@ -302,13 +303,13 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
-  console.log(`[booking:${req.id}] auth OK role=${payload.role}`)
+  logger.debug('booking auth ok', { id: req.id, role: payload.role })
 
   try {
     const supabase = getSupabase()
     const body = req.body as FinalizeBody
     const supplierAccountId = payload.role === 'admin' ? body.supplier_account_id : payload.supplier_account_id
-    console.log(`[booking:${req.id}] supplier_account_id=${supplierAccountId ?? 'none'}`)
+    logger.debug('booking supplier account resolved', { id: req.id, hasSupplierAccountId: Boolean(supplierAccountId) })
 
     if (!supplierAccountId) {
       res.status(400).json({ error: 'Vui lòng chọn tài khoản nhà cung cấp' })
@@ -353,7 +354,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       .single()
 
     if (bookingError || !insertedBooking) {
-      console.error('[booking] insert error:', bookingError)
+      logger.errorObj('booking insert failed', bookingError, { id: req.id })
       res.status(500).json({ error: bookingError?.message ?? 'Loi tao booking' })
       return
     }
@@ -373,11 +374,11 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
     for (const item of body.items) {
       const total = itemTotal(item)
-      console.log(`[booking:${req.id}] item ${item.product_code}/${item.process_code} qty=${total}`)
+      logger.debug('booking item insert start', { id: req.id, quantity: total })
       const { data: ins, error: ie } = await insertBookingItem(booking.id, item, total)
 
       if (ie || !ins) {
-        console.error(`[booking:${req.id}] item insert FAILED ${item.product_code}/${item.process_code}: ${ie?.message}`)
+        logger.errorObj('booking item insert failed', ie ?? new Error('Missing inserted item'), { id: req.id })
         throw ie ?? new Error('Loi tao booking item')
       }
 
@@ -423,8 +424,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     })
   } catch (err) {
     const msg = (err as Error).message ?? String(err)
-    console.error(`[booking:${req.id}] FATAL: ${msg}`)
-    if ((err as Error).stack) console.error((err as Error).stack)
+    logger.errorObj('booking finalize failed', err, { id: req.id })
     res.status(500).json({ error: msg })
   }
 })

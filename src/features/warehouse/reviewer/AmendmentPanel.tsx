@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { supabase } from '@/shared/lib/supabase'
+import { postJson } from '@/shared/lib/apiClient'
 import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
 import { formatDateDisplay } from '@/shared/lib/dateUtils'
@@ -15,11 +16,10 @@ interface SelectedBooking extends BookingRow {
 interface Props {
   bookingId: string
   currentBooking: SelectedBooking
-  userSub: string
   onSuccess: () => void
 }
 
-export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }: Props) {
+export function AmendmentPanel({ bookingId, currentBooking, onSuccess }: Props) {
   const [resolveId, setResolveId] = useState<string | null>(null)
   const [resolveDecision, setResolveDecision] = useState<'approved' | 'denied' | null>(null)
   const [resolveNote, setResolveNote] = useState('')
@@ -46,25 +46,7 @@ export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }
 
   const resolveMutation = useMutation({
     mutationFn: async ({ amendmentId, decision, note }: { amendmentId: string; decision: string; note: string }) => {
-      const { error } = await supabase.rpc('resolve_booking_amendment' as any, {
-        p_amendment_id: amendmentId,
-        p_reviewer_username: userSub,
-        p_decision: decision,
-        p_note: note,
-      } as any)
-      if (error) throw error
-
-      if (currentBooking.supplier_account_id) {
-        const typeLabel = amendment?.amendment_type === 'recall' ? 'huỷ' : 'chỉnh sửa'
-        const statusLabel = decision === 'approved' ? 'chấp thuận' : 'từ chối'
-        await supabase.from('notifications').insert({
-          recipient_type: 'supplier_account',
-          recipient_id: currentBooking.supplier_account_id,
-          event_type: decision === 'approved' ? 'amendment_approved' : 'amendment_denied',
-          message: `Yêu cầu ${typeLabel} booking ${currentBooking.booking_code} đã được ${statusLabel}.`,
-          booking_id: bookingId,
-        } as any)
-      }
+      await postJson<{ ok: true }>(`/api/amendments/${amendmentId}/resolve`, { decision, note })
     },
     onSuccess: () => {
       setResolveId(null); setResolveDecision(null); setResolveNote('')
@@ -216,3 +198,4 @@ export function AmendmentPanel({ bookingId, currentBooking, userSub, onSuccess }
     </>
   )
 }
+

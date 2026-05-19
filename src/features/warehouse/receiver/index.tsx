@@ -1,7 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import jsQR from 'jsqr'
-import { supabase } from '@/shared/lib/supabase'
 import { Navbar } from '@/shared/components/Navbar'
 import { Button } from '@/shared/components/Button'
 import { StatusBadge } from '@/shared/components/StatusBadge'
@@ -9,6 +8,7 @@ import { formatDateDisplay } from '@/shared/lib/dateUtils'
 import { deriveBookingStatus } from '@/shared/lib/bookingStatus'
 import { type TimeSlot, type BookingStatus } from '@/shared/types/domain'
 import { getCurrentUser } from '@/shared/lib/auth'
+import { getJson, postJson } from '@/shared/lib/apiClient'
 import { ROLE_TABS } from '@/shared/config/navTabs'
 
 interface BookingDetail {
@@ -58,13 +58,7 @@ export default function ReceiverPage() {
       const parts = tokenStr.split(':')
       const tok = parts.length === 3 ? parts[2] : tokenStr
 
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('*, suppliers!inner(name), warehouses!inner(name), booking_items(*)')
-        .eq('booking_token', tok)
-        .single()
-
-      if (error || !data) { setLookupError('Không tìm thấy booking'); return }
+      const { booking: data } = await getJson<{ booking: any }>(`/api/receiver/bookings/${encodeURIComponent(tok)}`)
 
       const d = data as any
       const b: BookingDetail = {
@@ -78,6 +72,8 @@ export default function ReceiverPage() {
       const init: Record<string, number> = {}
       for (const item of b.items) init[item.id] = item.quantity_booked
       setQuantities(init)
+    } catch (err) {
+      setLookupError((err as Error).message || 'Không tìm thấy booking')
     } finally {
       setIsLooking(false)
     }
@@ -86,12 +82,9 @@ export default function ReceiverPage() {
   const receiveDirectMutation = useMutation({
     mutationFn: async () => {
       if (!booking) return
-      const { error } = await supabase.rpc('receive_booking', {
-        p_booking_token: booking.booking_token,
-        p_quantities: quantities,
-        p_receiver_username: user?.sub ?? '',
-      } as any)
-      if (error) throw error
+      await postJson<{ ok: true }>(`/api/receiver/bookings/${encodeURIComponent(booking.booking_token)}/receive`, {
+        quantities,
+      })
     },
     onSuccess: () => { if (booking) void lookupBooking(booking.booking_token) },
   })

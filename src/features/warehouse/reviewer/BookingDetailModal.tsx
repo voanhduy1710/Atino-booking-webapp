@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/shared/lib/supabase'
 import { Modal } from '@/shared/components/Modal'
 import { Button } from '@/shared/components/Button'
 import { StatusBadge } from '@/shared/components/StatusBadge'
@@ -28,7 +27,6 @@ interface Props {
   onBookingRefresh: () => Promise<void>
   onActionComplete: () => void
   canDelete: boolean
-  userSub: string
 }
 
 interface NhanhRow {
@@ -63,7 +61,7 @@ function itemPhotos(item: any, type: 'vat_invoice' | 'delivery_slip') {
   return photos
 }
 
-export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefresh, onBookingRefresh, onActionComplete, canDelete, userSub }: Props) {
+export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefresh, onBookingRefresh, onActionComplete, canDelete }: Props) {
   const queryClient = useQueryClient()
   const [rejectItemId, setRejectItemId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
@@ -88,17 +86,6 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
     retry: false,
   })
 
-  const notifySupplier = async (eventType: 'booking_confirmed' | 'booking_rejected' | 'booking_returned', message: string) => {
-    if (!booking.supplier_account_id) return
-    await supabase.from('notifications').insert({
-      recipient_type: 'supplier_account',
-      recipient_id: booking.supplier_account_id,
-      event_type: eventType,
-      message,
-      booking_id: booking.id,
-    } as any)
-  }
-
   const refreshAll = async () => {
     onListRefresh()
     void queryClient.invalidateQueries({ queryKey: ['reviewer-amendment', booking.id] })
@@ -110,9 +97,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
   const confirmItemMutation = useMutation({
     mutationFn: async (itemId: string) => {
       setActionItemId(itemId)
-      const { error } = await supabase.rpc('confirm_booking_item', { p_item_id: itemId, p_reviewer_username: userSub } as any)
-      if (error) throw error
-      await notifySupplier('booking_confirmed', `Đơn ${booking.booking_code} có sản phẩm đã được duyệt.`)
+      await postJson<{ ok: true }>(`/api/reviewer/items/${itemId}/confirm`)
     },
     onSuccess: () => { void refreshAll() },
     onError: () => setActionItemId(null),
@@ -121,9 +106,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
   const rejectItemMutation = useMutation({
     mutationFn: async ({ itemId, reason }: { itemId: string; reason: string }) => {
       setActionItemId(itemId)
-      const { error } = await supabase.rpc('reject_booking_item', { p_item_id: itemId, p_reason: reason, p_reviewer_username: userSub } as any)
-      if (error) throw error
-      await notifySupplier('booking_rejected', `Đơn ${booking.booking_code} có sản phẩm bị từ chối. Lý do: ${reason}`)
+      await postJson<{ ok: true }>(`/api/reviewer/items/${itemId}/reject`, { reason })
     },
     onSuccess: () => {
       setRejectItemId(null)
@@ -136,9 +119,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
   const returnItemMutation = useMutation({
     mutationFn: async (itemId: string) => {
       setActionItemId(itemId)
-      const { error } = await supabase.rpc('return_booking_item' as any, { p_item_id: itemId, p_reason: null, p_reviewer_username: userSub } as any)
-      if (error) throw error
-      await notifySupplier('booking_returned', `Đơn ${booking.booking_code} có sản phẩm bị trả hàng.`)
+      await postJson<{ ok: true }>(`/api/reviewer/items/${itemId}/return`)
     },
     onSuccess: () => { void refreshAll() },
     onError: () => setActionItemId(null),
@@ -147,9 +128,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
   const revertItemMutation = useMutation({
     mutationFn: async (itemId: string) => {
       setActionItemId(itemId)
-      const { data, error } = await supabase.rpc('revert_booking_item' as any, { p_item_id: itemId, p_reviewer_username: userSub } as any)
-      if (error) throw error
-      if ((data as any)?.error) throw new Error((data as any).error)
+      await postJson<{ ok: true }>(`/api/reviewer/items/${itemId}/revert`)
     },
     onSuccess: () => { void refreshAll() },
     onError: (e: Error) => { setActionItemId(null); alert(e.message) },
@@ -157,8 +136,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
 
   const deleteBookingMutation = useMutation({
     mutationFn: async (bookingId: string) => {
-      const { error } = await supabase.rpc('admin_delete_booking' as any, { p_booking_id: bookingId } as any)
-      if (error) throw error
+      await postJson<{ ok: true }>(`/api/reviewer/bookings/${bookingId}`, undefined, { method: 'DELETE' })
     },
     onSuccess: () => { onClose(); onListRefresh() },
   })
@@ -166,11 +144,9 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
   const saveDraftBillMutation = useMutation({
     mutationFn: async () => {
       const value = draftBillId.trim() || null
-      const { error } = await (supabase as any)
-        .from('bookings')
-        .update({ nhanh_draft_bill_id: value })
-        .eq('id', booking.id)
-      if (error) throw error
+      await postJson<{ ok: true }>(`/api/reviewer/bookings/${booking.id}/draft-bill`, {
+        nhanh_draft_bill_id: value,
+      })
     },
     onSuccess: async () => {
       onListRefresh()
@@ -322,7 +298,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
             </table>
           </div>
 
-          <AmendmentPanel bookingId={booking.id} currentBooking={booking} userSub={userSub} onSuccess={refreshAll} />
+          <AmendmentPanel bookingId={booking.id} currentBooking={booking} onSuccess={refreshAll} />
 
           {canDelete && (
             <div className="flex justify-end">
@@ -356,3 +332,4 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
     </>
   )
 }
+

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LinkBtn } from '@/shared/components/LinkBtn'
+import { postJson } from '@/shared/lib/apiClient'
 import { supabase } from '@/shared/lib/supabase'
 import type { Supplier } from '@/shared/types/domain'
 
@@ -29,8 +30,7 @@ export function SupplierTable({ canDelete = false, queryKey = 'suppliers' }: Pro
 
   const addMutation = useMutation({
     mutationFn: async ({ code, name }: { code: string; name: string }) => {
-      const { error } = await supabase.from('suppliers').insert({ code: code.trim().toUpperCase(), name: name.trim(), active: true } as any)
-      if (error) throw error
+      await postJson<{ ok: true }>('/api/admin-resources/suppliers', { code, name })
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [queryKey] })
@@ -42,8 +42,7 @@ export function SupplierTable({ canDelete = false, queryKey = 'suppliers' }: Pro
 
   const editMutation = useMutation({
     mutationFn: async ({ id, code, name }: { id: string; code: string; name: string }) => {
-      const { error } = await (supabase.from('suppliers') as any).update({ code: code.trim().toUpperCase(), name: name.trim() }).eq('id', id)
-      if (error) throw error
+      await postJson<{ ok: true }>(`/api/admin-resources/suppliers/${id}`, { code, name }, { method: 'PUT' })
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [queryKey] })
@@ -53,8 +52,7 @@ export function SupplierTable({ canDelete = false, queryKey = 'suppliers' }: Pro
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('suppliers').delete().eq('id', id)
-      if (error) throw error
+      await postJson<{ ok: true }>(`/api/admin-resources/suppliers/${id}`, undefined, { method: 'DELETE' })
     },
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: [queryKey] }),
   })

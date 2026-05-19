@@ -13,7 +13,7 @@ export function LoadingSpinner({ size = 'md', className = '' }: Props) {
   return (
     <div
       role="status"
-      aria-label="Äang táº£i..."
+      aria-label="Đang tải..."
       className={`${sizeMap[size]} border-[#ecdbe8] border-t-black rounded-full animate-spin ${className}`}
     />
   )

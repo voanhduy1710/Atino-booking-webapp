@@ -96,7 +96,8 @@ export interface Database {
           time_slot: '07-09' | '09-11' | '13-15' | '15-17'
           ghi_chu: string | null
           delivery_note: string
-          status: 'pending' | 'partially_approved' | 'partially_rejected' | 'confirmed' | 'rejected' | 'received' | 'cancelled'
+          nhanh_draft_bill_id: string | null
+          status: Database['public']['Enums']['booking_status']
           submitted_at: string
           confirmed_by: string | null
           confirmed_at: string | null
@@ -114,7 +115,8 @@ export interface Database {
           time_slot: '07-09' | '09-11' | '13-15' | '15-17'
           ghi_chu?: string | null
           delivery_note: string
-          status?: 'pending' | 'partially_approved' | 'partially_rejected' | 'confirmed' | 'rejected' | 'received' | 'cancelled'
+          nhanh_draft_bill_id?: string | null
+          status?: Database['public']['Enums']['booking_status']
           submitted_at?: string
           confirmed_by?: string | null
           confirmed_at?: string | null
@@ -131,10 +133,20 @@ export interface Database {
           process_code: string
           delivery_round: number
           is_final_round: boolean
+          mau: string | null
           quantity_booked: number
           quantity_received: number | null
-          status: 'pending' | 'confirmed' | 'rejected'
+          reviewed_at: string | null
+          size_2xl_32: number
+          size_3xl_33: number
+          size_l_30: number
+          size_m_29: number
+          size_s_28: number
+          size_xl_31: number
+          status: Database['public']['Enums']['booking_item_status']
+          total_quantity: number
           vat_invoice_url: string | null
+          warehouse_code: string | null
           reject_reason: string | null
         }
         Insert: {
@@ -144,10 +156,20 @@ export interface Database {
           process_code: string
           delivery_round: number
           is_final_round?: boolean
+          mau?: string | null
           quantity_booked: number
           quantity_received?: number | null
-          status?: 'pending' | 'confirmed' | 'rejected'
+          reviewed_at?: string | null
+          size_2xl_32?: number
+          size_3xl_33?: number
+          size_l_30?: number
+          size_m_29?: number
+          size_s_28?: number
+          size_xl_31?: number
+          status?: Database['public']['Enums']['booking_item_status']
+          total_quantity?: number
           vat_invoice_url?: string | null
+          warehouse_code?: string | null
           reject_reason?: string | null
         }
         Update: Partial<Database['public']['Tables']['booking_items']['Insert']>
@@ -157,14 +179,14 @@ export interface Database {
           id: string
           booking_item_id: string
           storage_path: string
-          photo_type: 'delivery_slip' | 'discrepancy'
+          photo_type: Database['public']['Enums']['photo_type']
           uploaded_at: string
         }
         Insert: {
           id?: string
           booking_item_id: string
           storage_path: string
-          photo_type: 'delivery_slip' | 'discrepancy'
+          photo_type: Database['public']['Enums']['photo_type']
           uploaded_at?: string
         }
         Update: Partial<Database['public']['Tables']['booking_item_photos']['Insert']>
@@ -218,6 +240,8 @@ export interface Database {
           id: string
           booking_id: string
           requested_by: string
+          amendment_type: string
+          proposed_changes: Json | null
           request_note: string
           status: 'pending' | 'approved' | 'denied'
           reviewer_note: string | null
@@ -228,6 +252,8 @@ export interface Database {
           id?: string
           booking_id: string
           requested_by: string
+          amendment_type?: string
+          proposed_changes?: Json | null
           request_note: string
           status?: 'pending' | 'approved' | 'denied'
           reviewer_note?: string | null
@@ -242,6 +268,16 @@ export interface Database {
           lark_record_id: string
           product_name: string
           order_code: string
+          warehouse_code: string | null
+          mau: string | null
+          order_date: string | null
+          total_quantity: number
+          size_s_28: number
+          size_m_29: number
+          size_l_30: number
+          size_xl_31: number
+          size_2xl_32: number
+          size_3xl_33: number
           active: boolean
           last_synced_at: string
           created_at: string
@@ -252,6 +288,16 @@ export interface Database {
           lark_record_id: string
           product_name: string
           order_code: string
+          warehouse_code?: string | null
+          mau?: string | null
+          order_date?: string | null
+          total_quantity?: number
+          size_s_28?: number
+          size_m_29?: number
+          size_l_30?: number
+          size_xl_31?: number
+          size_2xl_32?: number
+          size_3xl_33?: number
           active?: boolean
           last_synced_at?: string
           created_at?: string
@@ -273,10 +319,10 @@ export interface Database {
     Functions: Record<string, never>
     Enums: {
       account_status: 'pending' | 'active' | 'rejected'
-      booking_status: 'pending' | 'partially_approved' | 'partially_rejected' | 'confirmed' | 'rejected' | 'received' | 'cancelled'
-      booking_item_status: 'pending' | 'confirmed' | 'rejected'
+      booking_status: 'pending' | 'partially_approved' | 'partially_rejected' | 'confirmed' | 'rejected' | 'returned' | 'received' | 'cancelled'
+      booking_item_status: 'pending' | 'confirmed' | 'rejected' | 'returned'
       time_slot: '07-09' | '09-11' | '13-15' | '15-17'
-      photo_type: 'delivery_slip' | 'discrepancy'
+      photo_type: 'delivery_slip' | 'discrepancy' | 'vat_invoice'
       notification_recipient: 'supplier_account' | 'staff'
     }
   }

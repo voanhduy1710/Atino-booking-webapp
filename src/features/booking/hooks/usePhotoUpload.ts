@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { ALLOWED_UPLOAD_MIME_TYPES, MAX_UPLOAD_MB } from '@/shared/constants/uploads'
-import { apiUrl, postForm } from '@/shared/lib/apiClient'
+import { postForm } from '@/shared/lib/apiClient'
 
 export interface UploadedFileEntry {
   file: File
@@ -48,7 +48,6 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
         form.append('file', file)
         form.append('path', relativePath)
 
-        console.log('[upload] POST', apiUrl(GCS_UPLOAD_PATH), { path: relativePath, size: file.size, type: file.type })
         const result = await postForm<{ url?: string }>(GCS_UPLOAD_PATH, form)
         if (!result.url) throw new Error('Upload thất bại')
 
@@ -59,11 +58,9 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
               : f
           )
         )
-        console.log('[upload] success -> tempPath:', relativePath)
         return relativePath
       } catch (err) {
         const msg = (err as Error).message
-        console.error('[upload] error for', relativePath, ':', msg)
         setFiles((prev) =>
           prev.map((f) =>
             f.tempPath === relativePath ? { ...f, status: 'error', errorMsg: msg } : f
