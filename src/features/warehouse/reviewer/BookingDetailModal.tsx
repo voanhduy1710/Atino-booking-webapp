@@ -67,10 +67,12 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
   const [rejectReason, setRejectReason] = useState('')
   const [actionItemId, setActionItemId] = useState<string | null>(null)
   const [draftBillId, setDraftBillId] = useState(booking.nhanh_draft_bill_id ?? '')
+  const [savedDraftBillId, setSavedDraftBillId] = useState(booking.nhanh_draft_bill_id ?? '')
   const itemCounts = countBookingItemStatuses(booking.items)
 
   useEffect(() => {
     setDraftBillId(booking.nhanh_draft_bill_id ?? '')
+    setSavedDraftBillId(booking.nhanh_draft_bill_id ?? '')
   }, [booking.nhanh_draft_bill_id])
 
   const [, setTick] = useState(0)
@@ -80,9 +82,9 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
   }, [])
 
   const nhanhQuery = useQuery({
-    queryKey: ['nhanh-draft-products', draftBillId],
-    queryFn: async () => postJson<{ rows: NhanhRow[] }>('/api/nhanh/draft-products', { billId: draftBillId }),
-    enabled: !!draftBillId,
+    queryKey: ['nhanh-draft-products', savedDraftBillId],
+    queryFn: async () => postJson<{ rows: NhanhRow[] }>('/api/nhanh/draft-products', { billId: savedDraftBillId }),
+    enabled: !!savedDraftBillId,
     retry: false,
   })
 
@@ -149,6 +151,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
       })
     },
     onSuccess: async () => {
+      setSavedDraftBillId(draftBillId.trim())
       onListRefresh()
       await onBookingRefresh()
       void queryClient.invalidateQueries({ queryKey: ['nhanh-draft-products'] })
@@ -204,7 +207,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
           </div>
           <p className="text-xs text-[#888888]">{formatBookingItemSummary(itemCounts)}</p>
 
-          {draftBillId && (
+          {savedDraftBillId && (
             <div className="rounded border border-[#ecdbe8] bg-[#FFFCF5] p-3 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold">Đối chiếu Nhanh</p>

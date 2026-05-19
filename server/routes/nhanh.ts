@@ -10,9 +10,13 @@ interface NhanhProductRow {
   required_description: string
 }
 
+class NhanhConfigError extends Error {
+  status = 503
+}
+
 function requiredEnv(name: string): string {
   const value = process.env[name]
-  if (!value) throw new Error(`${name} is not set`)
+  if (!value) throw new NhanhConfigError('Chưa cấu hình kết nối Nhanh. Vui lòng thiết lập NHANH_APP_ID, NHANH_BUSINESS_ID và NHANH_ACCESS_TOKEN trên backend.')
   return value
 }
 
@@ -61,6 +65,10 @@ router.post('/draft-products', async (req: Request, res: Response): Promise<void
 
     res.json({ billId, rows: normalizeRows(json), rawCode: json?.code ?? null })
   } catch (err) {
+    if (err instanceof NhanhConfigError) {
+      res.status(err.status).json({ error: err.message })
+      return
+    }
     res.status(500).json({ error: (err as Error).message })
   }
 })
