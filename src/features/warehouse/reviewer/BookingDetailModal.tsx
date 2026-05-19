@@ -33,6 +33,8 @@ interface NhanhRow {
   billId: number | string
   product_id: number | string
   product_name: string
+  color: string
+  size: string
   required_quantity: number
   required_description: string
 }
@@ -223,12 +225,23 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
                   {nhanhRows.length > 0 && (
                     <div className="max-h-32 overflow-auto rounded border border-[#ecdbe8] bg-white">
                       <table className="w-full text-xs">
-                        <thead><tr className="bg-[#F5F5F5]"><th className="px-2 py-1 text-left">product_id</th><th className="px-2 py-1 text-left">product_name</th><th className="px-2 py-1 text-right">SL</th><th className="px-2 py-1 text-left">required_description</th></tr></thead>
+                        <thead>
+                          <tr className="bg-[#F5F5F5]">
+                            <th className="px-2 py-1 text-left">ID nhanh SP</th>
+                            <th className="px-2 py-1 text-left">Tên SP</th>
+                            <th className="px-2 py-1 text-left">Màu</th>
+                            <th className="px-2 py-1 text-left">Size</th>
+                            <th className="px-2 py-1 text-right">SL</th>
+                            <th className="px-2 py-1 text-left">Mô tả</th>
+                          </tr>
+                        </thead>
                         <tbody>
                           {nhanhRows.map((row, i) => (
                             <tr key={`${row.product_id}-${i}`} className="border-t border-[#ecdbe8]">
                               <td className="px-2 py-1">{row.product_id}</td>
                               <td className="px-2 py-1">{row.product_name}</td>
+                              <td className="px-2 py-1">{row.color || '—'}</td>
+                              <td className="px-2 py-1">{row.size || '—'}</td>
                               <td className="px-2 py-1 text-right">{row.required_quantity}</td>
                               <td className="px-2 py-1">{row.required_description}</td>
                             </tr>

@@ -1,13 +1,12 @@
 import { Router, Request, Response } from 'express'
+import { normalizeDraftRows, type NhanhDraftRow } from '../etl/nhanhDraftInfo.js'
+import { fetchProductAttributes } from '../etl/nhanhProductAttributes.js'
 
 const router = Router()
 
-interface NhanhProductRow {
-  billId: number | string
-  product_id: number | string
-  product_name: string
-  required_quantity: number
-  required_description: string
+interface EnrichedNhanhProductRow extends NhanhDraftRow {
+  color: string
+  size: string
 }
 
 class NhanhConfigError extends Error {
@@ -20,14 +19,16 @@ function requiredEnv(name: string): string {
   return value
 }
 
-function normalizeRows(json: any): NhanhProductRow[] {
-  return (json?.data ?? []).map((row: any) => ({
-    billId: row.billId,
-    product_id: row.product?.id ?? '',
-    product_name: row.product?.name ?? '',
-    required_quantity: Number(row.required?.quantity ?? 0),
-    required_description: row.required?.description ?? '',
-  }))
+async function enrichRows(rows: NhanhDraftRow[]): Promise<EnrichedNhanhProductRow[]> {
+  const attributesByProductId = await fetchProductAttributes(rows.map((row) => row.product_id))
+  return rows.map((row) => {
+    const attrs = attributesByProductId.get(String(row.product_id))
+    return {
+      ...row,
+      color: attrs?.color ?? '',
+      size: attrs?.size ?? '',
+    }
+  })
 }
 
 router.post('/draft-products', async (req: Request, res: Response): Promise<void> => {
@@ -63,7 +64,8 @@ router.post('/draft-products', async (req: Request, res: Response): Promise<void
       return
     }
 
-    res.json({ billId, rows: normalizeRows(json), rawCode: json?.code ?? null })
+    const rows = await enrichRows(normalizeDraftRows(json))
+    res.json({ billId, rows, rawCode: json?.code ?? null })
   } catch (err) {
     if (err instanceof NhanhConfigError) {
       res.status(err.status).json({ error: err.message })
