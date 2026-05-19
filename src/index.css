@@ -163,6 +163,33 @@
   .pagination-button-active {
     @apply border-[#9F27C7] bg-[#9F27C7] text-white hover:bg-[#9F27C7];
   }
+
+  .product-process-sync-overlay {
+    @apply absolute inset-0 z-10 flex items-center justify-center bg-white/75 backdrop-blur-[1px] transition-opacity duration-300;
+    animation: product-process-sync-enter 180ms ease-out both;
+  }
+
+  .product-process-sync-overlay--leave {
+    animation: product-process-sync-leave 450ms ease-in both;
+  }
+}
+
+@keyframes product-process-sync-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes product-process-sync-leave {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 /* Print styles for confirmation page */

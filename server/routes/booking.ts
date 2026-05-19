@@ -5,13 +5,20 @@ import { getSupabase } from '../lib/supabase.js'
 
 const router = Router()
 
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'no-store')
+  next()
+})
+
 const STAFF_RECIPIENTS = (process.env.STAFF_NOTIFICATION_RECIPIENTS ?? 'voanhduy1710,lethientinh,lethiendung,lethihong')
   .split(',')
   .map((recipient) => recipient.trim())
   .filter(Boolean)
 
 const MAX_DAILY_TOTAL_QUANTITY = 20_000
+const DELIVERY_WINDOW_EXTENSION_THRESHOLD = 18_000
 const ICT_OFFSET_MS = 7 * 60 * 60 * 1000
+const ISO_DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
 
 interface PoItem {
   product_code: string
@@ -65,6 +72,26 @@ function addISODateDays(dateISO: string, days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
+function daysInclusive(minISO: string, maxISO: string): number {
+  const min = new Date(`${minISO}T00:00:00.000Z`).getTime()
+  const max = new Date(`${maxISO}T00:00:00.000Z`).getTime()
+  return Math.floor((max - min) / 86_400_000) + 1
+}
+
+export function normalizeDeliveryDate(value: unknown): string {
+  const date = String(value ?? '').trim()
+  if (!ISO_DATE_ONLY_RE.test(date)) {
+    throw new Error('Ngày giao hàng không hợp lệ')
+  }
+
+  const parsed = new Date(`${date}T00:00:00.000Z`)
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    throw new Error('Ngày giao hàng không hợp lệ')
+  }
+
+  return date
+}
+
 function itemTotal(item: PoItem): number {
   const sizeTotal =
     Number(item.size_s_28 ?? 0) +
@@ -86,12 +113,13 @@ async function usedQuantityForDate(deliveryDate: string): Promise<number> {
   const supabase = getSupabase()
   const current = await supabase
     .from('bookings')
-    .select('booking_items(total_quantity, quantity_booked)')
+    .select('booking_items(total_quantity, quantity_booked, status)')
     .eq('delivery_date', deliveryDate)
     .neq('status', 'cancelled')
   if (!current.error) {
     return (current.data ?? []).reduce((sum: number, booking: any) => {
       return sum + (booking.booking_items ?? []).reduce((itemSum: number, item: any) => {
+        if (!['pending', 'confirmed'].includes(item.status)) return itemSum
         return itemSum + Number(item.total_quantity ?? item.quantity_booked ?? 0)
       }, 0)
     }, 0)
@@ -102,13 +130,39 @@ async function usedQuantityForDate(deliveryDate: string): Promise<number> {
     .from('bookings')
     .select('booking_items(quantity_booked)')
     .eq('delivery_date', deliveryDate)
-    .neq('status', 'cancelled')
+    .in('status', ['pending', 'confirmed'])
   if (error) throw error
   return (data ?? []).reduce((sum: number, booking: any) => {
     return sum + (booking.booking_items ?? []).reduce((itemSum: number, item: any) => {
       return itemSum + Number(item.quantity_booked ?? 0)
     }, 0)
   }, 0)
+}
+
+async function capacityWindow(requestedTotal: number): Promise<{
+  minISO: string
+  maxISO: string
+  unavailableDates: string[]
+}> {
+  const { minISO, maxISO } = deliveryWindow()
+  const targetUsableDays = daysInclusive(minISO, maxISO)
+  const unavailableDates: string[] = []
+  let usableDays = 0
+  let date = minISO
+  let maxResolvedISO = maxISO
+
+  for (let attempts = 0; usableDays < targetUsableDays && attempts < 30; attempts++) {
+    const used = await usedQuantityForDate(date)
+    if (used >= DELIVERY_WINDOW_EXTENSION_THRESHOLD || used + requestedTotal > MAX_DAILY_TOTAL_QUANTITY) {
+      unavailableDates.push(date)
+    } else {
+      usableDays += 1
+    }
+    maxResolvedISO = date
+    date = addISODateDays(date, 1)
+  }
+
+  return { minISO, maxISO: maxResolvedISO, unavailableDates }
 }
 
 async function insertBookingItem(bookingId: string, item: PoItem, total: number) {
@@ -156,20 +210,84 @@ async function insertBookingItem(bookingId: string, item: PoItem, total: number)
     .single()
 }
 
-async function resolveCapacityDate(requestedDate: string, requestedTotal: number): Promise<string> {
-  const { minISO, maxISO } = deliveryWindow()
-  if (requestedDate < minISO || requestedDate > maxISO) {
+async function assertCapacityDate(requestedDate: string, requestedTotal: number): Promise<void> {
+  const deliveryDate = normalizeDeliveryDate(requestedDate)
+  const { minISO, maxISO } = await capacityWindow(requestedTotal)
+  if (deliveryDate < minISO || deliveryDate > maxISO) {
     throw new Error(`Ngày giao hàng phải nằm trong khoảng ${minISO} đến ${maxISO}`)
   }
 
-  let date = requestedDate
-  while (date <= maxISO) {
-    const used = await usedQuantityForDate(date)
-    if (used + requestedTotal <= MAX_DAILY_TOTAL_QUANTITY) return date
-    date = addISODateDays(date, 1)
-  }
-  throw new Error(`Tổng số lượng vượt ${MAX_DAILY_TOTAL_QUANTITY} trong tất cả ngày được phép`)
+  const used = await usedQuantityForDate(deliveryDate)
+  if (used + requestedTotal <= MAX_DAILY_TOTAL_QUANTITY) return
+  throw new Error('Ngày này đã vượt quá tối đa số lượng quy định. Vui lòng chọn ngày khác.')
 }
+
+router.get('/capacity', async (req: Request, res: Response): Promise<void> => {
+  const authHeader = req.headers.authorization ?? ''
+  if (!authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const token = authHeader.slice(7)
+  const payload = verifyJWT(token)
+  if (!payload || !['supplier', 'admin'].includes(payload.role)) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  try {
+    if (!req.query.delivery_date) {
+      res.status(400).json({ error: 'Vui lòng chọn ngày đăng ký giao hàng' })
+      return
+    }
+
+    const deliveryDate = normalizeDeliveryDate(req.query.delivery_date)
+    const usedQuantity = await usedQuantityForDate(deliveryDate)
+    res.json({
+      delivery_date: deliveryDate,
+      used_quantity: usedQuantity,
+      max_quantity: MAX_DAILY_TOTAL_QUANTITY,
+      remaining_quantity: Math.max(0, MAX_DAILY_TOTAL_QUANTITY - usedQuantity),
+    })
+  } catch (err) {
+    const msg = (err as Error).message ?? String(err)
+    res.status(500).json({ error: msg })
+  }
+})
+
+router.get('/capacity-window', async (req: Request, res: Response): Promise<void> => {
+  const authHeader = req.headers.authorization ?? ''
+  if (!authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  const token = authHeader.slice(7)
+  const payload = verifyJWT(token)
+  if (!payload || !['supplier', 'admin'].includes(payload.role)) {
+    res.status(401).json({ error: 'Unauthorized' })
+    return
+  }
+
+  try {
+    const requestedTotal = Math.max(0, Number(req.query.requested_total ?? 0))
+    const selectedDate = req.query.delivery_date ? normalizeDeliveryDate(req.query.delivery_date) : ''
+    const window = await capacityWindow(requestedTotal)
+    const maxISO = selectedDate && selectedDate >= window.minISO && selectedDate > window.maxISO
+      ? selectedDate
+      : window.maxISO
+    res.json({
+      min_iso: window.minISO,
+      max_iso: maxISO,
+      unavailable_dates: window.unavailableDates,
+      max_quantity: MAX_DAILY_TOTAL_QUANTITY,
+    })
+  } catch (err) {
+    const msg = (err as Error).message ?? String(err)
+    res.status(500).json({ error: msg })
+  }
+})
 
 router.post('/', async (req: Request, res: Response): Promise<void> => {
   const authHeader = req.headers.authorization ?? ''
@@ -200,6 +318,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: 'Vui lòng chọn ngày đăng ký giao hàng' })
       return
     }
+    const requestedDeliveryDate = normalizeDeliveryDate(body.delivery_date)
 
     const { data: account } = await supabase
       .from('supplier_accounts')
@@ -217,15 +336,15 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     }
 
     const totalRequested = (body.items ?? []).reduce((sum, item) => sum + itemTotal(item), 0)
-    const deliveryDate = await resolveCapacityDate(body.delivery_date, totalRequested)
+    await assertCapacityDate(requestedDeliveryDate, totalRequested)
 
-    const { data: booking, error: bookingError } = await supabase
+    const { data: insertedBooking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
         supplier_account_id: supplierAccountId,
         supplier_id: account.supplier_id,
         warehouse_id: body.warehouse_id,
-        delivery_date: deliveryDate,
+        delivery_date: requestedDeliveryDate,
         time_slot: body.time_slot,
         ghi_chu: body.ghi_chu ?? null,
         delivery_note: body.delivery_note,
@@ -233,11 +352,24 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       .select('id, booking_code, booking_token, delivery_date')
       .single()
 
-    if (bookingError || !booking) {
+    if (bookingError || !insertedBooking) {
       console.error('[booking] insert error:', bookingError)
       res.status(500).json({ error: bookingError?.message ?? 'Loi tao booking' })
       return
     }
+
+    const booking = insertedBooking.delivery_date === requestedDeliveryDate
+      ? insertedBooking
+      : await supabase
+        .from('bookings')
+        .update({ delivery_date: requestedDeliveryDate })
+        .eq('id', insertedBooking.id)
+        .select('id, booking_code, booking_token, delivery_date')
+        .single()
+        .then(({ data, error }) => {
+          if (error || !data) throw error ?? new Error('Loi cap nhat ngay giao hang')
+          return data
+        })
 
     for (const item of body.items) {
       const total = itemTotal(item)
@@ -286,8 +418,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       booking_code: booking.booking_code,
       booking_token: booking.booking_token,
       delivery_date: booking.delivery_date,
-      requested_delivery_date: body.delivery_date,
-      adjusted_delivery_date: deliveryDate !== body.delivery_date ? deliveryDate : null,
+      requested_delivery_date: requestedDeliveryDate,
+      adjusted_delivery_date: null,
     })
   } catch (err) {
     const msg = (err as Error).message ?? String(err)

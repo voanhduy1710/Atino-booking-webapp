@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navbar } from '@/shared/components/Navbar'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
@@ -6,8 +6,12 @@ import { ROLE_TABS } from '@/shared/config/navTabs'
 import { getCurrentUser } from '@/shared/lib/auth'
 import { formatDateDisplay, formatDateTimeDisplay } from '@/shared/lib/dateUtils'
 import { pageMainClass } from '@/shared/config/pageLayout'
-import { getJson, postJson } from '@/shared/lib/apiClient'
+import { postJson } from '@/shared/lib/apiClient'
 import type { ProductProcessCatalog } from '@/shared/types/domain'
+import {
+  fetchProductProcessCatalog,
+  PRODUCT_PROCESS_CATALOG_QUERY_KEY,
+} from '@/features/productProcess/api'
 
 function displayQuantity(value: number | null | undefined): string {
   return value ? String(value) : ''
@@ -20,13 +24,12 @@ export default function ProductProcessPage() {
   const [search, setSearch] = useState('')
   const [syncError, setSyncError] = useState('')
   const [isSyncing, setIsSyncing] = useState(false)
+  const [isHydrating, setIsHydrating] = useState(false)
+  const [isHydrationLeaving, setIsHydrationLeaving] = useState(false)
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['product-process-catalog'],
-    queryFn: async () => {
-      const result = await getJson<{ items: ProductProcessCatalog[] }>('/api/product-process')
-      return result.items ?? []
-    },
+    queryKey: PRODUCT_PROCESS_CATALOG_QUERY_KEY,
+    queryFn: fetchProductProcessCatalog,
   })
 
   const filteredRows = useMemo(() => {
@@ -46,18 +49,50 @@ export default function ProductProcessPage() {
     .sort()
     .at(-1)
 
-  const handleRefresh = async () => {
-    setIsSyncing(true)
-    setSyncError('')
-    try {
-      await postJson('/api/product-process/sync')
-      await queryClient.invalidateQueries({ queryKey: ['product-process-catalog'] })
-    } catch (err) {
-      setSyncError((err as Error).message)
-    } finally {
-      setIsSyncing(false)
-    }
+  const finishHydration = () => {
+    setIsHydrationLeaving(true)
+    window.setTimeout(() => {
+      setIsHydrating(false)
+      setIsHydrationLeaving(false)
+    }, 450)
   }
+
+  const handleRefresh = useCallback(async (showLoading = true, showOverlay = false) => {
+    if (showLoading) setIsSyncing(true)
+    if (showLoading) setSyncError('')
+    if (showOverlay) {
+      setIsHydrating(true)
+      setIsHydrationLeaving(false)
+    }
+    try {
+      const result = await postJson<{ items?: ProductProcessCatalog[] }>('/api/product-process/sync')
+      if (result.items) {
+        queryClient.setQueryData(PRODUCT_PROCESS_CATALOG_QUERY_KEY, result.items)
+      } else {
+        await queryClient.invalidateQueries({ queryKey: PRODUCT_PROCESS_CATALOG_QUERY_KEY })
+      }
+    } catch (err) {
+      if (showLoading) setSyncError((err as Error).message)
+    } finally {
+      if (showLoading) setIsSyncing(false)
+      if (showOverlay) finishHydration()
+    }
+  }, [queryClient])
+
+  useEffect(() => {
+    const handleSyncStart = () => {
+      setIsHydrating(true)
+      setIsHydrationLeaving(false)
+    }
+    const handleSyncEnd = () => finishHydration()
+
+    window.addEventListener('product-process-sync:start', handleSyncStart)
+    window.addEventListener('product-process-sync:end', handleSyncEnd)
+    return () => {
+      window.removeEventListener('product-process-sync:start', handleSyncStart)
+      window.removeEventListener('product-process-sync:end', handleSyncEnd)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fdf8ff]">
@@ -99,8 +134,8 @@ export default function ProductProcessPage() {
         {isLoading ? (
           <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>
         ) : (
-          <div className="overflow-hidden bg-white border border-[#ecdbe8] rounded-lg">
-            <div className="overflow-x-auto">
+          <div className="relative overflow-hidden bg-white border border-[#ecdbe8] rounded-lg">
+            <div className={`overflow-x-auto transition-opacity duration-300 ${isHydrating ? 'opacity-40' : 'opacity-100'}`}>
               <table className="w-full text-sm data-table">
                 <thead>
                   <tr>
@@ -149,6 +184,14 @@ export default function ProductProcessPage() {
                 </tbody>
               </table>
             </div>
+            {isHydrating && (
+              <div className={`product-process-sync-overlay ${isHydrationLeaving ? 'product-process-sync-overlay--leave' : ''}`}>
+                <div className="flex items-center gap-3 rounded border border-[#ecdbe8] bg-white px-4 py-3 shadow-sm">
+                  <LoadingSpinner size="sm" />
+                  <span className="text-sm font-medium text-[#514253]">Đang đồng bộ dữ liệu mới...</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

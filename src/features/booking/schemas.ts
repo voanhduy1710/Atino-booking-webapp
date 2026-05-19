@@ -27,7 +27,7 @@ export const poRowSchema = z.object({
 
 export const bookingFormSchema = z.object({
   warehouse_id: z.string().min(1, 'Vui lòng chọn kho'),
-  delivery_date: z.string().min(1, 'Vui lòng chọn ngày giao hàng'),
+  delivery_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày giao hàng không hợp lệ'),
   time_slot: z.enum(['07-09', '09-11', '13-15', '15-17'], {
     required_error: 'Vui lòng chọn khung giờ',
   }),

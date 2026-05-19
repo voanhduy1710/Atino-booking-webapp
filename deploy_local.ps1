@@ -82,7 +82,8 @@ if (Test-Path ".env") {
     }
 }
 
-$env:VITE_API_URL = "http://localhost:$backendPort"
+# Leave VITE_API_URL empty so Vite proxies /api/* to the backend and prints [FE→BE] timing logs.
+[System.Environment]::SetEnvironmentVariable("VITE_API_URL", $null, "Process")
 $env:DOTENV_CONFIG_QUIET = "true"
 
 $envPairs = [System.Environment]::GetEnvironmentVariables("Process").GetEnumerator() |

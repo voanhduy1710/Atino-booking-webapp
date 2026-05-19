@@ -19,6 +19,7 @@ interface FilterDatePickerProps {
   placeholder?: string
   minDate?: string
   maxDate?: string
+  excludeDates?: string[]
   isClearable?: boolean
   className?: string
   wrapperClassName?: string
@@ -30,6 +31,7 @@ export function FilterDatePicker({
   placeholder,
   minDate,
   maxDate,
+  excludeDates = [],
   isClearable = true,
   className = '',
   wrapperClassName = '',
@@ -43,6 +45,7 @@ export function FilterDatePicker({
       placeholderText={placeholder}
       minDate={minDate ? parseLocalDate(minDate) ?? undefined : undefined}
       maxDate={maxDate ? parseLocalDate(maxDate) ?? undefined : undefined}
+      excludeDates={excludeDates.map((date) => parseLocalDate(date)).filter((date): date is Date => Boolean(date))}
       isClearable={isClearable}
       showMonthDropdown
       showYearDropdown

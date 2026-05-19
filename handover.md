@@ -1,78 +1,51 @@
-# Handover — 2026-05-14
+# Handover - 2026-05-19
 
 ## 1. Session Summary
-This session focused on polishing the Atino booking app: fixing broken Vietnamese text, refining booking review/report UI, adding note/rejection-reason visibility and notifications, fixing notification deep links, applying the Stitch visual palette, adding booking-table pagination, and documenting the state for the next agent.
+This session focused on `/booking/new` delivery-date capacity rules and `/product-process` ETL/catalog loading. Capacity counting and UI messaging were added, product-process startup sync was reworked, but the booking date picker is still broken: after selecting a later date, the booking flow still appears to fall back to the `N+1` date.
 
 ## 2. What Changed
-- `src/index.css` — updated global background, table, border, button, scrollbar, striped-row, and pagination styling to match `Z_stitch example.md`.
-- `src/shared/components/Pagination.tsx` — added shared pagination control for booking tables. [NEW]
-- `src/shared/components/Navbar.tsx` — changed main nav bar, active tabs, hover states, and logout text color to the Stitch palette; logo usage untouched.
-- `src/features/warehouse/reviewer/index.tsx` — added notes/reasons columns at table end, colored status filter, Stitch table styling, Tiến độ text color, and pagination.
-- `src/features/admin/ViewAsPage.tsx` — moved notes/reasons columns to table end, added supplier booking pagination, and updated admin view-switch bar colors.
-- `src/features/admin/index.tsx` — updated admin page shell and manage-view switch bar colors.
-- `src/features/manager/index.tsx` — updated embedded manager tab bar and page background colors.
-- `src/features/auth/index.tsx` — updated login/register background, card border, and tab switch colors.
-- `src/features/home/GuideTabs.tsx` — updated guide tab bar colors without touching the logo image.
-- `src/features/home/GuidePage.tsx` — updated guide page background and tab bar colors.
-- `src/features/home/LandingPage.tsx` — background/border token cleanup from the global style pass.
-- `src/features/home/GuideCreate.tsx` — background/border token cleanup from the global style pass.
-- `src/features/home/GuideReceiving.tsx` — background/border token cleanup from the global style pass.
-- `src/features/warehouse/WarehousesPage.tsx` — background/border token cleanup from the global style pass.
-- `src/features/warehouse/receiver/index.tsx` — background/border token cleanup from the global style pass.
-- `src/features/supplier/SuppliersPage.tsx` — background/border token cleanup from the global style pass.
-- `src/features/admin/tabs/AccountsTab.tsx` — border token cleanup and invisible whitespace cleanup.
-- `src/features/admin/tabs/SuppliersTab.tsx` — border token cleanup and invisible whitespace cleanup.
-- `src/features/admin/tabs/WarehousesTab.tsx` — border token cleanup and invisible whitespace cleanup.
-- `src/features/auth/AccountsPage.tsx` — background/border token cleanup and invisible whitespace cleanup.
-- `src/features/booking/MyBookings.tsx` — earlier added multiple status badges plus supplier note/rejection reason display; later style-token cleanup.
-- `src/features/booking/components/BookingForm.tsx` — earlier fixed Vietnamese text and booking note handling; later style-token cleanup.
-- `src/features/booking/components/BookingConfirmation.tsx` — earlier Vietnamese/style cleanup; later border token cleanup.
-- `src/features/booking/components/BookingDetailPublic.tsx` — earlier Vietnamese/note cleanup; later border token cleanup.
-- `src/features/booking/components/BookingAmendmentSection.tsx` — border token cleanup and invisible whitespace cleanup.
-- `src/features/booking/components/PoRow.tsx` — border token cleanup and invisible whitespace cleanup.
-- `src/features/admin/ReportPage.tsx` — earlier replaced return/reject daily visual with stacked booking chart and added total-items line chart; later border/background token cleanup.
-- `src/features/notifications/components/NotificationPanel.tsx` — fixed notification booking deep links by resolving `booking_token`; later border/whitespace cleanup.
-- `src/features/notifications/components/NotificationBell.tsx` — earlier notification style adjustment; old primary color remains for badge count.
-- `src/features/notifications/hooks/useNotifications.ts` — earlier notification query/recipient behavior updates.
-- `src/features/warehouse/reviewer/BookingDetailModal.tsx` — earlier supplier notifications on accept/reject and rejection reason handling; later border/whitespace cleanup.
-- `src/features/warehouse/reviewer/BookingTooltip.tsx` — earlier note/reason support; later border/whitespace cleanup.
-- `src/features/warehouse/reviewer/AmendmentPanel.tsx` — border token cleanup and invisible whitespace cleanup.
-- `src/shared/components/AttachmentThumbnail.tsx` — border token cleanup.
-- `src/shared/components/Drawer.tsx` — border token cleanup.
-- `src/shared/components/FilterDatePicker.tsx` — border token cleanup.
-- `src/shared/components/LoadingSpinner.tsx` — border token cleanup.
-- `src/shared/components/Modal.tsx` — border token cleanup.
-- `src/shared/components/filters/DateRangePickerPopup.tsx` — earlier fixed date filter height/text; later border/whitespace cleanup.
-- `server/routes/booking.ts` — removed `ws` realtime transport to fix lint.
-- `supabase/functions/finalize-booking/index.ts` — fixed supplier guard, VAT temp path handling, staff notifications, and encoded Vietnamese notification message safely.
-- `handover.md` — created this handover file. [NEW]
-- `Z_stitch example.md` — present as the visual source reference. [NEW / user-provided]
-- `docs/14. Handover_rule.md` — present as the handover format reference. [NEW / user-provided]
-- `public/Atino Logo.svg` — modified in the dirty worktree before this handover; final color pass intentionally did not touch logo usage.
-- `Z_prompt_typer.md`, `Z_updating_prompt.md`, `code_review.md`, and `business logic/*` — dirty/deleted before the final UI pass; do not revert unless the user asks.
+- `server/routes/booking.ts` - added no-store cache headers, daily capacity endpoints, pending/confirmed-only capacity counting, 20,000 hard submit cap, and an attempted `>= 18,000` capacity-window extension loop. [MODIFIED]
+- `src/features/booking/components/BookingForm.tsx` - added delivery capacity UI, capacity queries, disabled submit on over-capacity date, React Hook Form `Controller` for `delivery_date`, and attempted fixes for date reset/clamping. [MODIFIED]
+- `src/shared/components/FilterDatePicker.tsx` - added optional `excludeDates` prop; currently not used by `BookingForm` because full/near-full dates must remain selectable. [MODIFIED]
+- `server/routes/productProcess.ts` - added no-store cache headers, in-memory synced catalog fallback, and sync response `items` so refreshed Lark data can hydrate the frontend immediately. [MODIFIED]
+- `src/app/AppStartupSync.tsx` - changed product-process sync to run after page load, dispatch sync start/end events, and populate React Query cache with returned `items`. [MODIFIED]
+- `src/features/productProcess/ProductProcessPage.tsx` - removed page-open ETL blocking, added global sync event handling, manual refresh cache hydration, and table overlay state. [MODIFIED]
+- `src/index.css` - added product-process sync overlay fade-in/fade-out animation styles. [MODIFIED]
+- `server/index.ts` - already dirty in worktree; not intentionally changed for the capacity/date fix in this pass. [MODIFIED]
+- `vite.config.ts` - already dirty in worktree; not intentionally changed for the capacity/date fix in this pass. [MODIFIED]
+- `deploy_local.ps1` - already dirty in worktree; not intentionally changed for the capacity/date fix in this pass. [MODIFIED]
+- `Z_prompt_typer.md` - already dirty in worktree; not intentionally changed for the capacity/date fix in this pass. [MODIFIED]
+- `handover.md` - overwritten according to `docs/14. Handover_rule.md`. [MODIFIED]
 
 ## 3. What Is Currently Working
-- `npm run lint -- --quiet` passes.
-- `npm run build` passes.
-- `/reviewbooking` booking table uses Stitch-style rows/borders, keeps `Trạng thái` badges unchanged, shows `Ghi chú` and `Lí do` at the end, and paginates.
-- Admin View-as Supplier booking table shows notes/reasons at the end and paginates.
-- Notification clicks now navigate through `booking_token` instead of the internal booking UUID.
-- Supplier notifications are created on accept/reject, and staff notifications are created for all four staff users on new booking submission.
+- `npm run typecheck` passed after the latest changes.
+- `npm run lint` passed after the latest changes.
+- `npm run build` passed after the latest changes.
+- `/product-process` sync now returns enriched `items` from POST `/api/product-process/sync` and can hydrate the frontend cache without waiting for a follow-up GET.
+- `/booking/new` capacity text renders on the same line as the allowed date window: `Tổng số lượng đã được đặt giao ngày này: ... / 20.000`.
+- Backend capacity counting is intended to count only booking items with status `pending` or `confirmed`; rejected/cancelled items should not count.
 
 ## 4. What Is Broken / Known Issues
-- Deno is not installed, so `supabase/functions/finalize-booking/index.ts` was not checked with Deno tooling.
-- The worktree contains unrelated dirty/deleted files from before this handover, especially `business logic/*`, `public/Atino Logo.svg`, and local prompt/docs files.
+- Fixed: `/booking/new` delivery date should no longer fall back to `N+1`. Root cause was the Supabase Postgres `BEFORE INSERT` trigger `trg_set_booking_delivery_date`, which ran `set_booking_delivery_date()` and overwrote any inserted `delivery_date` with server-computed N+1/N+2.
+- Applied Supabase migration `20260519135000_preserve_booking_delivery_date.sql`: `set_booking_delivery_date()` now preserves `NEW.delivery_date` when the API supplies it, and only falls back to N+1/N+2 when `delivery_date` is omitted.
+- `server/routes/booking.ts` also normalizes the submitted date as strict `YYYY-MM-DD`, validates capacity without resolving to a replacement date, inserts the exact normalized requested date, and defensively corrects the row if an older database trigger overwrites it.
+- Added debug script `debug/booking-date-stages.ts`; verified live with `npx tsx debug\booking-date-stages.ts --date=2026-05-21 --finalize`, which now shows input, capacity, finalize response, and persisted Supabase row all equal `2026-05-21`.
+- Added regression coverage in `server/routes/booking.test.ts` for preserving `2026-05-21` and rejecting display-formatted/impossible dates before insert.
+- No authenticated browser/API smoke test was completed because no debug auth token was available in this session.
 
 ## 5. What To Work On Next
-1. Run a browser pass on `/reviewbooking`, `/admin/manageviews`, `/my-bookings`, and `/login` to visually confirm the Stitch colors and pagination.
-2. If Deno becomes available, run Deno lint/check for `supabase/functions/finalize-booking/index.ts`.
-3. Ask the user before touching or reverting the unrelated dirty/deleted files.
+1. Restart the backend before retesting; otherwise `/api/booking/finalize` will still run old logic.
+2. Run an authenticated browser/API smoke test for selecting `N+2`/`N+3` and confirming the created booking keeps that exact date.
+3. Retest the `>= 18,000` extension rule: if `N+1` is at 18,000+, the displayed max should extend from `N+3` to `N+4`, and continue looping for additional near-full days.
 
 ## 6. Key Context / Gotchas
-- Do NOT change the `StatusBadge` / `.status-*` colors unless the user explicitly asks; the latest request said not to touch the `Trạng thái` column.
-- Do NOT change logo usage or assets; `public/Atino Logo.svg` is dirty but was not part of the final requested color pass.
-- Booking public detail routes expect `booking_token`, not internal `bookings.id`.
-- The project instruction says use code-review-graph before grep/read for exploration.
+- Project instructions require using code-review-graph before grep/read for code exploration.
+- User explicitly wants full/near-full dates to remain selectable so suppliers can see the warning; do not exclude those dates from the picker.
+- Hard submit cap is 20,000 per day. The `>= 18,000` threshold is only for extending the displayed allowed window, not for blocking selection by itself.
+- `assertCapacityDate()` validates the selected date but does not return or compute a replacement date.
+- `capacityWindow()` currently returns `unavailable_dates`, but `BookingForm` does not pass them to `FilterDatePicker`.
+- Restart the backend after server route changes; otherwise `/api/booking/finalize/capacity-window` will still run old logic.
+- Existing dirty files outside the main changes may be user/worktree changes; do not revert them without explicit permission.
 
 ## 7. Environment & How to Run
-See `docs/8. Development_Setup.md` — no dependency changes. Verified with `npm run lint -- --quiet` and `npm run build`.
+See docs/8. Development_Setup.md - no changes.

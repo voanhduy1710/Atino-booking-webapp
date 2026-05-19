@@ -3,6 +3,11 @@ import { getSupabase } from '../lib/supabase.js'
 
 const router = Router()
 
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'no-store')
+  next()
+})
+
 const LARK_BASE_URL = 'https://open.larksuite.com/open-apis'
 const LARK_APP_TOKEN = 'At3fbwyI5a1Ps1srOpxlhkfqgVf'
 const LARK_TABLE_ID = 'tbliLUxbP4F5kHA8'
@@ -25,6 +30,8 @@ const FIELDS = {
 
 const CATALOG_SELECT_WITH_MAU = 'id, lark_record_id, product_name, order_code, warehouse_code, mau, order_date, total_quantity, size_s_28, size_m_29, size_l_30, size_xl_31, size_2xl_32, size_3xl_33, last_synced_at'
 const CATALOG_SELECT_LEGACY = 'id, lark_record_id, product_name, order_code, last_synced_at'
+
+let syncedCatalogRows: CatalogRow[] | null = null
 
 interface LarkRow {
   lark_record_id: string
@@ -84,6 +91,12 @@ function normalizeCatalogRows(rows: CatalogRow[] | null | undefined): CatalogRow
     size_2xl_32: row.size_2xl_32 ?? null,
     size_3xl_33: row.size_3xl_33 ?? null,
   }))
+}
+
+function hasEnrichedCatalogData(rows: CatalogRow[]): boolean {
+  return rows.some((row) =>
+    Boolean(row.warehouse_code || row.mau || row.order_date || row.total_quantity || row.size_s_28 || row.size_m_29 || row.size_l_30 || row.size_xl_31 || row.size_2xl_32 || row.size_3xl_33)
+  )
 }
 
 async function getLarkTenantToken() {
@@ -155,6 +168,10 @@ function larkRowsToCatalogRows(rows: LarkRow[]): CatalogRow[] {
   }))
 }
 
+function supabaseInList(values: string[]): string {
+  return `(${values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(',')})`
+}
+
 async function selectCatalogRows() {
   const supabase = getSupabase()
   const withMau = await supabase
@@ -168,12 +185,6 @@ async function selectCatalogRows() {
 
   if (!withMau.error) return normalizeCatalogRows(withMau.data as CatalogRow[])
   if (!isSchemaCacheError(withMau.error, 'mau')) throw withMau.error
-
-  try {
-    return larkRowsToCatalogRows(await fetchLarkRows())
-  } catch (larkError) {
-    console.warn('[product-process] Lark fallback failed:', (larkError as Error).message)
-  }
 
   const legacy = await supabase
     .from('product_process_catalog')
@@ -317,14 +328,12 @@ async function fetchLarkRows() {
 
 router.get('/', async (_req: Request, res: Response): Promise<void> => {
   try {
-    let items: CatalogRow[]
-    try {
-      items = await selectCatalogRows()
-    } catch (err) {
-      if (!isSchemaCacheError(err)) throw err
-      items = larkRowsToCatalogRows(await fetchLarkRows())
+    const items = await selectCatalogRows()
+    if (hasEnrichedCatalogData(items) || !syncedCatalogRows) {
+      res.json({ items })
+      return
     }
-    res.json({ items })
+    res.json({ items: syncedCatalogRows })
   } catch (err) {
     res.status(500).json({ error: (err as Error).message })
   }
@@ -335,15 +344,20 @@ router.post('/sync', async (_req: Request, res: Response): Promise<void> => {
     const rows = await fetchLarkRows()
     const supabase = getSupabase()
 
-    const { error: deactivateError } = await supabase
-      .from('product_process_catalog')
-      .update({ active: false, updated_at: new Date().toISOString() })
-      .neq('lark_record_id', '')
-    if (deactivateError) throw deactivateError
-
     await upsertCatalogRows(rows)
 
-    res.json({ synced: rows.length, ts: new Date().toISOString() })
+    const activeRecordIds = rows.map((row) => row.lark_record_id)
+    if (activeRecordIds.length > 0) {
+      const { error: deactivateError } = await supabase
+        .from('product_process_catalog')
+        .update({ active: false, updated_at: new Date().toISOString() })
+        .not('lark_record_id', 'in', supabaseInList(activeRecordIds))
+      if (deactivateError) throw deactivateError
+    }
+
+    syncedCatalogRows = larkRowsToCatalogRows(rows)
+
+    res.json({ synced: rows.length, ts: new Date().toISOString(), items: syncedCatalogRows })
   } catch (err) {
     res.status(500).json({ error: (err as Error).message })
   }

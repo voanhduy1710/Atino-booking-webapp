@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { useForm, useFieldArray } from 'react-hook-form'
+import { Controller, useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -11,14 +11,18 @@ import { FilterDatePicker } from '@/shared/components/FilterDatePicker'
 import { bookingFormSchema, type BookingFormData } from '@/features/booking/schemas'
 import { useActiveSupplierAccounts, useWarehouses, useSupplierInfo } from '@/features/booking/hooks/useBookingData'
 import { PoRow } from './PoRow'
-import { TIME_SLOT_LABELS, STANDARD_DELIVERY_NOTE, type TimeSlot, type ProductProcessCatalog } from '@/shared/types/domain'
+import { TIME_SLOT_LABELS, STANDARD_DELIVERY_NOTE, type TimeSlot } from '@/shared/types/domain'
 import { formatDateDisplay, getDeliveryDateWindow } from '@/shared/lib/dateUtils'
 import { getCurrentUser, getToken } from '@/shared/lib/auth'
 import { SUPPLIER_TABS } from '@/shared/constants/supplierTabs'
 import { ROLE_TABS } from '@/shared/config/navTabs'
 import { pageMainClass } from '@/shared/config/pageLayout'
-import { MAX_BOOKING_ITEMS } from '@/shared/constants/booking'
+import { MAX_BOOKING_ITEMS, MAX_DAILY_TOTAL_QUANTITY } from '@/shared/constants/booking'
 import { getJson, postJson } from '@/shared/lib/apiClient'
+import {
+  fetchProductProcessCatalog,
+  PRODUCT_PROCESS_CATALOG_QUERY_KEY,
+} from '@/features/productProcess/api'
 
 // Re-export for any legacy imports
 export { SUPPLIER_TABS }
@@ -45,6 +49,28 @@ const emptyItem = {
   slip_temp_paths: [],
 }
 
+type DeliveryCapacity = {
+  delivery_date: string
+  used_quantity: number
+  max_quantity: number
+  remaining_quantity: number
+}
+
+type DeliveryCapacityWindow = {
+  min_iso: string
+  max_iso: string
+  unavailable_dates: string[]
+  max_quantity: number
+}
+
+function bookingItemTotal(item: Partial<BookingFormData['items'][number]>): number {
+  return Number(item.total_quantity ?? item.quantity_booked ?? 0)
+}
+
+function maxISODate(...dates: Array<string | undefined>): string {
+  return dates.filter((date): date is string => Boolean(date)).sort().at(-1) ?? ''
+}
+
 export function BookingForm() {
   const navigate = useNavigate()
   const user = getCurrentUser()
@@ -55,11 +81,10 @@ export function BookingForm() {
   const { data: supplier } = useSupplierInfo()
   const { data: supplierAccounts = [], isLoading: supplierAccountsLoading } = useActiveSupplierAccounts(isAdmin)
   const { data: productProcessOptions = [], isLoading: productProcessLoading } = useQuery({
-    queryKey: ['product-process-catalog'],
-    queryFn: async () => {
-      const data = await getJson<{ items: ProductProcessCatalog[] }>('/api/product-process')
-      return data.items
-    },
+    queryKey: PRODUCT_PROCESS_CATALOG_QUERY_KEY,
+    queryFn: fetchProductProcessCatalog,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   })
   const selectedAdminSupplierAccount = useMemo(
     () => supplierAccounts.find((account) => account.id === adminSupplierAccountId) ?? null,
@@ -96,6 +121,39 @@ export function BookingForm() {
   const { fields, append, insert, remove } = useFieldArray({ control, name: 'items' })
 
   const poCount = watch('items').length
+  const selectedDeliveryDate = watch('delivery_date')
+  const watchedItems = watch('items')
+  const token = getToken()
+  const requestedTotal = useMemo(
+    () => (watchedItems ?? []).reduce((sum, item) => sum + bookingItemTotal(item), 0),
+    [watchedItems]
+  )
+  const { data: deliveryCapacity, isLoading: deliveryCapacityLoading } = useQuery({
+    queryKey: ['booking-delivery-capacity', selectedDeliveryDate],
+    queryFn: () => getJson<DeliveryCapacity>(
+      `/api/booking/finalize/capacity?delivery_date=${encodeURIComponent(selectedDeliveryDate)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    ),
+    enabled: Boolean(token && selectedDeliveryDate),
+    refetchInterval: 30_000,
+    staleTime: 0,
+  })
+  const { data: deliveryCapacityWindow } = useQuery({
+    queryKey: ['booking-delivery-capacity-window', requestedTotal, selectedDeliveryDate],
+    queryFn: () => getJson<DeliveryCapacityWindow>(
+      `/api/booking/finalize/capacity-window?requested_total=${encodeURIComponent(requestedTotal)}&delivery_date=${encodeURIComponent(selectedDeliveryDate)}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    ),
+    enabled: Boolean(token),
+    placeholderData: (previous) => previous,
+    refetchInterval: 30_000,
+    staleTime: 0,
+  })
+  const allowedMinISO = deliveryCapacityWindow?.min_iso ?? deliveryWindow.minISO
+  const allowedMaxISO = maxISODate(deliveryWindow.maxISO, deliveryCapacityWindow?.max_iso, selectedDeliveryDate)
+  const usedDeliveryQuantity = deliveryCapacity?.used_quantity ?? 0
+  const maxDeliveryQuantity = deliveryCapacity?.max_quantity ?? MAX_DAILY_TOTAL_QUANTITY
+  const exceedsDeliveryCapacity = Boolean(deliveryCapacity && usedDeliveryQuantity + requestedTotal > maxDeliveryQuantity)
 
   useEffect(() => {
     document.title = 'Đăng ký giao hàng — Atino Booking'
@@ -138,17 +196,21 @@ export function BookingForm() {
   }
 
   const onSubmit = async (data: BookingFormData) => {
-    const token = getToken()
+    const deliveryDate = getValues('delivery_date') || data.delivery_date
     if (!token) return
     if (isAdmin && !adminSupplierAccountId) {
       alert('Vui lòng chọn tài khoản nhà cung cấp')
+      return
+    }
+    if (exceedsDeliveryCapacity) {
+      alert('Ngày này đã vượt quá tối đa số lượng quy định. Vui lòng chọn ngày khác.')
       return
     }
 
     try {
       const result = await postJson<{ booking_token: string }>('/api/booking/finalize', {
         warehouse_id: data.warehouse_id,
-        delivery_date: data.delivery_date,
+        delivery_date: deliveryDate,
         time_slot: data.time_slot,
         ghi_chu: data.ghi_chu || null,
         delivery_note: STANDARD_DELIVERY_NOTE,
@@ -274,21 +336,36 @@ export function BookingForm() {
               <div className="grid grid-cols-3 gap-4 items-center">
                 <label className="form-label col-span-1">Ngày đăng ký giao hàng</label>
                 <div className="col-span-2">
-                  <div className="flex items-center gap-3">
-                    <FilterDatePicker
-                      value={watch('delivery_date')}
-                      onChange={(value) => setValue('delivery_date', value, { shouldValidate: true })}
-                      minDate={deliveryWindow.minISO}
-                      maxDate={deliveryWindow.maxISO}
-                      isClearable={false}
-                      className="!w-44 !px-3 !py-2 !text-sm"
-                      wrapperClassName="!inline-block"
-                    />
-                    <input type="hidden" {...register('delivery_date')} />
-                    <span className="text-xs text-[#888888]">
-                      Cho phép {formatDateDisplay(deliveryWindow.minISO)} - {formatDateDisplay(deliveryWindow.maxISO)}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Controller
+                        control={control}
+                        name="delivery_date"
+                        render={({ field }) => (
+                          <FilterDatePicker
+                            value={field.value}
+                            onChange={(value) => field.onChange(value)}
+                            minDate={allowedMinISO}
+                            maxDate={allowedMaxISO}
+                            isClearable={false}
+                            className="!w-44 !px-3 !py-2 !text-sm"
+                            wrapperClassName="!inline-block"
+                          />
+                        )}
+                      />
+                      <span className="text-xs text-[#888888] whitespace-nowrap">
+                        Cho phép {formatDateDisplay(allowedMinISO)} - {formatDateDisplay(allowedMaxISO)}
+                      </span>
+                    </div>
+                    <span className={`text-xs whitespace-nowrap ${exceedsDeliveryCapacity ? 'text-[#CC0000]' : 'text-[#555555]'}`}>
+                      Tổng số lượng đã được đặt giao ngày này: {deliveryCapacityLoading ? 'đang tải...' : usedDeliveryQuantity.toLocaleString('vi-VN')} / {maxDeliveryQuantity.toLocaleString('vi-VN')}
                     </span>
                   </div>
+                  {exceedsDeliveryCapacity && (
+                    <p className="form-error mt-1">
+                      Ngày này đã vượt quá tối đa số lượng quy định. Vui lòng chọn ngày khác.
+                    </p>
+                  )}
                   {errors.delivery_date?.message && (
                     <p className="form-error mt-1">{errors.delivery_date.message}</p>
                   )}
@@ -435,7 +512,7 @@ export function BookingForm() {
             type="submit"
             fullWidth
             loading={isSubmitting}
-            disabled={isAdmin && !adminSupplierAccountId}
+            disabled={(isAdmin && !adminSupplierAccountId) || exceedsDeliveryCapacity}
             id="booking-submit"
             className="text-base py-4"
           >

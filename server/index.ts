@@ -19,6 +19,25 @@ declare module 'express-serve-static-core' {
 
 const app = express()
 const PORT = 3001
+const isProduction = process.env.NODE_ENV === 'production'
+
+function getClientIp(req: Request): string {
+  const forwarded = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim()
+  return forwarded || req.socket.remoteAddress || '?'
+}
+
+function getClientPort(req: Request): string {
+  const forwardedPort = req.headers['x-forwarded-port']
+  if (typeof forwardedPort === 'string' && forwardedPort.trim()) return forwardedPort.trim()
+  if (Array.isArray(forwardedPort) && forwardedPort[0]) return forwardedPort[0]
+  return req.socket.remotePort ? String(req.socket.remotePort) : ''
+}
+
+function getStatusText(statusCode: number): string {
+  if (statusCode >= 500) return 'ERROR'
+  if (statusCode >= 400) return 'WARN'
+  return 'OK'
+}
 
 app.use(cors())
 app.use(express.json({
@@ -43,14 +62,18 @@ app.use(express.json({
 app.use((req: Request, res: Response, next: NextFunction) => {
   req.id = randomUUID().slice(0, 8)
   req.startMs = Date.now()
-  const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0].trim()
-    ?? req.socket.remoteAddress ?? '?'
-  const len = req.headers['content-length'] ? ` body=${req.headers['content-length']}b` : ''
-  console.log(`[req:${req.id}] --> ${req.method} ${req.path}${len} ip=${ip}`)
+  const ip = getClientIp(req)
+  const port = getClientPort(req)
+  const client = port ? `${ip}:${port}` : ip
+  const httpVersion = `HTTP/${req.httpVersion}`
+  const requestTarget = req.originalUrl || req.url
   res.on('finish', () => {
     const ms = Date.now() - req.startMs
-    const level = res.statusCode >= 500 ? 'ERROR' : res.statusCode >= 400 ? 'WARN' : 'OK'
-    console.log(`[req:${req.id}] <-- ${res.statusCode} ${level} ${ms}ms`)
+    const statusText = getStatusText(res.statusCode)
+    if (!isProduction || ms > 500) {
+      console.log(`${req.method} ${req.path} → ${res.statusCode} [${ms}ms]`)
+    }
+    console.log(`INFO:     ${client} - "${req.method} ${requestTarget} ${httpVersion}" ${res.statusCode} ${statusText}`)
   })
   next()
 })
@@ -66,7 +89,7 @@ app.get('/api/health', (_req, res) => {
 
 const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   void next
-  console.error(`[req:${req.id}] UNHANDLED ${err.name}: ${err.message}`)
+  console.error(`ERROR:    ${req.id} - ${err.name}: ${err.message}`)
   if (err.stack) console.error(err.stack)
   res.status(500).json({ error: err.message })
 }
