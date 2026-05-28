@@ -1,9 +1,11 @@
 #!/bin/sh
-# start.sh — run inside Docker: start Express then nginx (foreground)
-# nginx must be last (keeps the container alive)
+# start.sh - run inside Docker: start nginx for static files, then keep
+# Express as the foreground process so API crashes stop the revision.
 
-echo "[start] Starting Express server on port 3001..."
-node --import tsx/esm /app/server/index.ts &
+set -e
 
 echo "[start] Starting nginx on port 8080..."
-exec nginx -g "daemon off;"
+nginx
+
+echo "[start] Starting Express server on port 3001..."
+exec node /app/dist-server/index.js

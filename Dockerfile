@@ -10,6 +10,7 @@ RUN npm ci
 
 COPY . .
 RUN npm run build
+RUN npm run server:typecheck && npx tsc -p tsconfig.server.json
 
 # ────────────────────────────────────────────────────────────────────────────
 # Stage 2: Runtime — nginx (frontend) + Node/Express (backend API)
@@ -28,8 +29,8 @@ RUN npm ci
 # Copy the built frontend
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy the Express server source
-COPY server ./server
+# Copy the compiled Express server
+COPY --from=builder /app/dist-server ./dist-server
 
 # Copy nginx config
 COPY nginx.conf /etc/nginx/sites-available/default

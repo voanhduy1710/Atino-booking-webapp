@@ -11,7 +11,9 @@ interface StaffUser {
 }
 
 function getStaffUsers(): StaffUser[] {
-  const raw = process.env.STAFF_USERS ?? process.env.VITE_STAFF_USERS
+  const raw = process.env.STAFF_USERS_B64
+    ? Buffer.from(process.env.STAFF_USERS_B64, 'base64').toString('utf8')
+    : (process.env.STAFF_USERS ?? process.env.VITE_STAFF_USERS)
   if (!raw) return []
   try {
     const parsed = JSON.parse(raw) as StaffUser[]
