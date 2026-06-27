@@ -1,28 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { ProductProcessCatalog } from '@/shared/types/domain'
 
-interface Props {
+interface Props<T> {
   placeholder: string
-  selectedId: string
-  options: ProductProcessCatalog[]
-  getLabel: (option: ProductProcessCatalog) => string
-  onSelect: (id: string) => void
+  value: string
+  options: T[]
+  getLabel: (option: T) => string
+  getSubtext?: (option: T) => string
+  onSelect: (option: T | null) => void
   error?: boolean
   inputClassName?: string
 }
 
-export function ProductProcessCombobox({ placeholder, selectedId, options, getLabel, onSelect, error, inputClassName = '' }: Props) {
-  const selected = options.find((option) => option.id === selectedId)
-  const [query, setQuery] = useState(selected ? getLabel(selected) : '')
+export function ProductProcessCombobox<T>({
+  placeholder,
+  value,
+  options,
+  getLabel,
+  getSubtext,
+  onSelect,
+  error,
+  inputClassName = '',
+}: Props<T>) {
+  const [query, setQuery] = useState(value)
   const [isOpen, setIsOpen] = useState(false)
   const [menuRect, setMenuRect] = useState<DOMRect | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (selected) setQuery(getLabel(selected))
-  }, [selectedId, selected, getLabel])
+    setQuery(value)
+  }, [value])
 
   const closeMenu = () => {
     setIsOpen(false)
@@ -38,7 +46,7 @@ export function ProductProcessCombobox({ placeholder, selectedId, options, getLa
     const handleMouseDown = (event: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
         closeMenu()
-        setQuery(selected ? getLabel(selected) : '')
+        setQuery(value)
       }
     }
     const handleScrollOrResize = () => {
@@ -52,18 +60,19 @@ export function ProductProcessCombobox({ placeholder, selectedId, options, getLa
       window.removeEventListener('scroll', handleScrollOrResize, true)
       window.removeEventListener('resize', handleScrollOrResize)
     }
-  }, [selected, getLabel, isOpen])
+  }, [value, isOpen])
 
   const filteredOptions = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return options.slice(0, 30)
+    if (!q || query === value) return options.slice(0, 30)
     return options
-      .filter((option) =>
-        option.product_name.toLowerCase().includes(q) ||
-        option.order_code.toLowerCase().includes(q)
-      )
+      .filter((option) => {
+        const label = getLabel(option).toLowerCase()
+        const subtext = getSubtext ? getSubtext(option).toLowerCase() : ''
+        return label.includes(q) || subtext.includes(q)
+      })
       .slice(0, 30)
-  }, [options, query])
+  }, [options, query, value, getLabel, getSubtext])
 
   const menuWidth = menuRect ? Math.min(360, window.innerWidth - 16) : 0
   const menuLeft = menuRect ? Math.max(8, Math.min(menuRect.left, window.innerWidth - menuWidth - 8)) : 0
@@ -75,10 +84,10 @@ export function ProductProcessCombobox({ placeholder, selectedId, options, getLa
         type="text"
         value={query}
         onChange={(event) => {
-          const value = event.target.value
-          setQuery(value)
+          const val = event.target.value
+          setQuery(val)
           openMenu()
-          if (selectedId || !value) onSelect('')
+          if (value || !val) onSelect(null)
         }}
         onFocus={openMenu}
         className={`input-field text-sm ${inputClassName} ${error ? 'input-field-error' : ''}`}
@@ -95,23 +104,26 @@ export function ProductProcessCombobox({ placeholder, selectedId, options, getLa
           }}
         >
           {filteredOptions.length > 0 ? (
-            filteredOptions.map((option) => (
+            filteredOptions.map((option, idx) => (
               <button
-                key={option.id}
+                key={`${getLabel(option)}::${idx}`}
                 type="button"
-                className={`block w-full px-3 py-2 text-left text-xs hover:bg-[#f1ebf4] ${option.id === selectedId ? 'bg-[#fdf8ff] font-semibold' : ''
-                  }`}
+                className={`block w-full px-3 py-2 text-left text-xs hover:bg-[#f1ebf4] ${
+                  getLabel(option) === value ? 'bg-[#fdf8ff] font-semibold' : ''
+                }`}
                 onMouseDown={(event) => {
                   event.preventDefault()
-                  onSelect(option.id)
+                  onSelect(option)
                   setQuery(getLabel(option))
                   closeMenu()
                 }}
               >
-                <span className="block truncate">{getLabel(option)}</span>
-                <span className="block truncate text-[#888888]">
-                  {option.product_name} · {option.order_code}
-                </span>
+                <span className="block truncate font-medium text-[#514253]">{getLabel(option)}</span>
+                {getSubtext && (
+                  <span className="block truncate text-[#888888] text-[10px] mt-0.5">
+                    {getSubtext(option)}
+                  </span>
+                )}
               </button>
             ))
           ) : (

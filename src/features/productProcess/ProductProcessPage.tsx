@@ -26,6 +26,8 @@ export default function ProductProcessPage() {
   const [isSyncing, setIsSyncing] = useState(false)
   const [isHydrating, setIsHydrating] = useState(false)
   const [isHydrationLeaving, setIsHydrationLeaving] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const rowsPerPage = 50
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: PRODUCT_PROCESS_CATALOG_QUERY_KEY,
@@ -43,6 +45,17 @@ export default function ProductProcessPage() {
       (row.order_date ?? '').toLowerCase().includes(q)
     )
   }, [rows, search])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search])
+
+  const paginatedRows = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage
+    return filteredRows.slice(startIndex, startIndex + rowsPerPage)
+  }, [filteredRows, currentPage])
+
+  const totalPages = Math.ceil(filteredRows.length / rowsPerPage)
 
   const lastSync = rows
     .map((row) => row.last_synced_at)
@@ -156,9 +169,11 @@ export default function ProductProcessPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRows.map((row, index) => (
+                  {paginatedRows.map((row, index) => (
                     <tr key={row.id}>
-                      <td className="table-cell text-center text-[#888888]">{index + 1}</td>
+                      <td className="table-cell text-center text-[#888888]">
+                        {(currentPage - 1) * rowsPerPage + index + 1}
+                      </td>
                       <td className="table-cell font-medium">{row.product_name}</td>
                       <td className="table-cell font-mono">{row.order_code}</td>
                       <td className="table-cell font-mono">{row.warehouse_code ?? '—'}</td>
@@ -184,6 +199,32 @@ export default function ProductProcessPage() {
                 </tbody>
               </table>
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-[#ecdbe8] px-4 py-3 bg-white flex-wrap gap-2">
+                <div className="text-sm text-[#888888]">
+                  Hiển thị {Math.min(filteredRows.length, (currentPage - 1) * rowsPerPage + 1)} - {Math.min(filteredRows.length, currentPage * rowsPerPage)} trong tổng số {filteredRows.length} dòng
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    className="btn-secondary py-1 px-3 text-xs disabled:opacity-50"
+                  >
+                    Trước
+                  </button>
+                  <span className="text-sm font-medium text-[#514253]">
+                    Trang {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    className="btn-secondary py-1 px-3 text-xs disabled:opacity-50"
+                  >
+                    Sau
+                  </button>
+                </div>
+              </div>
+            )}
             {isHydrating && (
               <div className={`product-process-sync-overlay ${isHydrationLeaving ? 'product-process-sync-overlay--leave' : ''}`}>
                 <div className="flex items-center gap-3 rounded border border-[#ecdbe8] bg-white px-4 py-3 shadow-sm">

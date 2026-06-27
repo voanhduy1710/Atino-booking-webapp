@@ -60,23 +60,116 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
 
   const itemErrors = errors.items?.[index]
   const uploadPrefix = rowId.replace(/[^a-zA-Z0-9_-]/g, '')
-  const selectedProductProcessId = productProcessOptions.find(
-    (option) => option.product_name === productCode && option.order_code === processCode
-  )?.id ?? ''
+
+  const productToOrderCodesMap = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const item of productProcessOptions) {
+      const list = map.get(item.product_name) || []
+      if (!list.includes(item.order_code)) {
+        list.push(item.order_code)
+        map.set(item.product_name, list)
+      }
+    }
+    for (const val of map.values()) {
+      val.sort()
+    }
+    return map
+  }, [productProcessOptions])
+
+  const orderCodeToProductsMap = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const item of productProcessOptions) {
+      const list = map.get(item.order_code) || []
+      if (!list.includes(item.product_name)) {
+        list.push(item.product_name)
+        map.set(item.order_code, list)
+      }
+    }
+    for (const val of map.values()) {
+      val.sort()
+    }
+    return map
+  }, [productProcessOptions])
+
+  const productOptions = useMemo(() => {
+    const filtered = productProcessOptions.filter(
+      (item) => !processCode || item.order_code === processCode
+    )
+    return Array.from(new Set(filtered.map((item) => item.product_name))).sort()
+  }, [productProcessOptions, processCode])
+
+  const processOptions = useMemo(() => {
+    const filtered = productProcessOptions.filter(
+      (item) => !productCode || item.product_name === productCode
+    )
+    return Array.from(new Set(filtered.map((item) => item.order_code))).sort()
+  }, [productProcessOptions, productCode])
+
+  const getProductSubtext = (productName: string) => {
+    const orderCodes = productToOrderCodesMap.get(productName) || []
+    return `${productName} · ${orderCodes.join(', ')}`
+  }
+
+  const getProcessSubtext = (orderCode: string) => {
+    const productNames = orderCodeToProductsMap.get(orderCode) || []
+    return `${productNames.join(', ')} · ${orderCode}`
+  }
 
   const matchingProductRows = useMemo(
-    () => productProcessOptions.filter((option) => option.product_name === productCode && option.order_code === processCode),
+    () => productProcessOptions.filter(
+      (option) =>
+        (!productCode || option.product_name === productCode) &&
+        (!processCode || option.order_code === processCode)
+    ),
     [productProcessOptions, productCode, processCode]
   )
-  const warehouseOptions = unique(matchingProductRows.map((option) => option.warehouse_code))
-  const mauOptions = unique(matchingProductRows.filter((option) => !warehouseCode || option.warehouse_code === warehouseCode).map((option) => option.mau))
+  const warehouseOptions = unique(matchingProductRows.map((option) => option.warehouse_code)).sort()
+  const mauOptions = unique(
+    matchingProductRows
+      .filter((option) => !warehouseCode || option.warehouse_code === warehouseCode)
+      .map((option) => option.mau)
+  ).sort()
 
-  const handleProductProcessChange = (id: string) => {
-    const option = productProcessOptions.find((item) => item.id === id)
-    setValue(`items.${index}.product_code`, option?.product_name ?? '', { shouldValidate: true })
-    setValue(`items.${index}.process_code`, option?.order_code ?? '', { shouldValidate: true })
-    setValue(`items.${index}.warehouse_code`, option?.warehouse_code ?? '', { shouldValidate: true })
-    setValue(`items.${index}.mau`, option?.mau ?? '', { shouldValidate: true })
+  const handleProductSelect = (productName: string | null) => {
+    setValue(`items.${index}.product_code`, productName ?? '', { shouldValidate: true })
+    if (productName) {
+      const matches = productProcessOptions.filter(
+        (item) => item.product_name === productName
+      )
+      const uniqueOrderCodes = Array.from(new Set(matches.map((item) => item.order_code)))
+      if (uniqueOrderCodes.length === 1) {
+        setValue(`items.${index}.process_code`, uniqueOrderCodes[0], { shouldValidate: true })
+      } else if (processCode && uniqueOrderCodes.includes(processCode)) {
+        // Keep current processCode if it's still valid
+      } else {
+        setValue(`items.${index}.process_code`, '')
+      }
+    } else {
+      setValue(`items.${index}.process_code`, '')
+    }
+    setValue(`items.${index}.warehouse_code`, '')
+    setValue(`items.${index}.mau`, '')
+  }
+
+  const handleProcessSelect = (orderCode: string | null) => {
+    setValue(`items.${index}.process_code`, orderCode ?? '', { shouldValidate: true })
+    if (orderCode) {
+      const matches = productProcessOptions.filter(
+        (item) => item.order_code === orderCode
+      )
+      const uniqueProductNames = Array.from(new Set(matches.map((item) => item.product_name)))
+      if (uniqueProductNames.length === 1) {
+        setValue(`items.${index}.product_code`, uniqueProductNames[0], { shouldValidate: true })
+      } else if (productCode && uniqueProductNames.includes(productCode)) {
+        // Keep current productCode if it's still valid
+      } else {
+        setValue(`items.${index}.product_code`, '')
+      }
+    } else {
+      setValue(`items.${index}.product_code`, '')
+    }
+    setValue(`items.${index}.warehouse_code`, '')
+    setValue(`items.${index}.mau`, '')
   }
 
   const recalcTotal = (field: (typeof SIZE_FIELDS)[number][0], nextValue: number | null) => {
@@ -155,10 +248,11 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
       <td className="table-cell !px-1 !py-2">
         <ProductProcessCombobox
           placeholder="Tên SP"
-          selectedId={selectedProductProcessId}
-          options={productProcessOptions}
-          getLabel={(option) => option.product_name}
-          onSelect={handleProductProcessChange}
+          value={productCode ?? ''}
+          options={productOptions}
+          getLabel={(option) => option}
+          getSubtext={getProductSubtext}
+          onSelect={handleProductSelect}
           error={Boolean(itemErrors?.product_code)}
           inputClassName="!px-2 !py-1 text-xs"
         />
@@ -169,10 +263,11 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
       <td className="table-cell !px-1 !py-2">
         <ProductProcessCombobox
           placeholder="Mã đơn"
-          selectedId={selectedProductProcessId}
-          options={productProcessOptions}
-          getLabel={(option) => option.order_code}
-          onSelect={handleProductProcessChange}
+          value={processCode ?? ''}
+          options={processOptions}
+          getLabel={(option) => option}
+          getSubtext={getProcessSubtext}
+          onSelect={handleProcessSelect}
           error={Boolean(itemErrors?.process_code)}
           inputClassName="!px-2 !py-1 text-xs"
         />

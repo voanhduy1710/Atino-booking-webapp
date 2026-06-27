@@ -11,7 +11,6 @@ router.use((_req, res, next) => {
 const LARK_BASE_URL = 'https://open.larksuite.com/open-apis'
 const LARK_APP_TOKEN = 'At3fbwyI5a1Ps1srOpxlhkfqgVf'
 const LARK_TABLE_ID = 'tbliLUxbP4F5kHA8'
-const LARK_VIEW_ID = 'veww9xRIkB'
 
 const FIELDS = {
   product: 'Tên SP',
@@ -158,43 +157,79 @@ function cellToISODate(value: unknown): string | null {
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
 }
 
-function larkRowsToCatalogRows(rows: LarkRow[]): CatalogRow[] {
-  const syncedAt = new Date().toISOString()
+function larkRowsToCatalogRows(rows: LarkRow[], syncStartTime: string): CatalogRow[] {
   return rows.map((row) => ({
     id: row.lark_record_id,
     ...row,
     active: true,
-    last_synced_at: syncedAt,
+    last_synced_at: syncStartTime,
   }))
-}
-
-function supabaseInList(values: string[]): string {
-  return `(${values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(',')})`
 }
 
 async function selectCatalogRows() {
   const supabase = getSupabase()
-  const withMau = await supabase
-    .from('product_process_catalog')
-    .select(CATALOG_SELECT_WITH_MAU)
-    .eq('active', true)
-    .order('product_name', { ascending: true })
-    .order('order_code', { ascending: true })
-    .order('warehouse_code', { ascending: true })
-    .order('mau', { ascending: true })
+  let allRows: CatalogRow[] = []
+  let from = 0
+  const limit = 1000
+  let hasMore = true
+  let useLegacy = false
 
-  if (!withMau.error) return normalizeCatalogRows(withMau.data as CatalogRow[])
-  if (!isSchemaCacheError(withMau.error, 'mau')) throw withMau.error
+  while (hasMore) {
+    const withMau = await supabase
+      .from('product_process_catalog')
+      .select(CATALOG_SELECT_WITH_MAU)
+      .eq('active', true)
+      .order('product_name', { ascending: true })
+      .order('order_code', { ascending: true })
+      .order('warehouse_code', { ascending: true })
+      .order('mau', { ascending: true })
+      .range(from, from + limit - 1)
 
-  const legacy = await supabase
-    .from('product_process_catalog')
-    .select(CATALOG_SELECT_LEGACY)
-    .eq('active', true)
-    .order('product_name', { ascending: true })
-    .order('order_code', { ascending: true })
+    if (withMau.error) {
+      if (isSchemaCacheError(withMau.error, 'mau')) {
+        useLegacy = true
+        break
+      }
+      throw withMau.error
+    }
 
-  if (legacy.error) throw legacy.error
-  return normalizeCatalogRows(legacy.data as CatalogRow[])
+    const data = withMau.data as CatalogRow[]
+    allRows.push(...data)
+    if (data.length < limit) {
+      hasMore = false
+    } else {
+      from += limit
+    }
+  }
+
+  if (!useLegacy) {
+    return normalizeCatalogRows(allRows)
+  }
+
+  allRows = []
+  from = 0
+  hasMore = true
+  while (hasMore) {
+    const legacy = await supabase
+      .from('product_process_catalog')
+      .select(CATALOG_SELECT_LEGACY)
+      .eq('active', true)
+      .order('product_name', { ascending: true })
+      .order('order_code', { ascending: true })
+      .range(from, from + limit - 1)
+
+    if (legacy.error) throw legacy.error
+
+    const data = legacy.data as CatalogRow[]
+    allRows.push(...data)
+    if (data.length < limit) {
+      hasMore = false
+    } else {
+      from += limit
+    }
+  }
+
+  return normalizeCatalogRows(allRows)
 }
 
 function omitFields<T extends Record<string, unknown>>(row: T, fields: string[]) {
@@ -203,16 +238,15 @@ function omitFields<T extends Record<string, unknown>>(row: T, fields: string[])
   return copy
 }
 
-async function upsertCatalogRows(rows: LarkRow[]) {
+async function upsertCatalogRows(rows: LarkRow[], syncStartTime: string) {
   if (rows.length === 0) return
 
   const supabase = getSupabase()
-  const now = new Date().toISOString()
   const payload = rows.map((row) => ({
     ...row,
     active: true,
-    last_synced_at: now,
-    updated_at: now,
+    last_synced_at: syncStartTime,
+    updated_at: syncStartTime,
     size_s_28: row.size_s_28 ?? 0,
     size_m_29: row.size_m_29 ?? 0,
     size_l_30: row.size_l_30 ?? 0,
@@ -221,34 +255,41 @@ async function upsertCatalogRows(rows: LarkRow[]) {
     size_3xl_33: row.size_3xl_33 ?? 0,
   }))
 
-  const full = await supabase
-    .from('product_process_catalog')
-    .upsert(payload, { onConflict: 'lark_record_id' })
-  if (!full.error) return
-  if (!isSchemaCacheError(full.error)) throw full.error
+  const chunkSize = 500
+  for (let i = 0; i < payload.length; i += chunkSize) {
+    const chunk = payload.slice(i, i + chunkSize)
+    const full = await supabase
+      .from('product_process_catalog')
+      .upsert(chunk, { onConflict: 'lark_record_id' })
 
-  const withoutMau = await supabase
-    .from('product_process_catalog')
-    .upsert(payload.map((row) => omitFields(row, ['mau'])), { onConflict: 'lark_record_id' })
-  if (!withoutMau.error) return
-  if (!isSchemaCacheError(withoutMau.error)) throw withoutMau.error
+    if (full.error) {
+      if (!isSchemaCacheError(full.error)) throw full.error
 
-  const legacyFields = [
-    'warehouse_code',
-    'mau',
-    'order_date',
-    'total_quantity',
-    'size_s_28',
-    'size_m_29',
-    'size_l_30',
-    'size_xl_31',
-    'size_2xl_32',
-    'size_3xl_33',
-  ]
-  const legacy = await supabase
-    .from('product_process_catalog')
-    .upsert(payload.map((row) => omitFields(row, legacyFields)), { onConflict: 'lark_record_id' })
-  if (legacy.error) throw legacy.error
+      const withoutMau = await supabase
+        .from('product_process_catalog')
+        .upsert(chunk.map((row) => omitFields(row, ['mau'])), { onConflict: 'lark_record_id' })
+      if (withoutMau.error) {
+        if (!isSchemaCacheError(withoutMau.error)) throw withoutMau.error
+
+        const legacyFields = [
+          'warehouse_code',
+          'mau',
+          'order_date',
+          'total_quantity',
+          'size_s_28',
+          'size_m_29',
+          'size_l_30',
+          'size_xl_31',
+          'size_2xl_32',
+          'size_3xl_33',
+        ]
+        const legacy = await supabase
+          .from('product_process_catalog')
+          .upsert(chunk.map((row) => omitFields(row, legacyFields)), { onConflict: 'lark_record_id' })
+        if (legacy.error) throw legacy.error
+      }
+    }
+  }
 }
 
 async function fetchLarkRows() {
@@ -258,7 +299,6 @@ async function fetchLarkRows() {
 
   do {
     const url = new URL(`${LARK_BASE_URL}/bitable/v1/apps/${LARK_APP_TOKEN}/tables/${LARK_TABLE_ID}/records`)
-    url.searchParams.set('view_id', LARK_VIEW_ID)
     url.searchParams.set('page_size', '100')
     if (pageToken) url.searchParams.set('page_token', pageToken)
 
@@ -341,23 +381,22 @@ router.get('/', async (_req: Request, res: Response): Promise<void> => {
 
 router.post('/sync', async (_req: Request, res: Response): Promise<void> => {
   try {
+    const syncStartTime = new Date().toISOString()
     const rows = await fetchLarkRows()
     const supabase = getSupabase()
 
-    await upsertCatalogRows(rows)
+    await upsertCatalogRows(rows, syncStartTime)
 
-    const activeRecordIds = rows.map((row) => row.lark_record_id)
-    if (activeRecordIds.length > 0) {
-      const { error: deactivateError } = await supabase
-        .from('product_process_catalog')
-        .update({ active: false, updated_at: new Date().toISOString() })
-        .not('lark_record_id', 'in', supabaseInList(activeRecordIds))
-      if (deactivateError) throw deactivateError
-    }
+    const { error: deactivateError } = await supabase
+      .from('product_process_catalog')
+      .update({ active: false, updated_at: syncStartTime })
+      .or(`last_synced_at.lt."${syncStartTime}",last_synced_at.is.null`)
 
-    syncedCatalogRows = larkRowsToCatalogRows(rows)
+    if (deactivateError) throw deactivateError
 
-    res.json({ synced: rows.length, ts: new Date().toISOString(), items: syncedCatalogRows })
+    syncedCatalogRows = larkRowsToCatalogRows(rows, syncStartTime)
+
+    res.json({ synced: rows.length, ts: syncStartTime, items: syncedCatalogRows })
   } catch (err) {
     res.status(500).json({ error: (err as Error).message })
   }
