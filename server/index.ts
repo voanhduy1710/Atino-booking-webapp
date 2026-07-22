@@ -5,6 +5,7 @@ import express from 'express'
 import type { ErrorRequestHandler, Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import { randomUUID } from 'crypto'
+import path from 'path'
 import uploadRouter from './routes/upload.js'
 import bookingRouter from './routes/booking.js'
 import productProcessRouter from './routes/productProcess.js'
@@ -26,7 +27,7 @@ declare module 'express-serve-static-core' {
 }
 
 const app = express()
-const PORT = 3001
+const PORT = Number(process.env.PORT ?? 3001)
 const isProduction = process.env.NODE_ENV === 'production'
 
 function getClientIp(req: Request): string {
@@ -102,6 +103,12 @@ app.use('/api/notifications', notificationsRouter)
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', ts: new Date().toISOString() })
+})
+
+const frontendDir = path.resolve(process.cwd(), 'dist')
+app.use(express.static(frontendDir))
+app.get('/{*path}', (_req, res) => {
+  res.sendFile(path.join(frontendDir, 'index.html'))
 })
 
 const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
