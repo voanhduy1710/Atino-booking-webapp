@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { RequireRole } from '@/features/auth/guard/RequireRole'
 import { ROUTE_PERMISSIONS } from '@/shared/config/permissions'
+import { getCurrentUser } from '@/shared/lib/auth'
 
 const LandingPage        = lazy(() => import('@/features/home/LandingPage'))
 const GuidePage          = lazy(() => import('@/features/home/GuidePage'))
@@ -14,6 +15,7 @@ const BookingConfirmationPage = lazy(() => import('@/features/booking/components
 const BookingDetailPublic = lazy(() => import('@/features/booking/components/BookingDetailPublic'))
 const MyBookingsPage     = lazy(() => import('@/features/booking/MyBookings'))
 const ReviewerPage       = lazy(() => import('@/features/warehouse/ReviewerPage'))
+const ReceiverPage       = lazy(() => import('@/features/warehouse/receiver'))
 const WarehousesPage     = lazy(() => import('@/features/warehouse/WarehousesPage'))
 const SuppliersPage      = lazy(() => import('@/features/supplier/SuppliersPage'))
 const AccountsPage       = lazy(() => import('@/features/auth/AccountsPage'))
@@ -30,6 +32,10 @@ const Fallback = () => (
 function Guard({ path, children }: { path: string; children: React.ReactNode }) {
   const roles = ROUTE_PERMISSIONS[path] ?? []
   return <RequireRole roles={roles}>{children}</RequireRole>
+}
+
+function ReviewBookingPage() {
+  return getCurrentUser()?.role === 'warehouse_receiver' ? <ReceiverPage /> : <ReviewerPage />
 }
 
 export function AppRoutes() {
@@ -57,7 +63,7 @@ export function AppRoutes() {
 
         {/* Staff & management — flat routes */}
         <Route path="/reviewbooking" element={
-          <Guard path="/reviewbooking"><ReviewerPage /></Guard>
+          <Guard path="/reviewbooking"><ReviewBookingPage /></Guard>
         } />
         <Route path="/report" element={
           <Guard path="/report"><ReportPage /></Guard>

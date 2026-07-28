@@ -47,6 +47,8 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
 
   const slipInputRef = useRef<HTMLInputElement>(null)
   const vatInputRef = useRef<HTMLInputElement>(null)
+  const slipCameraRef = useRef<HTMLInputElement>(null)
+  const vatCameraRef = useRef<HTMLInputElement>(null)
 
   const deliveryRound = watch(`items.${index}.delivery_round`)
   const isFinalRound = watch(`items.${index}.is_final_round`)
@@ -242,10 +244,10 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
   }
 
   return (
-    <tr className="border-b border-[#ecdbe8] align-top">
-      <td className="table-cell !px-1 !py-2 text-center text-xs font-medium text-[#888888]">{index + 1}</td>
+    <tr className="po-mobile-row border-b border-[#ecdbe8] align-top">
+      <td data-label="PO" className="po-mobile-cell po-wide table-cell !px-1 !py-2 text-center text-xs font-medium text-[#888888]">{index + 1}</td>
 
-      <td className="table-cell !px-1 !py-2">
+      <td data-label="Tên sản phẩm" className="po-mobile-cell po-wide table-cell !px-1 !py-2">
         <ProductProcessCombobox
           placeholder="Tên SP"
           value={productCode ?? ''}
@@ -260,7 +262,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
         <input type="hidden" {...register(`items.${index}.product_code`)} />
       </td>
 
-      <td className="table-cell !px-1 !py-2">
+      <td data-label="Mã đơn" className="po-mobile-cell po-wide table-cell !px-1 !py-2">
         <ProductProcessCombobox
           placeholder="Mã đơn"
           value={processCode ?? ''}
@@ -275,7 +277,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
         <input type="hidden" {...register(`items.${index}.process_code`)} />
       </td>
 
-      <td className="table-cell !px-1 !py-2">
+      <td data-label="Mã kho" className="po-mobile-cell table-cell !px-1 !py-2">
         <select
           className={`input-field !px-1 !py-1 text-xs ${itemErrors?.warehouse_code ? 'input-field-error' : ''}`}
           value={warehouseCode ?? ''}
@@ -290,7 +292,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
         <input type="hidden" {...register(`items.${index}.warehouse_code`)} />
       </td>
 
-      <td className="table-cell !px-1 !py-2">
+      <td data-label="Màu" className="po-mobile-cell table-cell !px-1 !py-2">
         <select
           className={`input-field !px-1 !py-1 text-xs ${itemErrors?.mau ? 'input-field-error' : ''}`}
           value={mau ?? ''}
@@ -302,7 +304,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
         <input type="hidden" {...register(`items.${index}.mau`)} />
       </td>
 
-      <td className="table-cell !px-1 !py-2 text-right">
+      <td data-label="Tổng số lượng" className="po-mobile-cell table-cell !px-1 !py-2 text-right">
         <input readOnly value={totalQuantity} className={`input-field !px-1 !py-1 text-xs bg-[#F5F5F5] ${itemErrors?.total_quantity ? 'input-field-error' : ''}`} />
         <input type="hidden" {...register(`items.${index}.total_quantity`, { valueAsNumber: true })} />
         <input type="hidden" {...register(`items.${index}.quantity_booked`, { valueAsNumber: true })} />
@@ -310,7 +312,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
       </td>
 
       {SIZE_FIELDS.map(([field, label]) => (
-        <td key={field} className="table-cell !px-1 !py-2">
+        <td key={field} data-label={label} className="po-mobile-cell table-cell !px-1 !py-2">
           <input
             type="number"
             min={0}
@@ -326,7 +328,7 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
         </td>
       ))}
 
-      <td className="table-cell !px-1 !py-2">
+      <td data-label="Lần giao / VAT" className="po-mobile-cell po-wide table-cell !px-1 !py-2">
         <select
           className="input-field !px-1 !py-1 text-xs"
           value={isFinalRound ? 'final' : deliveryRound}
@@ -363,18 +365,21 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
                   </div>
                 ))}
               </div>
-              <button type="button" onClick={() => vatInputRef.current?.click()} disabled={vatFiles.filter((f) => f.status !== 'error').length >= MAX_FILES_PER_ATTACHMENT_TYPE} className="flex items-center gap-1 text-xs border border-dashed border-[#ecdbe8] hover:border-[#80417A] disabled:opacity-40 rounded px-2 py-1 transition-colors">
-                {vatUploading ? <LoadingSpinner size="sm" /> : '+'}
-                Thêm VAT
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => vatCameraRef.current?.click()} disabled={vatFiles.filter((f) => f.status !== 'error').length >= MAX_FILES_PER_ATTACHMENT_TYPE} className="min-h-11 rounded border border-dashed border-[#ecdbe8] px-3 text-xs hover:border-[#80417A] disabled:opacity-40">📷 Chụp</button>
+                <button type="button" onClick={() => vatInputRef.current?.click()} disabled={vatFiles.filter((f) => f.status !== 'error').length >= MAX_FILES_PER_ATTACHMENT_TYPE} className="min-h-11 rounded border border-dashed border-[#ecdbe8] px-3 text-xs hover:border-[#80417A] disabled:opacity-40">
+                  {vatUploading ? <LoadingSpinner size="sm" /> : '+'} Thư viện
+                </button>
+              </div>
             </div>
+            <input ref={vatCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleVatUpload} />
             <input ref={vatInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" multiple className="hidden" onChange={handleVatUpload} />
             {(itemErrors?.vat_temp_paths as any)?.message && <p className="form-error">{(itemErrors?.vat_temp_paths as any).message}</p>}
           </div>
         )}
       </td>
 
-      <td className="table-cell !px-1 !py-2">
+      <td data-label="Ảnh phiếu giao" className="po-mobile-cell po-wide table-cell !px-1 !py-2">
         <div className="space-y-1">
           <div className="flex flex-wrap gap-1">
             {slipPaths.filter((path) => !slipFiles.some((file) => file.tempPath === path)).map((path) => (
@@ -390,16 +395,19 @@ export function PoRow({ index, rowId, register, errors, sessionId, supplierCode,
               </div>
             ))}
           </div>
-          <button type="button" onClick={() => slipInputRef.current?.click()} disabled={slipFiles.filter((f) => f.status !== 'error').length >= MAX_FILES_PER_ATTACHMENT_TYPE} className="flex items-center gap-1 text-[11px] border border-dashed border-[#ecdbe8] hover:border-[#80417A] disabled:opacity-40 rounded px-1.5 py-1 transition-colors">
-            {slipUploading ? <LoadingSpinner size="sm" /> : '+'}
-            Thêm Ảnh
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => slipCameraRef.current?.click()} disabled={slipFiles.filter((f) => f.status !== 'error').length >= MAX_FILES_PER_ATTACHMENT_TYPE} className="min-h-11 rounded border border-dashed border-[#ecdbe8] px-3 text-[11px] hover:border-[#80417A] disabled:opacity-40">📷 Chụp</button>
+            <button type="button" onClick={() => slipInputRef.current?.click()} disabled={slipFiles.filter((f) => f.status !== 'error').length >= MAX_FILES_PER_ATTACHMENT_TYPE} className="min-h-11 rounded border border-dashed border-[#ecdbe8] px-3 text-[11px] hover:border-[#80417A] disabled:opacity-40">
+              {slipUploading ? <LoadingSpinner size="sm" /> : '+'} Thư viện
+            </button>
+          </div>
+          <input ref={slipCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleSlipUpload} />
           <input ref={slipInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" multiple className="hidden" onChange={handleSlipUpload} />
         </div>
         {itemErrors?.slip_temp_paths?.message && <p className="form-error">{itemErrors.slip_temp_paths.message as string}</p>}
       </td>
 
-      <td className="table-cell !px-1 !py-2">
+      <td data-label="Thao tác" className="po-mobile-cell po-wide table-cell !px-1 !py-2">
         <div className="flex items-center justify-center gap-1">
           <button type="button" onClick={handleCopy} className="h-7 whitespace-nowrap rounded border border-[#d5c0d5] px-1.5 text-xs text-[#514253] hover:border-[#80417A] hover:text-[#80417A] transition-colors" aria-label="Copy dòng" title="Copy dòng">
             Copy dòng

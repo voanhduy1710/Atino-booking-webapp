@@ -1,12 +1,12 @@
 import { useCallback, useRef, useState } from 'react'
 import { ALLOWED_UPLOAD_MIME_TYPES, MAX_UPLOAD_MB } from '@/shared/constants/uploads'
-import { postForm } from '@/shared/lib/apiClient'
+import { postFormWithProgress, postJson } from '@/shared/lib/apiClient'
 
 export interface UploadedFileEntry {
   file: File
   /** The relative temp path under the configured GCS prefix. */
   tempPath: string
-  /** Public GCS URL. */
+  /** Short-lived preview URL. */
   publicUrl: string
   status: 'uploading' | 'done' | 'error'
   progress: number
@@ -15,7 +15,9 @@ export interface UploadedFileEntry {
 
 const GCS_UPLOAD_PATH = '/api/upload/gcs'
 
-export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
+export function usePhotoUpload(_sessionId: string, _supplierCode = 'NCC') {
+  void _sessionId
+  void _supplierCode
   const [files, setFiles] = useState<UploadedFileEntry[]>([])
   const countRef = useRef(0)
 
@@ -31,8 +33,7 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
       if (validationError) return null
 
       countRef.current += 1
-      const ext = file.name.split('.').pop() ?? 'jpg'
-      const relativePath = `temp/${sessionId}/${supplierCode}_${prefix}_${countRef.current}.${ext}`
+      const relativePath = `upload-${prefix}-${countRef.current}`
 
       const entry: UploadedFileEntry = {
         file,
@@ -46,19 +47,23 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
       try {
         const form = new FormData()
         form.append('file', file)
-        form.append('path', relativePath)
-
-        const result = await postForm<{ url?: string }>(GCS_UPLOAD_PATH, form)
-        if (!result.url) throw new Error('Upload thất bại')
+        const result = await postFormWithProgress<{ url?: string; path?: string }>(
+          GCS_UPLOAD_PATH,
+          form,
+          (progress) => setFiles((prev) => prev.map((item) =>
+            item.tempPath === relativePath ? { ...item, progress } : item
+          ))
+        )
+        if (!result.url || !result.path) throw new Error('Upload failed')
 
         setFiles((prev) =>
           prev.map((f) =>
             f.tempPath === relativePath
-              ? { ...f, publicUrl: result.url!, status: 'done', progress: 100 }
+              ? { ...f, tempPath: result.path!, publicUrl: result.url!, status: 'done', progress: 100 }
               : f
           )
         )
-        return relativePath
+        return result.path
       } catch (err) {
         const msg = (err as Error).message
         setFiles((prev) =>
@@ -69,11 +74,16 @@ export function usePhotoUpload(sessionId: string, supplierCode = 'NCC') {
         return null
       }
     },
-    [sessionId, supplierCode]
+    []
   )
 
   const remove = useCallback((tempPath: string) => {
     setFiles((prev) => prev.filter((f) => f.tempPath !== tempPath))
+    if (!tempPath.startsWith('upload-')) {
+      void postJson<{ ok: true }>(GCS_UPLOAD_PATH, { path: tempPath }, { method: 'DELETE' }).catch(() => {
+        // Retention cleanup remains server-side; removal must not block form edits.
+      })
+    }
   }, [])
 
   const retry = useCallback(

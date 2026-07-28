@@ -9,11 +9,7 @@ export const ROLE_TABS: Record<string, NavTab[]> = {
     { id: 'report', label: 'Báo cáo', href: '/report' },
   ],
   warehouse_receiver: [
-    { id: 'reviewer', label: 'Xác nhận booking', href: '/reviewbooking' },
-    { id: 'warehouses', label: 'Kho hàng', href: '/warehouses' },
-    { id: 'suppliers', label: 'Nhà cung cấp', href: '/suppliers' },
-    { id: 'product-process', label: 'Mã SP / Mã QT', href: '/product-process' },
-    { id: 'report', label: 'Báo cáo', href: '/report' },
+    { id: 'receiver', label: 'Nhận hàng', href: '/reviewbooking' },
   ],
   manager: [
     { id: 'reviewer', label: 'Xác nhận booking', href: '/reviewbooking' },

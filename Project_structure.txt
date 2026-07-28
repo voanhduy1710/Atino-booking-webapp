@@ -1,9 +1,9 @@
-Generated at: 2026-05-14 09:57:14
+Generated at: 2026-07-27 17:18:07
 Root directory: C:\Atino-booking-webapp
-Folders: 72
-Files: 182
-Lines of code: 26528
-Bytes: 4,685,238
+Folders: 77
+Files: 251
+Lines of code: 33538
+Bytes: 5,496,348
 
 Structure:
 📁 Atino-booking-webapp/
@@ -54,6 +54,21 @@ Structure:
 │   ├── 📄 settings.json.bak
 │   └── 📄 settings.local.json
 ├── 📁 .code-review-graph/
+│   ├── 📁 wiki/
+│   │   ├── 📄 app-app.md
+│   │   ├── 📄 atino-booking-webapp-case.md
+│   │   ├── 📄 atino-booking-webapp-dev.md
+│   │   ├── 📄 atino-booking-webapp-print.md
+│   │   ├── 📄 components-handle.md
+│   │   ├── 📄 config-gcs.md
+│   │   ├── 📄 debug-date.md
+│   │   ├── 📄 etl-normalize.md
+│   │   ├── 📄 index.md
+│   │   ├── 📄 lib-date.md
+│   │   ├── 📄 lib-supabase.md
+│   │   ├── 📄 routes-rows.md
+│   │   ├── 📄 scripts-validate.md
+│   │   └── 📄 server-client.md
 │   ├── 📄 .gitignore
 │   └── 📄 graph.db
 ├── 📁 .codex/
@@ -75,14 +90,27 @@ Structure:
 │   ├── 📄 settings.json
 │   └── 📄 settings.json.bak
 ├── 📁 architecture_doc_files/
+│   ├── 📄 ACCOUNT_MANAGEMENT_PRINCIPLE.md
 │   ├── 📄 DASHBOARD ARCHITECTURE.md
 │   ├── 📄 DATE_FILTER_ARCHITECTURE.md
 │   ├── 📄 DATEPICKER_ARCHITECTURE.md
+│   ├── 📄 DEPLOY_GCP_ARCHITECTURE.md
 │   ├── 📄 DEPLOY_SCRIPTS.md
 │   ├── 📄 GLOBAL_SEARCH_FILTER.md
+│   ├── 📄 LOGGING_ARCHITECTURE.md
+│   ├── 📄 MCP_INSTALLATION_RULES.md
 │   ├── 📄 TAB_ARCHITECTURE.md
 │   └── 📄 TOOLTIP_ARCHITECTURE.md
 ├── 📁 debug/
+│   ├── 📄 audit-backend-routes.mjs
+│   ├── 📄 audit-codebase.mjs
+│   ├── 📄 booking-date-stages.ts
+│   ├── 📄 fix_encoding.py
+│   ├── 📄 fix_encoding2.py
+│   ├── 📄 project_tester.py
+│   ├── 📄 raw_data.json
+│   ├── 📄 raw_data_product.json
+│   ├── 📄 run-project-audit.mjs
 │   ├── 📄 test-finalize.mjs
 │   ├── 📄 test-upload.mjs
 │   └── 📄 test_gcs_upload.ps1
@@ -90,31 +118,57 @@ Structure:
 │   ├── 📄 0. Project_description.md
 │   ├── 📄 1. Principal guideline.md
 │   ├── 📄 14. Handover_rule.md
+│   ├── 📄 15. Deployment_login_troubleshooting.md
 │   ├── 📄 2. Notes_for_agent.md
 │   ├── 📄 3. Architecture_Overview.md
 │   ├── 📄 4. Flow diagram.md
 │   ├── 📄 5. Implementation_plan.md
-│   └── 📄 6. Open_questions.md
+│   ├── 📄 6. Open_questions.md
+│   ├── 📄 7. Definitions.md
+│   └── 📄 8. Workflow.md
 ├── 📁 public/
 │   ├── 📄 Atino Logo.svg
 │   └── 📄 booking-logo.svg
 ├── 📁 secrets/
 │   └── 📄 gcs_booking_webapp_key.json
 ├── 📁 server/
+│   ├── 📁 config/
+│   │   └── 📄 storage.ts
+│   ├── 📁 etl/
+│   │   ├── 📄 nhanhDraftInfo.ts
+│   │   └── 📄 nhanhProductAttributes.ts
 │   ├── 📁 lib/
 │   │   ├── 📄 gcs.ts
-│   │   └── 📄 jwt.ts
+│   │   ├── 📄 httpAuth.ts
+│   │   ├── 📄 jwt.test.ts
+│   │   ├── 📄 jwt.ts
+│   │   ├── 📄 logger.ts
+│   │   └── 📄 supabase.ts
 │   ├── 📁 routes/
+│   │   ├── 📄 accounts.ts
+│   │   ├── 📄 adminResources.ts
+│   │   ├── 📄 amendments.ts
+│   │   ├── 📄 auth.test.ts
+│   │   ├── 📄 auth.ts
+│   │   ├── 📄 booking.test.ts
 │   │   ├── 📄 booking.ts
+│   │   ├── 📄 nhanh.ts
+│   │   ├── 📄 notifications.ts
+│   │   ├── 📄 productProcess.ts
+│   │   ├── 📄 receiver.ts
+│   │   ├── 📄 reviewer.ts
 │   │   └── 📄 upload.ts
 │   └── 📄 index.ts
 ├── 📁 src/
 │   ├── 📁 app/
 │   │   ├── 📄 App.tsx
+│   │   ├── 📄 AppStartupSync.tsx
 │   │   ├── 📄 main.tsx
 │   │   ├── 📄 providers.tsx
 │   │   └── 📄 routes.tsx
 │   ├── 📁 features/
+│   │   ├── 📁 accounts/
+│   │   │   └── 📄 AccountManagement.tsx
 │   │   ├── 📁 admin/
 │   │   │   ├── 📁 components/
 │   │   │   │   └── 📄 LinkBtn.tsx
@@ -125,6 +179,9 @@ Structure:
 │   │   │   ├── 📄 index.tsx
 │   │   │   ├── 📄 ReportPage.tsx
 │   │   │   └── 📄 ViewAsPage.tsx
+│   │   ├── 📁 adminResources/
+│   │   │   ├── 📄 SupplierTable.tsx
+│   │   │   └── 📄 WarehouseTable.tsx
 │   │   ├── 📁 auth/
 │   │   │   ├── 📁 components/
 │   │   │   │   ├── 📄 LoginForm.tsx
@@ -141,7 +198,8 @@ Structure:
 │   │   │   │   ├── 📄 BookingConfirmation.tsx
 │   │   │   │   ├── 📄 BookingDetailPublic.tsx
 │   │   │   │   ├── 📄 BookingForm.tsx
-│   │   │   │   └── 📄 PoRow.tsx
+│   │   │   │   ├── 📄 PoRow.tsx
+│   │   │   │   └── 📄 ProductProcessCombobox.tsx
 │   │   │   ├── 📁 hooks/
 │   │   │   │   ├── 📄 useBookingData.ts
 │   │   │   │   └── 📄 usePhotoUpload.ts
@@ -151,7 +209,6 @@ Structure:
 │   │   │   ├── 📄 GuideCreate.tsx
 │   │   │   ├── 📄 GuidePage.tsx
 │   │   │   ├── 📄 GuideReceiving.tsx
-│   │   │   ├── 📄 GuideTabs.tsx
 │   │   │   └── 📄 LandingPage.tsx
 │   │   ├── 📁 manager/
 │   │   │   └── 📄 index.tsx
@@ -161,6 +218,9 @@ Structure:
 │   │   │   │   └── 📄 NotificationPanel.tsx
 │   │   │   └── 📁 hooks/
 │   │   │       └── 📄 useNotifications.ts
+│   │   ├── 📁 productProcess/
+│   │   │   ├── 📄 api.ts
+│   │   │   └── 📄 ProductProcessPage.tsx
 │   │   ├── 📁 supplier/
 │   │   │   └── 📄 SuppliersPage.tsx
 │   │   └── 📁 warehouse/
@@ -171,7 +231,6 @@ Structure:
 │   │       │   ├── 📄 BookingDetailModal.tsx
 │   │       │   ├── 📄 BookingTooltip.tsx
 │   │       │   └── 📄 index.tsx
-│   │       ├── 📄 ReceiverPage.tsx
 │   │       ├── 📄 ReviewerPage.tsx
 │   │       └── 📄 WarehousesPage.tsx
 │   ├── 📁 shared/
@@ -182,10 +241,10 @@ Structure:
 │   │   │   │   └── 📄 index.ts
 │   │   │   ├── 📄 AttachmentThumbnail.tsx
 │   │   │   ├── 📄 Button.tsx
-│   │   │   ├── 📄 Drawer.tsx
 │   │   │   ├── 📄 FilterDatePicker.tsx
 │   │   │   ├── 📄 Input.tsx
 │   │   │   ├── 📄 Lightbox.tsx
+│   │   │   ├── 📄 LinkBtn.tsx
 │   │   │   ├── 📄 LoadingSpinner.tsx
 │   │   │   ├── 📄 Modal.tsx
 │   │   │   ├── 📄 Navbar.tsx
@@ -194,12 +253,16 @@ Structure:
 │   │   │   └── 📄 StatusBadge.tsx
 │   │   ├── 📁 config/
 │   │   │   ├── 📄 navTabs.ts
+│   │   │   ├── 📄 pageLayout.ts
 │   │   │   └── 📄 permissions.ts
 │   │   ├── 📁 constants/
-│   │   │   └── 📄 supplierTabs.ts
-│   │   ├── 📁 hooks/
-│   │   │   └── 📄 useFileUpload.ts
+│   │   │   ├── 📄 booking.ts
+│   │   │   ├── 📄 status.ts
+│   │   │   ├── 📄 supplierTabs.ts
+│   │   │   ├── 📄 ui.ts
+│   │   │   └── 📄 uploads.ts
 │   │   ├── 📁 lib/
+│   │   │   ├── 📄 apiClient.ts
 │   │   │   ├── 📄 attachments.ts
 │   │   │   ├── 📄 auth.ts
 │   │   │   ├── 📄 bookingStatus.test.ts
@@ -225,7 +288,17 @@ Structure:
 │   │       └── 📄 index.ts
 │   └── 📁 migrations/
 │       ├── 📄 20260513090000_partial_booking_approval.sql
-│       └── 📄 20260513090100_partial_booking_approval_functions.sql
+│       ├── 📄 20260513090100_partial_booking_approval_functions.sql
+│       ├── 📄 20260514194000_create_product_process_catalog.sql
+│       ├── 📄 20260514194500_drop_product_process_pair_unique.sql
+│       ├── 📄 20260518090000_booking_sizes_return_nhanh.sql
+│       ├── 📄 20260518091000_rename_color_to_mau.sql
+│       ├── 📄 20260518101500_add_product_process_order_date.sql
+│       ├── 📄 20260519135000_preserve_booking_delivery_date.sql
+│       ├── 📄 20260519144500_lock_down_browser_writes.sql
+│       ├── 📄 20260519150000_finish_security_advisor_cleanup.sql
+│       ├── 📄 20260519151000_dedupe_booking_amendment_select_policy.sql
+│       └── 📄 20260727000000_remove_plaintext_supplier_credentials.sql
 ├── 📄 .dockerignore
 ├── 📄 .env
 ├── 📄 .gcloudignore
@@ -235,21 +308,23 @@ Structure:
 ├── 📄 agents.md
 ├── 📄 CLAUDE.md
 ├── 📄 clean_restart.ps1
+├── 📄 CODE_REVIEW.md
 ├── 📄 deploy.ps1
 ├── 📄 deploy_local.ps1
 ├── 📄 deploy_test.ps1
 ├── 📄 Dockerfile
 ├── 📄 DUAL_SYNC_SETUP.md
 ├── 📄 eslint.config.js
-├── 📄 handover.md
 ├── 📄 index.html
+├── 📄 mcp.json
 ├── 📄 nginx.conf
 ├── 📄 package-lock.json
 ├── 📄 package.json
 ├── 📄 postcss.config.js
+├── 📄 PROJECT_CODE_REVIEW_2026-07-14.md
 ├── 📄 project_structure.py
 ├── 📄 Project_structure.txt
-├── 📄 start.md
+├── 📄 project_tester.py
 ├── 📄 start.sh
 ├── 📄 tailwind.config.ts
 ├── 📄 tsconfig.app.json
@@ -259,71 +334,114 @@ Structure:
 ├── 📄 vite.config.ts
 ├── 📄 vitest.config.ts
 ├── 📄 Z_prompt_typer.md
-├── 📄 Z_stitch example.md
-└── 📄 Z_updating_prompt.md
+└── 📄 Z_Update_prompt_typer.md
 
 Large Files (> 300 lines):
-📄 src/features/admin/ReportPage.tsx: 594 lines
-📄 src/shared/components/filters/DateRangePickerPopup.tsx: 431 lines
-📄 src/features/booking/components/BookingForm.tsx: 400 lines
-📄 src/features/auth/AccountsPage.tsx: 353 lines
+📄 debug/raw_data_product.json: 840 lines
+📄 src/features/admin/ReportPage.tsx: 574 lines
+📄 src/features/booking/components/BookingForm.tsx: 525 lines
+📄 debug/project_tester.py: 515 lines
+📄 server/routes/booking.ts: 503 lines
+📄 project_tester.py: 495 lines
+📄 debug/raw_data.json: 483 lines
+📄 src/shared/components/filters/DateRangePickerPopup.tsx: 448 lines
+📄 server/routes/productProcess.ts: 418 lines
+📄 src/features/booking/components/PoRow.tsx: 416 lines
+📄 src/features/warehouse/reviewer/index.tsx: 359 lines
+📄 src/features/warehouse/reviewer/BookingDetailModal.tsx: 351 lines
 📄 Project_structure.txt: 329 lines
-📄 src/features/warehouse/reviewer/index.tsx: 328 lines
-📄 src/features/manager/index.tsx: 322 lines
+📄 src/shared/types/database.ts: 329 lines
 
 Small Files (< 60 lines):
-📄 src/features/warehouse/ReceiverPage.tsx: 1 lines
+📄 src/features/admin/components/LinkBtn.tsx: 1 lines
 📄 src/features/warehouse/ReviewerPage.tsx: 1 lines
 📄 src/test/setup.ts: 1 lines
 📄 src/shared/components/filters/index.ts: 2 lines
+📄 supabase/migrations/20260514194500_drop_product_process_pair_unique.sql: 2 lines
 📄 .agents/skills/caveman-compress/scripts/__main__.py: 3 lines
+📄 src/shared/constants/uploads.ts: 3 lines
 📄 supabase/migrations/20260513090000_partial_booking_approval.sql: 3 lines
+📄 supabase/migrations/20260518101500_add_product_process_order_date.sql: 3 lines
+📄 supabase/migrations/20260519151000_dedupe_booking_amendment_select_policy.sql: 3 lines
 📄 src/shared/lib/crypto.ts: 4 lines
 📄 src/app/App.tsx: 5 lines
+📄 src/features/admin/tabs/AccountsTab.tsx: 5 lines
+📄 src/features/admin/tabs/SuppliersTab.tsx: 5 lines
+📄 src/features/admin/tabs/WarehousesTab.tsx: 5 lines
 📄 src/features/booking/index.tsx: 5 lines
 📄 postcss.config.js: 6 lines
 📄 src/vite-env.d.ts: 6 lines
+📄 src/shared/constants/booking.ts: 6 lines
+📄 supabase/functions/auth/index.ts: 6 lines
+📄 supabase/functions/finalize-booking/index.ts: 6 lines
+📄 supabase/functions/gcs-upload/index.ts: 6 lines
+📄 supabase/migrations/20260519150000_finish_security_advisor_cleanup.sql: 6 lines
+📄 start.sh: 7 lines
 📄 tsconfig.json: 7 lines
 📄 src/shared/lib/attachments.ts: 8 lines
-📄 start.sh: 9 lines
+📄 src/features/productProcess/api.ts: 9 lines
 📄 .gemini/hooks/crg-update.sh: 10 lines
-📄 src/features/admin/components/LinkBtn.tsx: 10 lines
 📄 src/shared/components/filters/filterDateUtils.ts: 11 lines
+📄 src/shared/config/pageLayout.ts: 11 lines
 📄 src/shared/lib/supabase.ts: 11 lines
-📄 vite.config.ts: 12 lines
-📄 .claude/settings.local.json: 12 lines
+📄 server/config/storage.ts: 12 lines
+📄 .claude/settings.local.json: 13 lines
 📄 secrets/gcs_booking_webapp_key.json: 13 lines
 📄 src/shared/constants/supplierTabs.ts: 13 lines
-📄 tsconfig.server.json: 15 lines
+📄 src/shared/constants/ui.ts: 14 lines
 📄 .gemini/hooks/crg-session-start.sh: 15 lines
 📄 .opencode.json: 16 lines
+📄 tsconfig.server.json: 16 lines
 📄 vitest.config.ts: 16 lines
 📄 src/app/main.tsx: 16 lines
+📄 src/shared/components/StatusBadge.tsx: 16 lines
+📄 src/shared/components/LinkBtn.tsx: 19 lines
 📄 tsconfig.node.json: 20 lines
 📄 src/shared/components/LoadingSpinner.tsx: 20 lines
-📄 src/shared/config/permissions.ts: 20 lines
+📄 supabase/migrations/20260519135000_preserve_booking_delivery_date.sql: 20 lines
+📄 server/routes/booking.test.ts: 21 lines
+📄 src/features/auth/AccountsPage.tsx: 21 lines
+📄 src/shared/config/permissions.ts: 21 lines
+📄 supabase/migrations/20260514194000_create_product_process_catalog.sql: 22 lines
+📄 supabase/migrations/20260727000000_remove_plaintext_supplier_credentials.sql: 24 lines
 📄 src/features/auth/guard/RequireRole.tsx: 25 lines
 📄 tsconfig.app.json: 26 lines
 📄 src/app/providers.tsx: 26 lines
-📄 src/shared/components/StatusBadge.tsx: 26 lines
 📄 tailwind.config.ts: 27 lines
+📄 src/features/supplier/SuppliersPage.tsx: 27 lines
+📄 src/features/warehouse/WarehousesPage.tsx: 27 lines
 📄 eslint.config.js: 29 lines
 📄 src/shared/lib/gcs.ts: 29 lines
 📄 src/shared/components/AttachmentThumbnail.tsx: 31 lines
-📄 src/shared/config/navTabs.ts: 31 lines
-📄 .mcp.json: 33 lines
+📄 debug/fix_encoding2.py: 33 lines
 📄 src/features/notifications/components/NotificationBell.tsx: 34 lines
+📄 src/features/auth/services/auth.service.ts: 35 lines
+📄 src/shared/config/navTabs.ts: 35 lines
+📄 server/etl/nhanhDraftInfo.ts: 36 lines
+📄 server/lib/httpAuth.ts: 36 lines
 📄 src/shared/components/Input.tsx: 36 lines
-📄 src/features/home/GuideTabs.tsx: 37 lines
+📄 server/routes/notifications.ts: 37 lines
+📄 supabase/migrations/20260518091000_rename_color_to_mau.sql: 38 lines
+📄 server/lib/jwt.test.ts: 39 lines
+📄 server/lib/supabase.ts: 39 lines
 📄 src/shared/components/Button.tsx: 39 lines
 📄 .gemini/settings.json: 41 lines
+📄 server/routes/upload.ts: 42 lines
 📄 src/shared/components/Select.tsx: 42 lines
-📄 server/lib/jwt.ts: 47 lines
+📄 .mcp.json: 43 lines
 📄 .codex/hooks.json: 48 lines
+📄 server/routes/receiver.ts: 49 lines
+📄 src/app/AppStartupSync.tsx: 49 lines
 📄 src/shared/components/Lightbox.tsx: 49 lines
-📄 src/shared/lib/bookingStatus.ts: 50 lines
 📄 src/shared/components/Pagination.tsx: 52 lines
-📄 server/routes/upload.ts: 55 lines
+📄 server/lib/logger.ts: 53 lines
+📄 server/routes/auth.test.ts: 53 lines
+📄 src/shared/constants/status.ts: 53 lines
+📄 src/shared/lib/bookingStatus.ts: 53 lines
+📄 mcp.json: 55 lines
+📄 server/lib/gcs.ts: 55 lines
+📄 src/shared/lib/auth.ts: 56 lines
 📄 .claude/settings.json: 57 lines
-📄 server/lib/gcs.ts: 57 lines
-📄 src/shared/lib/bookingStatus.test.ts: 57 lines
+📄 server/lib/jwt.ts: 58 lines
+📄 src/features/booking/hooks/useBookingData.ts: 58 lines
+📄 src/shared/components/FilterDatePicker.tsx: 58 lines

@@ -45,10 +45,15 @@ export default function ReceiverPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const scanIntervalRef = useRef<number | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
   useEffect(() => {
     document.title = 'Nhận hàng — Atino'
-    return () => { if (scanIntervalRef.current) clearInterval(scanIntervalRef.current) }
+    return () => {
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
   }, [])
 
   const lookupBooking = async (tokenStr: string) => {
@@ -93,6 +98,7 @@ export default function ReceiverPage() {
     setScanning(true)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
@@ -100,15 +106,21 @@ export default function ReceiverPage() {
           if (!videoRef.current || !canvasRef.current) return
           const ctx = canvasRef.current.getContext('2d')
           if (!ctx) return
-          canvasRef.current.width = videoRef.current.videoWidth
-          canvasRef.current.height = videoRef.current.videoHeight
-          ctx.drawImage(videoRef.current, 0, 0)
+          const sourceWidth = videoRef.current.videoWidth
+          const sourceHeight = videoRef.current.videoHeight
+          if (!sourceWidth || !sourceHeight) return
+          const scale = Math.min(1, 960 / sourceWidth)
+          canvasRef.current.width = Math.round(sourceWidth * scale)
+          canvasRef.current.height = Math.round(sourceHeight * scale)
+          ctx.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height)
           const imageData = ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height)
           const code = jsQR(imageData.data, imageData.width, imageData.height)
           if (code?.data) { setTokenInput(code.data); stopScanning(); void lookupBooking(code.data) }
         }, 300)
       }
     } catch {
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
       setScanning(false)
       alert('Không thể truy cập camera')
     }
@@ -116,11 +128,9 @@ export default function ReceiverPage() {
 
   const stopScanning = () => {
     if (scanIntervalRef.current) { clearInterval(scanIntervalRef.current); scanIntervalRef.current = null }
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream
-      stream.getTracks().forEach((t) => t.stop())
-      videoRef.current.srcObject = null
-    }
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+    if (videoRef.current) videoRef.current.srcObject = null
     setScanning(false)
   }
 
@@ -132,7 +142,7 @@ export default function ReceiverPage() {
 
         <div className="bg-white border border-[#ecdbe8] rounded-lg px-6 py-5 mb-4">
           <p className="font-semibold text-sm mb-3">Quét mã QR hoặc nhập mã booking</p>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
               value={tokenInput}
@@ -142,8 +152,8 @@ export default function ReceiverPage() {
               className="input-field flex-1"
               id="booking-token-input"
             />
-            <Button onClick={() => void lookupBooking(tokenInput)} loading={isLooking} disabled={!tokenInput.trim()} id="lookup-btn">Tra cứu</Button>
-            <Button variant="outline" onClick={scanning ? stopScanning : () => void startScanning()} id="scan-btn">
+            <Button fullWidth onClick={() => void lookupBooking(tokenInput)} loading={isLooking} disabled={!tokenInput.trim()} id="lookup-btn">Tra cứu</Button>
+            <Button fullWidth variant="outline" onClick={scanning ? stopScanning : () => void startScanning()} id="scan-btn">
               {scanning ? '⏹ Dừng' : '📷 Quét'}
             </Button>
           </div>
@@ -168,7 +178,7 @@ export default function ReceiverPage() {
 
             {booking.status === 'confirmed' || booking.status === 'partially_approved' ? (
               <>
-                <div className="overflow-x-auto">
+                <div className="hidden overflow-x-auto sm:block">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-[#F5F5F5]">
@@ -197,6 +207,19 @@ export default function ReceiverPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div className="space-y-3 p-4 sm:hidden">
+                  {booking.items.filter((i) => i.status === 'confirmed').map((item) => (
+                    <div key={item.id} className="rounded border border-[#ecdbe8] p-3">
+                      <p className="font-mono text-sm font-semibold">{item.product_code} · {item.process_code}</p>
+                      <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+                        <span>SL đăng ký: {item.quantity_booked}</span>
+                        <label className="flex items-center gap-2">Nhận
+                          <input type="number" min={0} inputMode="numeric" value={quantities[item.id] ?? item.quantity_booked} onChange={(e) => setQuantities((prev) => ({ ...prev, [item.id]: Number(e.target.value) }))} className="input-field h-11 w-24 text-right" />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 <div className="px-6 py-4">
                   <Button fullWidth loading={receiveDirectMutation.isPending} onClick={() => receiveDirectMutation.mutate()} id="confirm-receive-btn">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navbar } from '@/shared/components/Navbar'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
@@ -9,7 +9,7 @@ import { pageMainClass } from '@/shared/config/pageLayout'
 import { postJson } from '@/shared/lib/apiClient'
 import type { ProductProcessCatalog } from '@/shared/types/domain'
 import {
-  fetchProductProcessCatalog,
+  fetchProductProcessPage,
   PRODUCT_PROCESS_CATALOG_QUERY_KEY,
 } from '@/features/productProcess/api'
 
@@ -22,6 +22,7 @@ export default function ProductProcessPage() {
   const tabs = user ? (ROLE_TABS[user.role] ?? []) : []
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [syncError, setSyncError] = useState('')
   const [isSyncing, setIsSyncing] = useState(false)
   const [isHydrating, setIsHydrating] = useState(false)
@@ -29,33 +30,20 @@ export default function ProductProcessPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 50
 
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: PRODUCT_PROCESS_CATALOG_QUERY_KEY,
-    queryFn: fetchProductProcessCatalog,
+  const { data: pageData = { items: [] as ProductProcessCatalog[], total: 0 }, isLoading } = useQuery({
+    queryKey: [...PRODUCT_PROCESS_CATALOG_QUERY_KEY, 'page', currentPage, debouncedSearch],
+    queryFn: () => fetchProductProcessPage(currentPage, rowsPerPage, debouncedSearch),
   })
-
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return rows
-    return rows.filter((row) =>
-      row.product_name.toLowerCase().includes(q) ||
-      row.order_code.toLowerCase().includes(q) ||
-      (row.warehouse_code ?? '').toLowerCase().includes(q) ||
-      (row.mau ?? '').toLowerCase().includes(q) ||
-      (row.order_date ?? '').toLowerCase().includes(q)
-    )
-  }, [rows, search])
+  const rows = pageData.items
 
   useEffect(() => {
-    setCurrentPage(1)
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search.trim())
+      setCurrentPage(1)
+    }, 300)
+    return () => window.clearTimeout(timer)
   }, [search])
-
-  const paginatedRows = useMemo(() => {
-    const startIndex = (currentPage - 1) * rowsPerPage
-    return filteredRows.slice(startIndex, startIndex + rowsPerPage)
-  }, [filteredRows, currentPage])
-
-  const totalPages = Math.ceil(filteredRows.length / rowsPerPage)
+  const totalPages = Math.ceil(pageData.total / rowsPerPage)
 
   const lastSync = rows
     .map((row) => row.last_synced_at)
@@ -78,12 +66,8 @@ export default function ProductProcessPage() {
       setIsHydrationLeaving(false)
     }
     try {
-      const result = await postJson<{ items?: ProductProcessCatalog[] }>('/api/product-process/sync')
-      if (result.items) {
-        queryClient.setQueryData(PRODUCT_PROCESS_CATALOG_QUERY_KEY, result.items)
-      } else {
-        await queryClient.invalidateQueries({ queryKey: PRODUCT_PROCESS_CATALOG_QUERY_KEY })
-      }
+      await postJson<{ synced: number; ts: string }>('/api/product-process/sync')
+      await queryClient.invalidateQueries({ queryKey: PRODUCT_PROCESS_CATALOG_QUERY_KEY })
     } catch (err) {
       if (showLoading) setSyncError((err as Error).message)
     } finally {
@@ -148,7 +132,7 @@ export default function ProductProcessPage() {
           <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>
         ) : (
           <div className="relative overflow-hidden bg-white border border-[#ecdbe8] rounded-lg">
-            <div className={`overflow-x-auto transition-opacity duration-300 ${isHydrating ? 'opacity-40' : 'opacity-100'}`}>
+            <div className={`hidden overflow-x-auto transition-opacity duration-300 sm:block ${isHydrating ? 'opacity-40' : 'opacity-100'}`}>
               <table className="w-full text-sm data-table">
                 <thead>
                   <tr>
@@ -169,7 +153,7 @@ export default function ProductProcessPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedRows.map((row, index) => (
+                  {rows.map((row, index) => (
                     <tr key={row.id}>
                       <td className="table-cell text-center text-[#888888]">
                         {(currentPage - 1) * rowsPerPage + index + 1}
@@ -189,7 +173,7 @@ export default function ProductProcessPage() {
                       <td className="table-cell text-xs text-[#888888]">{formatDateTimeDisplay(row.last_synced_at)}</td>
                     </tr>
                   ))}
-                  {filteredRows.length === 0 && (
+                  {rows.length === 0 && (
                     <tr>
                       <td className="table-cell text-center text-[#888888] py-10" colSpan={14}>
                         Không có dữ liệu
@@ -199,10 +183,25 @@ export default function ProductProcessPage() {
                 </tbody>
               </table>
             </div>
+            <div className={`divide-y divide-[#ecdbe8] transition-opacity duration-300 sm:hidden ${isHydrating ? 'opacity-40' : 'opacity-100'}`}>
+              {rows.map((row) => (
+                <article key={row.id} className="p-4">
+                  <p className="font-medium">{row.product_name}</p>
+                  <p className="font-mono text-xs text-[#555555]">{row.order_code}</p>
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div><dt className="text-[#888888]">Kho / Màu</dt><dd>{row.warehouse_code ?? '—'} / {row.mau ?? '—'}</dd></div>
+                    <div><dt className="text-[#888888]">Ngày đặt</dt><dd>{row.order_date ? formatDateDisplay(row.order_date) : '—'}</dd></div>
+                    <div><dt className="text-[#888888]">Tổng số lượng</dt><dd>{displayQuantity(row.total_quantity) || '0'}</dd></div>
+                    <div><dt className="text-[#888888]">Size</dt><dd>S {displayQuantity(row.size_s_28) || '0'} · M {displayQuantity(row.size_m_29) || '0'} · L {displayQuantity(row.size_l_30) || '0'}</dd></div>
+                  </dl>
+                </article>
+              ))}
+              {rows.length === 0 && <p className="p-8 text-center text-sm text-[#888888]">Không có dữ liệu</p>}
+            </div>
             {totalPages > 1 && (
               <div className="flex items-center justify-between border-t border-[#ecdbe8] px-4 py-3 bg-white flex-wrap gap-2">
                 <div className="text-sm text-[#888888]">
-                  Hiển thị {Math.min(filteredRows.length, (currentPage - 1) * rowsPerPage + 1)} - {Math.min(filteredRows.length, currentPage * rowsPerPage)} trong tổng số {filteredRows.length} dòng
+                  Hiển thị {Math.min(pageData.total, (currentPage - 1) * rowsPerPage + 1)} - {Math.min(pageData.total, currentPage * rowsPerPage)} trong tổng số {pageData.total} dòng
                 </div>
                 <div className="flex items-center gap-2">
                   <button

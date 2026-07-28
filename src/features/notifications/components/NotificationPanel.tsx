@@ -1,8 +1,9 @@
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications, useMarkRead } from '@/features/notifications/hooks/useNotifications'
 import { relativeTime } from '@/shared/lib/dateUtils'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
-import { supabase } from '@/shared/lib/supabase'
+import { getJson } from '@/shared/lib/apiClient'
 
 interface Props {
   isOpen: boolean
@@ -27,6 +28,38 @@ export function NotificationPanel({ isOpen, onClose }: Props) {
   const navigate = useNavigate()
   const { data: notifications = [], isLoading } = useNotifications()
   const markRead = useMarkRead()
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    const panel = panelRef.current
+    panel?.querySelector<HTMLElement>('button')?.focus()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab' || !panel) return
+      const focusable = [...panel.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => !element.hasAttribute('disabled'))
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      previouslyFocused?.focus()
+    }
+  }, [isOpen, onClose])
 
   const handleMarkAllRead = () => {
     markRead.mutate('all')
@@ -35,11 +68,8 @@ export function NotificationPanel({ isOpen, onClose }: Props) {
   const handleNotificationClick = async (id: string, bookingId: string | null) => {
     markRead.mutate(id)
     if (bookingId) {
-      const { data } = await (supabase.from('bookings') as any)
-        .select('booking_token')
-        .eq('id', bookingId)
-        .single()
-      navigate(`/booking/${data?.booking_token ?? bookingId}`)
+      const result = await getJson<{ booking_token: string | null }>(`/api/notifications/${id}/booking-link`)
+      navigate(`/booking/${result.booking_token ?? bookingId}`)
     }
     onClose()
   }
@@ -48,6 +78,7 @@ export function NotificationPanel({ isOpen, onClose }: Props) {
     <>
       {/* Backdrop */}
       <div
+        ref={panelRef}
         className={`fixed inset-0 z-40 transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         onClick={onClose}
@@ -68,14 +99,14 @@ export function NotificationPanel({ isOpen, onClose }: Props) {
           <div className="flex items-center gap-3">
             <button
               onClick={handleMarkAllRead}
-              className="text-xs text-[#888888] hover:text-black transition-colors"
+              className="min-h-11 text-xs text-[#888888] hover:text-black transition-colors"
               id="mark-all-read"
             >
               Đánh dấu tất cả đã đọc
             </button>
             <button
               onClick={onClose}
-              className="text-[#888888] hover:text-black transition-colors text-xl"
+              className="min-h-11 min-w-11 text-[#888888] hover:text-black transition-colors text-xl"
               aria-label="Đóng"
             >
               ×

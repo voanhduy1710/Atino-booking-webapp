@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { Input } from '@/shared/components/Input'
 import { Button } from '@/shared/components/Button'
 import { loginApi } from '@/features/auth/services/auth.service'
-import { saveToken, decodeToken } from '@/shared/lib/auth'
+import { saveSession } from '@/shared/lib/auth'
 
 const schema = z.object({
   username: z.string().min(1, 'Vui lòng nhập tên đăng nhập'),
@@ -38,9 +38,8 @@ export function LoginForm() {
     setServerError(null)
     try {
       const res = await loginApi(data.username, data.password)
-      saveToken(res.token)
-      const decoded = decodeToken(res.token)
-      const redirect = decoded ? (roleRouteMap[decoded.role] ?? '/') : '/'
+      saveSession(res.user)
+      const redirect = roleRouteMap[res.user.role] ?? '/'
       navigate(redirect, { replace: true })
     } catch (err) {
       setServerError((err as Error).message)
@@ -72,8 +71,7 @@ export function LoginForm() {
         <button
           type="button"
           onClick={() => setShowPw((v) => !v)}
-          className="absolute right-3 top-8 text-[#888888] hover:text-black transition-colors"
-          tabIndex={-1}
+          className="absolute right-1 top-6 flex min-h-11 min-w-11 items-center justify-center text-[#888888] hover:text-black transition-colors"
           aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
         >
           {showPw ? (

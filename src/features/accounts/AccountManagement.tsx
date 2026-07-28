@@ -6,34 +6,14 @@ import { LinkBtn } from '@/shared/components/LinkBtn'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { Modal } from '@/shared/components/Modal'
 import { ACCOUNT_STATUS_CLASSES, ACCOUNT_STATUS_FILTER_OPTIONS, ACCOUNT_STATUS_LABELS } from '@/shared/constants/status'
-import { sha256 } from '@/shared/lib/crypto'
-import { postJson } from '@/shared/lib/apiClient'
+import { getJson, postJson } from '@/shared/lib/apiClient'
 import { formatDateTimeDisplay } from '@/shared/lib/dateUtils'
-import { supabase } from '@/shared/lib/supabase'
 import type { AccountStatus, Supplier, SupplierAccount } from '@/shared/types/domain'
-
-interface SupplierAccountWithPw extends SupplierAccount {
-  password?: string
-}
 
 interface Props {
   accountsQueryKey?: string
   suppliersQueryKey?: string
 }
-
-const EyeIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-)
-
-const EyeOffIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-    <line x1="1" y1="1" x2="23" y2="23" />
-  </svg>
-)
 
 export function AccountManagement({
   accountsQueryKey = 'accounts',
@@ -41,43 +21,27 @@ export function AccountManagement({
 }: Props) {
   const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<AccountStatus | 'all'>('pending')
-  const [selectedAccount, setSelectedAccount] = useState<SupplierAccountWithPw | null>(null)
+  const [selectedAccount, setSelectedAccount] = useState<SupplierAccount | null>(null)
   const [selectedSupplierId, setSelectedSupplierId] = useState('')
   const [rejectReason, setRejectReason] = useState('')
-  const [revealedPws, setRevealedPws] = useState<Set<string>>(new Set())
   const [pwAccountId, setPwAccountId] = useState<string | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [pwSaving, setPwSaving] = useState(false)
   const [pwError, setPwError] = useState<string | null>(null)
 
-  const togglePwReveal = (id: string) =>
-    setRevealedPws((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: [accountsQueryKey, statusFilter],
     queryFn: async () => {
-      let q = supabase
-        .from('supplier_accounts')
-        .select('*, suppliers(name)')
-        .order('created_at', { ascending: false })
-      if (statusFilter !== 'all') q = q.eq('status', statusFilter)
-      const { data, error } = await q
-      if (error) throw error
-      return data as SupplierAccountWithPw[]
+      const result = await getJson<{ accounts: SupplierAccount[] }>(`/api/accounts?status=${encodeURIComponent(statusFilter)}`)
+      return result.accounts
     },
   })
 
   const { data: suppliers = [] } = useQuery({
     queryKey: [suppliersQueryKey],
     queryFn: async () => {
-      const { data, error } = await supabase.from('suppliers').select('*').order('code')
-      if (error) throw error
-      return data as Supplier[]
+      const result = await getJson<{ suppliers: Supplier[] }>('/api/accounts/suppliers')
+      return result.suppliers
     },
   })
 
@@ -121,11 +85,8 @@ export function AccountManagement({
     setPwSaving(true)
     setPwError(null)
     try {
-      const plaintext = newPassword.trim()
-      const hash = await sha256(plaintext)
       await postJson<{ ok: true }>(`/api/accounts/${pwAccountId}/reset-password`, {
-        password_hash: hash,
-        plaintext_password: plaintext,
+        password: newPassword,
       })
       setPwAccountId(null)
       setNewPassword('')
@@ -154,12 +115,11 @@ export function AccountManagement({
 
       {isLoading ? <LoadingSpinner className="mx-auto" /> : (
         <div className="overflow-x-auto bg-white border border-[#ecdbe8] rounded-lg">
-          <table className="w-full text-sm">
+          <table className="hidden w-full text-sm sm:table">
             <thead>
               <tr className="bg-[#F5F5F5]">
                 <th className="table-header">Họ tên</th>
                 <th className="table-header">Username</th>
-                <th className="table-header">Mật khẩu</th>
                 <th className="table-header">Mã NCC</th>
                 <th className="table-header">Đăng ký lúc</th>
                 <th className="table-header">Trạng thái</th>
@@ -171,23 +131,6 @@ export function AccountManagement({
                 <tr key={a.id} className="border-t border-[#ecdbe8]">
                   <td className="table-cell">{a.full_name}</td>
                   <td className="table-cell font-mono">{a.username}</td>
-                  <td className="table-cell">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-sm">
-                        {revealedPws.has(a.id)
-                          ? (a.password ? a.password : <span className="text-[#BBBBBB] text-xs not-italic">Chưa có</span>)
-                          : '******'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => togglePwReveal(a.id)}
-                        className="text-[#888888] hover:text-black transition-colors flex-shrink-0"
-                        aria-label={revealedPws.has(a.id) ? 'Ẩn' : 'Hiện'}
-                      >
-                        {revealedPws.has(a.id) ? <EyeOffIcon /> : <EyeIcon />}
-                      </button>
-                    </div>
-                  </td>
                   <td className="table-cell font-mono font-medium">{a.supplier_code_requested ?? <span className="text-[#BBBBBB]">—</span>}</td>
                   <td className="table-cell text-xs">{formatDateTimeDisplay(a.created_at)}</td>
                   <td className="table-cell"><span className={ACCOUNT_STATUS_CLASSES[a.status]}>{ACCOUNT_STATUS_LABELS[a.status]}</span></td>
@@ -203,10 +146,35 @@ export function AccountManagement({
                 </tr>
               ))}
               {accounts.length === 0 && (
-                <tr><td colSpan={7} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
+                <tr><td colSpan={6} className="table-cell text-center text-[#888888] py-8">Không có dữ liệu</td></tr>
               )}
             </tbody>
           </table>
+          <div className="divide-y divide-[#ecdbe8] sm:hidden">
+            {accounts.map((account) => (
+              <article key={account.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{account.full_name}</p>
+                    <p className="truncate font-mono text-xs text-[#555555]">{account.username}</p>
+                  </div>
+                  <span className={ACCOUNT_STATUS_CLASSES[account.status]}>{ACCOUNT_STATUS_LABELS[account.status]}</span>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                  <div><dt className="text-[#888888]">Mã NCC</dt><dd className="font-mono">{account.supplier_code_requested ?? '—'}</dd></div>
+                  <div><dt className="text-[#888888]">Đăng ký</dt><dd>{formatDateTimeDisplay(account.created_at)}</dd></div>
+                </dl>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {account.status === 'pending' && <button type="button" className="min-h-11 rounded border border-[#80417A] px-3 text-sm text-[#80417A]" onClick={() => setSelectedAccount(account)}>Xét duyệt</button>}
+                  <button type="button" className="min-h-11 rounded border border-[#d5c0d5] px-3 text-sm" onClick={() => { setPwAccountId(account.id); setNewPassword(''); setPwError(null) }}>Đặt lại MK</button>
+                  <button type="button" className="min-h-11 rounded border border-[#CC0000] px-3 text-sm text-[#CC0000]" onClick={() => {
+                    if (window.confirm(`Xóa tài khoản "${account.username}"? Không thể hoàn tác.`)) deleteAccountMutation.mutate(account.id)
+                  }}>Xóa</button>
+                </div>
+              </article>
+            ))}
+            {accounts.length === 0 && <p className="p-8 text-center text-sm text-[#888888]">Không có dữ liệu</p>}
+          </div>
         </div>
       )}
 
@@ -254,7 +222,7 @@ export function AccountManagement({
           {pwError && <p className="text-xs text-[#CC0000]">{pwError}</p>}
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => setPwAccountId(null)} className="flex-1">Hủy</Button>
-            <Button variant="success" loading={pwSaving} disabled={!newPassword.trim()} onClick={() => void handlePasswordReset()} className="flex-1">Lưu</Button>
+            <Button variant="success" loading={pwSaving} disabled={newPassword.length < 8} onClick={() => void handlePasswordReset()} className="flex-1">Lưu</Button>
           </div>
         </div>
       </Modal>

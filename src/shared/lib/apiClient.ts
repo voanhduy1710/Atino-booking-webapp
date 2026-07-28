@@ -1,5 +1,4 @@
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
-const JWT_KEY = 'atino_jwt'
 
 export function apiUrl(path: string): string {
   return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
@@ -31,14 +30,14 @@ async function readJsonResponse<T>(res: Response): Promise<T & { error?: string 
 }
 
 export async function getJson<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = typeof localStorage === 'undefined' ? null : localStorage.getItem(JWT_KEY)
   const res = await fetch(apiUrl(path), {
     ...init,
     method: init.method ?? 'GET',
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init.headers ?? {}),
     },
+    credentials: 'include',
+    signal: init.signal ?? AbortSignal.timeout(20_000),
   })
   const result = await readJsonResponse<T>(res)
   if (!res.ok) throw new Error(result.error ?? 'Có lỗi xảy ra')
@@ -46,15 +45,15 @@ export async function getJson<T>(path: string, init: RequestInit = {}): Promise<
 }
 
 export async function postJson<T>(path: string, body?: unknown, init: RequestInit = {}): Promise<T> {
-  const token = typeof localStorage === 'undefined' ? null : localStorage.getItem(JWT_KEY)
   const res = await fetch(apiUrl(path), {
     ...init,
     method: init.method ?? 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init.headers ?? {}),
     },
+    credentials: 'include',
+    signal: init.signal ?? AbortSignal.timeout(20_000),
     body: body === undefined ? init.body : JSON.stringify(body),
   })
   const result = await readJsonResponse<T>(res)
@@ -62,18 +61,28 @@ export async function postJson<T>(path: string, body?: unknown, init: RequestIni
   return result
 }
 
-export async function postForm<T>(path: string, form: FormData, init: RequestInit = {}): Promise<T> {
-  const token = typeof localStorage === 'undefined' ? null : localStorage.getItem(JWT_KEY)
-  const res = await fetch(apiUrl(path), {
-    ...init,
-    method: init.method ?? 'POST',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(init.headers ?? {}),
-    },
-    body: form,
+export function postFormWithProgress<T>(
+  path: string,
+  form: FormData,
+  onProgress: (percent: number) => void
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    request.open('POST', apiUrl(path))
+    request.withCredentials = true
+    request.timeout = 60_000
+    request.responseType = 'json'
+    request.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100))
+    })
+    request.addEventListener('load', () => {
+      const result = request.response as (T & { error?: string }) | null
+      if (request.status >= 200 && request.status < 300 && result) resolve(result)
+      else reject(new Error(result?.error ?? 'Có lỗi xảy ra'))
+    })
+    request.addEventListener('error', () => reject(new Error('Mạng bị gián đoạn khi tải tệp')))
+    request.addEventListener('timeout', () => reject(new Error('Tải tệp quá thời gian cho phép')))
+    request.addEventListener('abort', () => reject(new Error('Đã hủy tải tệp')))
+    request.send(form)
   })
-  const result = await readJsonResponse<T>(res)
-  if (!res.ok) throw new Error(result.error ?? 'Có lỗi xảy ra')
-  return result
 }

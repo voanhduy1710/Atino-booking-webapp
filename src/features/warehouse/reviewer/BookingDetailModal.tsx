@@ -255,7 +255,7 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
             </div>
           )}
 
-          <div className="overflow-x-auto border border-[#ecdbe8] rounded">
+          <div className="hidden overflow-x-auto border border-[#ecdbe8] rounded sm:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-[#F5F5F5]">
@@ -312,6 +312,46 @@ export function BookingDetailModal({ booking, onClose, onPhotoClick, onListRefre
                 })}
               </tbody>
             </table>
+          </div>
+          <div className="space-y-3 sm:hidden">
+            {booking.items.map((item: any) => {
+              const vatPhotos = itemPhotos(item, 'vat_invoice')
+              const slipPhotos = itemPhotos(item, 'delivery_slip')
+              const canRevert = isWithin30Min(item.reviewed_at)
+              return (
+                <article key={item.id} className="rounded border border-[#ecdbe8] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-mono text-sm font-semibold">{item.product_code}</p>
+                      <p className="font-mono text-xs text-[#555555]">{item.process_code}</p>
+                    </div>
+                    <StatusBadge status={item.status} />
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div><dt className="text-[#888888]">Kho / Màu</dt><dd>{item.warehouse_code ?? '—'} / {item.mau ?? '—'}</dd></div>
+                    <div><dt className="text-[#888888]">Lần giao / SL</dt><dd>{item.is_final_round ? 'Cuối' : item.delivery_round} / {itemTotal(item)}</dd></div>
+                  </dl>
+                  {(vatPhotos.length > 0 || slipPhotos.length > 0) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {vatPhotos.map((src: string, index: number) => <AttachmentThumbnail key={`vat-${index}`} src={src} label="VAT" onClick={() => onPhotoClick(src)} className="h-11 w-11" />)}
+                      {slipPhotos.map((src: string, index: number) => <AttachmentThumbnail key={`slip-${index}`} src={src} label="Phiếu giao" onClick={() => onPhotoClick(src)} className="h-11 w-11" />)}
+                    </div>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {item.status === 'pending' ? (
+                      <>
+                        <Button variant="success" loading={confirmItemMutation.isPending && actionItemId === item.id} disabled={rejectItemMutation.isPending || returnItemMutation.isPending || revertItemMutation.isPending} onClick={() => confirmItemMutation.mutate(item.id)}>Duyệt</Button>
+                        <Button variant="danger-outline" disabled={confirmItemMutation.isPending || rejectItemMutation.isPending || returnItemMutation.isPending || revertItemMutation.isPending} onClick={() => setRejectItemId(item.id)}>Từ chối</Button>
+                        <Button variant="outline" loading={returnItemMutation.isPending && actionItemId === item.id} disabled={confirmItemMutation.isPending || rejectItemMutation.isPending || returnItemMutation.isPending || revertItemMutation.isPending} onClick={() => returnItemMutation.mutate(item.id)}>Trả hàng</Button>
+                      </>
+                    ) : (item.status === 'confirmed' || item.status === 'rejected' || item.status === 'returned') && canRevert ? (
+                      <Button variant="outline" loading={revertItemMutation.isPending && actionItemId === item.id} disabled={revertItemMutation.isPending || confirmItemMutation.isPending || rejectItemMutation.isPending || returnItemMutation.isPending} onClick={() => revertItemMutation.mutate(item.id)}>Hoàn tác ({minutesLeft(item.reviewed_at)}p)</Button>
+                    ) : null}
+                  </div>
+                  {(item.status === 'rejected' || item.status === 'returned') && item.reject_reason && <p className="mt-2 text-xs text-[#CC0000]">{item.reject_reason}</p>}
+                </article>
+              )
+            })}
           </div>
 
           <AmendmentPanel bookingId={booking.id} currentBooking={booking} onSuccess={refreshAll} />

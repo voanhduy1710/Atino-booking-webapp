@@ -36,5 +36,11 @@ docs/
 # Code analysis tool
 .code-review-graph/
 
+# Audit/debug and operational snapshots
+debug/
+project_tester.py
+project_structure.py
+Project_structure.txt
+
 # TypeScript build info
 *.tsbuildinfo

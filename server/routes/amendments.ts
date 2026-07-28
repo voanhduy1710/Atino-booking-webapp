@@ -1,8 +1,73 @@
 import { Router } from 'express'
+import { z } from 'zod'
 import { requireAuth, type AuthedRequest, usernameOf } from '../lib/httpAuth.js'
 import { getSupabase } from '../lib/supabase.js'
+import { CAPABILITY_ROLES } from '../config/capabilities.js'
 
 const router = Router()
+const uuidSchema = z.string().uuid()
+const amendmentRequestSchema = z.object({
+  type: z.enum(['update', 'recall']),
+  note: z.string().trim().min(1).max(2_000),
+  proposed_changes: z.record(z.unknown()).nullable().optional(),
+})
+const resolutionSchema = z.object({
+  decision: z.enum(['approved', 'denied']),
+  note: z.string().trim().max(2_000).default(''),
+})
+
+router.get('/bookings/:bookingId/latest', requireAuth(['supplier']), async (req, res, next) => {
+  try {
+    if (!uuidSchema.safeParse(req.params.bookingId).success) {
+      res.status(404).json({ error: 'Booking not found' })
+      return
+    }
+    const user = (req as unknown as AuthedRequest).user
+    const booking = await getSupabase()
+      .from('bookings')
+      .select('id')
+      .eq('id', req.params.bookingId)
+      .eq('supplier_account_id', user.supplier_account_id ?? '')
+      .maybeSingle()
+    if (booking.error) throw booking.error
+    if (!booking.data) {
+      res.status(404).json({ error: 'Booking not found' })
+      return
+    }
+    const { data, error } = await getSupabase()
+      .from('booking_amendments')
+      .select('id, amendment_type, request_note, proposed_changes, status, reviewer_note, created_at')
+      .eq('booking_id', req.params.bookingId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) throw error
+    res.json({ amendment: data ?? null })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.get('/bookings/:bookingId/pending', requireAuth([...CAPABILITY_ROLES.reviewBookings]), async (req, res, next) => {
+  try {
+    if (!uuidSchema.safeParse(req.params.bookingId).success) {
+      res.status(404).json({ error: 'Booking not found' })
+      return
+    }
+    const { data, error } = await getSupabase()
+      .from('booking_amendments')
+      .select('id, amendment_type, request_note, proposed_changes, status, reviewer_note, created_at')
+      .eq('booking_id', req.params.bookingId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) throw error
+    res.json({ amendment: data ?? null })
+  } catch (err) {
+    next(err)
+  }
+})
 
 router.post('/bookings/:bookingId/request', requireAuth(['supplier']), async (req, res, next) => {
   try {
@@ -12,10 +77,9 @@ router.post('/bookings/:bookingId/request', requireAuth(['supplier']), async (re
       return
     }
 
-    const type = String(req.body?.type ?? '').trim()
-    const note = String(req.body?.note ?? '').trim()
-    if (!type || !note) {
-      res.status(400).json({ error: 'Type and note are required' })
+    const parsed = amendmentRequestSchema.safeParse(req.body)
+    if (!uuidSchema.safeParse(req.params.bookingId).success || !parsed.success) {
+      res.status(400).json({ error: 'Invalid amendment request' })
       return
     }
 
@@ -23,9 +87,9 @@ router.post('/bookings/:bookingId/request', requireAuth(['supplier']), async (re
     const { data, error } = await supabase.rpc('request_booking_amendment', {
       p_booking_id: req.params.bookingId,
       p_supplier_account_id: user.supplier_account_id,
-      p_type: type,
-      p_note: note,
-      p_proposed_changes: req.body?.proposed_changes ?? null,
+      p_type: parsed.data.type,
+      p_note: parsed.data.note,
+      p_proposed_changes: parsed.data.proposed_changes ?? null,
     } as never)
     if (error) throw error
     const result = data as { error?: string } | null
@@ -39,14 +103,14 @@ router.post('/bookings/:bookingId/request', requireAuth(['supplier']), async (re
   }
 })
 
-router.post('/:amendmentId/resolve', requireAuth(['admin', 'manager', 'warehouse_reviewer']), async (req, res, next) => {
+router.post('/:amendmentId/resolve', requireAuth([...CAPABILITY_ROLES.reviewBookings]), async (req, res, next) => {
   try {
-    const decision = String(req.body?.decision ?? '').trim()
-    const note = String(req.body?.note ?? '').trim()
-    if (!['approved', 'denied'].includes(decision)) {
+    const parsed = resolutionSchema.safeParse(req.body)
+    if (!uuidSchema.safeParse(req.params.amendmentId).success || !parsed.success) {
       res.status(400).json({ error: 'Decision is invalid' })
       return
     }
+    const { decision, note } = parsed.data
     if (decision === 'denied' && !note) {
       res.status(400).json({ error: 'Reason is required' })
       return

@@ -1,19 +1,29 @@
 import { Router } from 'express'
+import { z } from 'zod'
 import { requireAuth, type AuthedRequest, usernameOf } from '../lib/httpAuth.js'
 import { getSupabase } from '../lib/supabase.js'
+import { CAPABILITY_ROLES } from '../config/capabilities.js'
 
 const router = Router()
+const tokenSchema = z.string().uuid()
+const receiveSchema = z.object({
+  quantities: z.record(z.string().uuid(), z.number().int().nonnegative().max(1_000_000)),
+})
 
-router.use(requireAuth(['admin', 'manager', 'warehouse_receiver']))
+router.use(requireAuth([...CAPABILITY_ROLES.receiveBookings]))
 
 router.get('/bookings/:token', async (req, res, next) => {
   try {
     const supabase = getSupabase()
-    const token = req.params.token
+    const token = tokenSchema.safeParse(req.params.token)
+    if (!token.success) {
+      res.status(404).json({ error: 'Không tìm thấy booking' })
+      return
+    }
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, suppliers!inner(name), warehouses!inner(name), booking_items(*)')
-      .eq('booking_token', token)
+      .select('id, booking_code, booking_token, delivery_date, time_slot, status, ghi_chu, suppliers!inner(name), warehouses!inner(name), booking_items(id, product_code, process_code, delivery_round, is_final_round, quantity_booked, quantity_received, status)')
+      .eq('booking_token', token.data)
       .single()
     if (error || !data) {
       res.status(404).json({ error: 'Không tìm thấy booking' })
@@ -27,16 +37,17 @@ router.get('/bookings/:token', async (req, res, next) => {
 
 router.post('/bookings/:token/receive', async (req, res, next) => {
   try {
-    const quantities = req.body?.quantities
-    if (!quantities || typeof quantities !== 'object') {
+    const token = tokenSchema.safeParse(req.params.token)
+    const parsed = receiveSchema.safeParse(req.body)
+    if (!token.success || !parsed.success) {
       res.status(400).json({ error: 'Quantities are required' })
       return
     }
     const supabase = getSupabase()
     const username = usernameOf((req as unknown as AuthedRequest).user)
     const { error } = await supabase.rpc('receive_booking', {
-      p_booking_token: req.params.token,
-      p_quantities: quantities,
+      p_booking_token: token.data,
+      p_quantities: parsed.data.quantities,
       p_receiver_username: username,
     } as never)
     if (error) throw error

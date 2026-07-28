@@ -62,6 +62,7 @@ foreach ($line in $envContent) {
 
 $SUPABASE_SERVICE_ROLE_KEY = $envVars["SUPABASE_SERVICE_ROLE_KEY"]
 $GCS_JSON = $envVars["GCS_SERVICE_ACCOUNT_JSON"]
+$GCS_BUCKET = if ($envVars.ContainsKey("GCS_BUCKET")) { $envVars["GCS_BUCKET"] } else { "atino-media" }
 $LARK_APP_ID = $envVars["LARK_APP_ID"]
 $LARK_APP_SECRET = $envVars["LARK_APP_SECRET"]
 $NHANH_APP_ID = $envVars["NHANH_APP_ID"]
@@ -70,15 +71,25 @@ $NHANH_ACCESS_TOKEN = $envVars["NHANH_ACCESS_TOKEN"]
 $NHANH_PRODUCT_APP_ID = if ($envVars.ContainsKey("NHANH_PRODUCT_APP_ID")) { $envVars["NHANH_PRODUCT_APP_ID"] } else { $NHANH_APP_ID }
 $NHANH_PRODUCT_BUSINESS_ID = if ($envVars.ContainsKey("NHANH_PRODUCT_BUSINESS_ID")) { $envVars["NHANH_PRODUCT_BUSINESS_ID"] } else { $NHANH_BUSINESS_ID }
 $NHANH_PRODUCT_ACCESS_TOKEN = if ($envVars.ContainsKey("NHANH_PRODUCT_ACCESS_TOKEN")) { $envVars["NHANH_PRODUCT_ACCESS_TOKEN"] } else { $NHANH_ACCESS_TOKEN }
-$STAFF_USERS = $envVars["VITE_STAFF_USERS"]
+$STAFF_USERS = if ($envVars.ContainsKey("STAFF_USERS")) { $envVars["STAFF_USERS"] } else { $envVars["VITE_STAFF_USERS"] }
+$AUTH_JWT_SECRET = $envVars["AUTH_JWT_SECRET"]
 $STAFF_USERS_B64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($STAFF_USERS))
+$GCS_JSON_B64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($GCS_JSON))
 
 if (-not $SUPABASE_SERVICE_ROLE_KEY -or $SUPABASE_SERVICE_ROLE_KEY -eq "FILL_IN_YOUR_SERVICE_ROLE_KEY_HERE") {
     Write-Host "[ERROR] SUPABASE_SERVICE_ROLE_KEY is not set in .env" -ForegroundColor Red
     exit 1
 }
 if (-not $STAFF_USERS) {
-    Write-Host "[ERROR] VITE_STAFF_USERS is not set in .env" -ForegroundColor Red
+    Write-Host "[ERROR] STAFF_USERS is not set in .env" -ForegroundColor Red
+    exit 1
+}
+if (-not $GCS_JSON) {
+    Write-Host "[ERROR] GCS_SERVICE_ACCOUNT_JSON is not set in .env" -ForegroundColor Red
+    exit 1
+}
+if (-not $AUTH_JWT_SECRET -or $AUTH_JWT_SECRET.Length -lt 32) {
+    Write-Host "[ERROR] AUTH_JWT_SECRET must contain at least 32 characters" -ForegroundColor Red
     exit 1
 }
 if (-not $LARK_APP_ID -or -not $LARK_APP_SECRET) {
@@ -87,6 +98,65 @@ if (-not $LARK_APP_ID -or -not $LARK_APP_SECRET) {
 }
 if (-not $NHANH_APP_ID -or -not $NHANH_BUSINESS_ID -or -not $NHANH_ACCESS_TOKEN) {
     Write-Host "[ERROR] NHANH_APP_ID, NHANH_BUSINESS_ID, or NHANH_ACCESS_TOKEN is not set in .env" -ForegroundColor Red
+    exit 1
+}
+
+function Publish-SecretVersion {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$Value
+    )
+
+    gcloud secrets describe $Name --project $GCP_PROJECT --quiet 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        gcloud secrets create $Name --project $GCP_PROJECT --replication-policy automatic --quiet
+        if ($LASTEXITCODE -ne 0) { throw "Could not create Secret Manager secret: $Name" }
+    }
+
+    $Value | gcloud secrets versions add $Name --project $GCP_PROJECT --data-file=- --quiet | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Could not publish Secret Manager version: $Name" }
+}
+
+$secretValues = [ordered]@{
+    "atino-supabase-service-role-key" = $SUPABASE_SERVICE_ROLE_KEY
+    "atino-staff-users-b64" = $STAFF_USERS_B64
+    "atino-auth-jwt-secret" = $AUTH_JWT_SECRET
+    "atino-gcs-service-account-json-b64" = $GCS_JSON_B64
+    "atino-lark-app-id" = $LARK_APP_ID
+    "atino-lark-app-secret" = $LARK_APP_SECRET
+    "atino-nhanh-app-id" = $NHANH_APP_ID
+    "atino-nhanh-business-id" = $NHANH_BUSINESS_ID
+    "atino-nhanh-access-token" = $NHANH_ACCESS_TOKEN
+    "atino-nhanh-product-app-id" = $NHANH_PRODUCT_APP_ID
+    "atino-nhanh-product-business-id" = $NHANH_PRODUCT_BUSINESS_ID
+    "atino-nhanh-product-access-token" = $NHANH_PRODUCT_ACCESS_TOKEN
+}
+
+Write-Host "      Publishing server secrets to Secret Manager..." -ForegroundColor Cyan
+foreach ($secret in $secretValues.GetEnumerator()) {
+    Publish-SecretVersion -Name $secret.Key -Value $secret.Value
+}
+
+$projectNumber = gcloud projects describe $GCP_PROJECT --format "value(projectNumber)"
+if ($LASTEXITCODE -ne 0 -or -not $projectNumber) { throw "Could not resolve Google Cloud project number" }
+$runtimeServiceAccount = "$projectNumber-compute@developer.gserviceaccount.com"
+foreach ($secretName in $secretValues.Keys) {
+    gcloud secrets add-iam-policy-binding $secretName `
+        --project $GCP_PROJECT `
+        --member "serviceAccount:$runtimeServiceAccount" `
+        --role "roles/secretmanager.secretAccessor" `
+        --quiet | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Could not grant Cloud Run access to secret: $secretName" }
+}
+
+Write-Host "      Enforcing private GCS bucket access..." -ForegroundColor Cyan
+gcloud storage buckets update "gs://$GCS_BUCKET" `
+    --project $GCP_PROJECT `
+    --public-access-prevention=enforced `
+    --uniform-bucket-level-access `
+    --quiet
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Could not enforce private access for gs://$GCS_BUCKET" -ForegroundColor Red
     exit 1
 }
 
@@ -100,7 +170,6 @@ Write-Host ""
 @"
 VITE_SUPABASE_URL=$($envVars["VITE_SUPABASE_URL"])
 VITE_SUPABASE_ANON_KEY=$($envVars["VITE_SUPABASE_ANON_KEY"])
-VITE_STAFF_USERS=$($envVars["VITE_STAFF_USERS"])
 "@ | Out-File -FilePath ".env.production" -Encoding utf8 -NoNewline
 
 gcloud builds submit `
@@ -132,7 +201,8 @@ gcloud run deploy $SERVICE_NAME `
     --timeout 60s `
     --port 8080 `
     --quiet `
-    --set-env-vars "^|^SUPABASE_URL=https://tlzilbpgwfeushniddkb.supabase.co|SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY|STAFF_USERS_B64=$STAFF_USERS_B64|GCS_SERVICE_ACCOUNT_JSON_B64=$([Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($GCS_JSON)))|LARK_APP_ID=$LARK_APP_ID|LARK_APP_SECRET=$LARK_APP_SECRET|NHANH_APP_ID=$NHANH_APP_ID|NHANH_BUSINESS_ID=$NHANH_BUSINESS_ID|NHANH_ACCESS_TOKEN=$NHANH_ACCESS_TOKEN|NHANH_PRODUCT_APP_ID=$NHANH_PRODUCT_APP_ID|NHANH_PRODUCT_BUSINESS_ID=$NHANH_PRODUCT_BUSINESS_ID|NHANH_PRODUCT_ACCESS_TOKEN=$NHANH_PRODUCT_ACCESS_TOKEN"
+    --set-env-vars "SUPABASE_URL=https://tlzilbpgwfeushniddkb.supabase.co" `
+    --set-secrets "SUPABASE_SERVICE_ROLE_KEY=atino-supabase-service-role-key:latest,STAFF_USERS_B64=atino-staff-users-b64:latest,AUTH_JWT_SECRET=atino-auth-jwt-secret:latest,GCS_SERVICE_ACCOUNT_JSON_B64=atino-gcs-service-account-json-b64:latest,LARK_APP_ID=atino-lark-app-id:latest,LARK_APP_SECRET=atino-lark-app-secret:latest,NHANH_APP_ID=atino-nhanh-app-id:latest,NHANH_BUSINESS_ID=atino-nhanh-business-id:latest,NHANH_ACCESS_TOKEN=atino-nhanh-access-token:latest,NHANH_PRODUCT_APP_ID=atino-nhanh-product-app-id:latest,NHANH_PRODUCT_BUSINESS_ID=atino-nhanh-product-business-id:latest,NHANH_PRODUCT_ACCESS_TOKEN=atino-nhanh-product-access-token:latest"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Cloud Run deploy failed." -ForegroundColor Red

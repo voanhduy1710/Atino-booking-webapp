@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/shared/lib/supabase'
-import { postJson } from '@/shared/lib/apiClient'
+import { getJson, postJson } from '@/shared/lib/apiClient'
 import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
 import { FilterDatePicker } from '@/shared/components/FilterDatePicker'
@@ -60,14 +59,8 @@ export function BookingAmendmentSection({ booking, user }: Props) {
   const { data: pendingAmendment } = useQuery({
     queryKey: ['booking-amendment', booking.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('booking_amendments' as any)
-        .select('id, amendment_type, request_note, proposed_changes, status, reviewer_note, created_at')
-        .eq('booking_id', booking.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-      return (data as Amendment | null) ?? null
+      const result = await getJson<{ amendment: Amendment | null }>(`/api/amendments/bookings/${booking.id}/latest`)
+      return result.amendment
     },
     enabled: !!booking.id,
   })

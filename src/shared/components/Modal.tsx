@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import type { ReactNode } from 'react'
 
 interface Props {
@@ -17,16 +17,41 @@ const sizeMap = {
 }
 
 export function Modal({ isOpen, onClose, title, children, size = 'lg' }: Props) {
+  const panelRef = useRef<HTMLDivElement>(null)
+  const titleId = useId()
+
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
+    if (!isOpen) return
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    document.body.style.overflow = 'hidden'
+    const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+    requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>(focusableSelector)?.focus())
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab' || !panelRef.current) return
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(focusableSelector))
+      if (!focusable.length) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
+    document.addEventListener('keydown', onKeyDown)
     return () => {
       document.body.style.overflow = ''
+      document.removeEventListener('keydown', onKeyDown)
+      previouslyFocused?.focus()
     }
-  }, [isOpen])
+  }, [isOpen, onClose])
 
   if (!isOpen) return null
 
@@ -35,7 +60,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'lg' }: Props) 
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="modal-title"
+      aria-labelledby={titleId}
     >
       {/* Backdrop */}
       <div
@@ -45,15 +70,15 @@ export function Modal({ isOpen, onClose, title, children, size = 'lg' }: Props) 
       />
 
       {/* Panel */}
-      <div className={`relative bg-white rounded-lg border border-[#ecdbe8] w-full ${sizeMap[size]} max-h-[90vh] flex flex-col`}>
+      <div ref={panelRef} className={`relative bg-white rounded-lg border border-[#ecdbe8] w-full ${sizeMap[size]} max-h-[90vh] flex flex-col`}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#ecdbe8] flex-shrink-0">
-          <h2 id="modal-title" className="text-base font-bold">
+          <h2 id={titleId} className="text-base font-bold">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="text-[#888888] hover:text-black transition-colors text-xl leading-none"
+            className="min-h-11 min-w-11 text-[#888888] hover:text-black transition-colors text-xl leading-none"
             aria-label="Đóng"
           >
             ×

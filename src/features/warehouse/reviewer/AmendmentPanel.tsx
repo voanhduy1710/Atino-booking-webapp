@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { supabase } from '@/shared/lib/supabase'
-import { postJson } from '@/shared/lib/apiClient'
+import { getJson, postJson } from '@/shared/lib/apiClient'
 import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
 import { formatDateDisplay } from '@/shared/lib/dateUtils'
@@ -27,19 +26,12 @@ export function AmendmentPanel({ bookingId, currentBooking, onSuccess }: Props) 
   const { data: amendment, refetch } = useQuery({
     queryKey: ['reviewer-amendment', bookingId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('booking_amendments' as any)
-        .select('id, amendment_type, request_note, proposed_changes, status, reviewer_note, created_at')
-        .eq('booking_id', bookingId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-      return (data as {
+      const result = await getJson<{ amendment: {
         id: string; amendment_type: string; request_note: string
         proposed_changes: { delivery_date?: string; time_slot?: string; ghi_chu?: string; items?: Array<{ id: string; quantity_booked: number }> } | null
         status: string; reviewer_note: string | null; created_at: string
-      } | null) ?? null
+      } | null }>(`/api/amendments/bookings/${bookingId}/pending`)
+      return result.amendment
     },
     enabled: !!bookingId,
   })

@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express'
 import { normalizeDraftRows, type NhanhDraftRow } from '../etl/nhanhDraftInfo.js'
 import { fetchProductAttributes } from '../etl/nhanhProductAttributes.js'
+import { requireAuth } from '../lib/httpAuth.js'
+import { CAPABILITY_ROLES } from '../config/capabilities.js'
+import { resilientFetch } from '../lib/resilientFetch.js'
 
 const router = Router()
 
@@ -31,7 +34,7 @@ async function enrichRows(rows: NhanhDraftRow[]): Promise<EnrichedNhanhProductRo
   })
 }
 
-router.post('/draft-products', async (req: Request, res: Response): Promise<void> => {
+router.post('/draft-products', requireAuth([...CAPABILITY_ROLES.reviewBookings]), async (req: Request, res: Response): Promise<void> => {
   try {
     const billId = String(req.body?.billId ?? '').trim()
     if (!billId) {
@@ -46,7 +49,7 @@ router.post('/draft-products', async (req: Request, res: Response): Promise<void
     url.searchParams.set('appId', appId)
     url.searchParams.set('businessId', businessId)
 
-    const upstream = await fetch(url, {
+    const upstream = await resilientFetch(url, {
       method: 'POST',
       headers: {
         Authorization: accessToken,
@@ -57,6 +60,9 @@ router.post('/draft-products', async (req: Request, res: Response): Promise<void
         paginator: { size: 100 },
         dataOptions: {},
       }),
+      timeoutMs: 10_000,
+      retryUnsafe: true,
+      circuitKey: 'nhanh',
     })
     const json = await upstream.json() as { message?: string; code?: string | number; data?: unknown[] }
     if (!upstream.ok) {
@@ -71,7 +77,7 @@ router.post('/draft-products', async (req: Request, res: Response): Promise<void
       res.status(err.status).json({ error: err.message })
       return
     }
-    res.status(500).json({ error: (err as Error).message })
+    res.status(502).json({ error: 'Nhanh service is unavailable' })
   }
 })
 

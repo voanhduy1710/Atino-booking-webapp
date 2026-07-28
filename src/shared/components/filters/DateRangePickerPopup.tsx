@@ -252,6 +252,7 @@ export function DateRangePickerPopup({
   const [leftYM, setLeftYM] = useState<[number, number]>([initialDate.getFullYear(), initialDate.getMonth()])
   const wrapRef = useRef<HTMLDivElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const presets = useMemo(() => getPresets(), [])
 
   const rightDate = addMonths(new Date(leftYM[0], leftYM[1], 1), 1)
@@ -289,6 +290,34 @@ export function DateRangePickerPopup({
       if (wrap.left + left < 8) left = 8 - wrap.left
       setPopupLeft(left)
     })
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    popupRef.current?.querySelector<HTMLElement>('button, input, select')?.focus()
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+        setPicking(false)
+        triggerRef.current?.focus()
+        return
+      }
+      if (event.key !== 'Tab' || !popupRef.current) return
+      const focusable = [...popupRef.current.querySelectorAll<HTMLElement>('button, input, select, [tabindex]:not([tabindex="-1"])')]
+        .filter((element) => !element.hasAttribute('disabled'))
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
   }, [open])
 
   const apply = () => {
@@ -338,6 +367,7 @@ export function DateRangePickerPopup({
     <div ref={wrapRef} className={`relative min-w-[220px] ${className}`} style={rootStyle}>
       {label && <label className="mb-1 block text-xs font-medium text-[#888888]">{label}</label>}
       <button
+        ref={triggerRef}
         type="button"
         disabled={isLoading}
         onClick={() => setOpen((v) => !v)}
@@ -350,10 +380,13 @@ export function DateRangePickerPopup({
       {open && (
         <div
           ref={popupRef}
-          className="absolute top-full z-50 mt-2 flex gap-4 rounded-lg border border-[#ecdbe8] bg-white p-4 shadow-xl"
-          style={{ left: popupLeft ?? 0, visibility: popupLeft === undefined ? 'hidden' : 'visible' }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Date range"
+          className="fixed inset-2 z-50 flex max-h-[calc(100dvh-1rem)] flex-col gap-3 overflow-y-auto rounded-lg border border-[#ecdbe8] bg-white p-3 shadow-xl sm:absolute sm:inset-auto sm:mt-2 sm:max-h-none sm:flex-row sm:gap-4 sm:p-4"
+          style={{ left: typeof window !== 'undefined' && window.innerWidth >= 640 ? (popupLeft ?? 0) : undefined, visibility: typeof window !== 'undefined' && window.innerWidth >= 640 && popupLeft === undefined ? 'hidden' : 'visible' }}
         >
-          <div className="w-36 shrink-0 space-y-1 border-r border-[#ecdbe8] pr-3">
+          <div className="grid shrink-0 grid-cols-3 gap-1 border-b border-[#ecdbe8] pb-3 sm:block sm:w-36 sm:space-y-1 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-3">
             {presets.map((preset) => {
               const active = startDate === preset.start && endDate === preset.end
               return (
@@ -375,7 +408,7 @@ export function DateRangePickerPopup({
           </div>
 
           <div>
-            <div className="flex gap-4">
+            <div className="flex justify-center gap-4">
               <MiniCal
                 year={leftYM[0]}
                 month={leftYM[1]}
@@ -393,6 +426,7 @@ export function DateRangePickerPopup({
                 }}
                 onMonthYear={setLeftNav}
               />
+              <div className="hidden sm:block">
               <MiniCal
                 year={rightYM[0]}
                 month={rightYM[1]}
@@ -410,8 +444,9 @@ export function DateRangePickerPopup({
                 }}
                 onMonthYear={setRightNav}
               />
+              </div>
             </div>
-            <div className="mt-4 flex items-center justify-between border-t border-[#ecdbe8] pt-3">
+            <div className="mt-4 flex flex-col gap-3 border-t border-[#ecdbe8] pt-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <TypedDateInput value={iStart} minDate={minDate} onCommit={setIStart} />
                 <span className="text-xs text-[#888888]">-</span>

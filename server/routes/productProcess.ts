@@ -1,5 +1,9 @@
+import { randomUUID } from 'crypto'
 import { Router, Request, Response } from 'express'
+import { requireAuth } from '../lib/httpAuth.js'
 import { getSupabase } from '../lib/supabase.js'
+import { CAPABILITY_ROLES } from '../config/capabilities.js'
+import { resilientFetch } from '../lib/resilientFetch.js'
 
 const router = Router()
 
@@ -28,9 +32,9 @@ const FIELDS = {
 } as const
 
 const CATALOG_SELECT_WITH_MAU = 'id, lark_record_id, product_name, order_code, warehouse_code, mau, order_date, total_quantity, size_s_28, size_m_29, size_l_30, size_xl_31, size_2xl_32, size_3xl_33, last_synced_at'
-const CATALOG_SELECT_LEGACY = 'id, lark_record_id, product_name, order_code, last_synced_at'
 
-let syncedCatalogRows: CatalogRow[] | null = null
+let syncInProgress = false
+let cachedLarkToken: { value: string; expiresAt: number } | null = null
 
 interface LarkRow {
   lark_record_id: string
@@ -67,15 +71,6 @@ type CatalogRow = {
   last_synced_at?: string | null
 }
 
-function isSchemaCacheError(error: unknown, column?: string): boolean {
-  const candidate = error as { code?: string; message?: string; details?: string }
-  const text = `${candidate.message ?? ''} ${candidate.details ?? ''}`.toLowerCase()
-  return candidate.code === 'PGRST204' ||
-    text.includes('schema cache') ||
-    text.includes('does not exist') ||
-    (column ? text.includes(`'${column.toLowerCase()}' column`) : text.includes('could not find the'))
-}
-
 function normalizeCatalogRows(rows: CatalogRow[] | null | undefined): CatalogRow[] {
   return (rows ?? []).map((row) => ({
     ...row,
@@ -92,14 +87,9 @@ function normalizeCatalogRows(rows: CatalogRow[] | null | undefined): CatalogRow
   }))
 }
 
-function hasEnrichedCatalogData(rows: CatalogRow[]): boolean {
-  return rows.some((row) =>
-    Boolean(row.warehouse_code || row.mau || row.order_date || row.total_quantity || row.size_s_28 || row.size_m_29 || row.size_l_30 || row.size_xl_31 || row.size_2xl_32 || row.size_3xl_33)
-  )
-}
-
 async function getLarkTenantToken() {
   if (process.env.LARK_TENANT_ACCESS_TOKEN) return process.env.LARK_TENANT_ACCESS_TOKEN
+  if (cachedLarkToken && cachedLarkToken.expiresAt > Date.now()) return cachedLarkToken.value
 
   const appId = process.env.LARK_APP_ID
   const appSecret = process.env.LARK_APP_SECRET
@@ -107,16 +97,22 @@ async function getLarkTenantToken() {
     throw new Error('LARK_TENANT_ACCESS_TOKEN or LARK_APP_ID/LARK_APP_SECRET not set')
   }
 
-  const res = await fetch(`${LARK_BASE_URL}/auth/v3/tenant_access_token/internal`, {
+  const res = await resilientFetch(`${LARK_BASE_URL}/auth/v3/tenant_access_token/internal`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify({ app_id: appId, app_secret: appSecret }),
+    retryUnsafe: true,
+    circuitKey: 'lark',
   })
-  const json = await res.json() as { code?: number; msg?: string; tenant_access_token?: string }
+  const json = await res.json() as { code?: number; msg?: string; tenant_access_token?: string; expire?: number }
   if (!res.ok || json.code !== 0 || !json.tenant_access_token) {
     throw new Error(`Lark token failed: ${json.msg ?? res.statusText}`)
   }
-  return json.tenant_access_token
+  cachedLarkToken = {
+    value: json.tenant_access_token,
+    expiresAt: Date.now() + Math.max(60, (json.expire ?? 7200) - 120) * 1000,
+  }
+  return cachedLarkToken.value
 }
 
 function cellToText(value: unknown): string {
@@ -157,22 +153,12 @@ function cellToISODate(value: unknown): string | null {
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
 }
 
-function larkRowsToCatalogRows(rows: LarkRow[], syncStartTime: string): CatalogRow[] {
-  return rows.map((row) => ({
-    id: row.lark_record_id,
-    ...row,
-    active: true,
-    last_synced_at: syncStartTime,
-  }))
-}
-
 async function selectCatalogRows() {
   const supabase = getSupabase()
-  let allRows: CatalogRow[] = []
+  const allRows: CatalogRow[] = []
   let from = 0
   const limit = 1000
   let hasMore = true
-  let useLegacy = false
 
   while (hasMore) {
     const withMau = await supabase
@@ -185,13 +171,7 @@ async function selectCatalogRows() {
       .order('mau', { ascending: true })
       .range(from, from + limit - 1)
 
-    if (withMau.error) {
-      if (isSchemaCacheError(withMau.error, 'mau')) {
-        useLegacy = true
-        break
-      }
-      throw withMau.error
-    }
+    if (withMau.error) throw withMau.error
 
     const data = withMau.data as CatalogRow[]
     allRows.push(...data)
@@ -202,94 +182,7 @@ async function selectCatalogRows() {
     }
   }
 
-  if (!useLegacy) {
-    return normalizeCatalogRows(allRows)
-  }
-
-  allRows = []
-  from = 0
-  hasMore = true
-  while (hasMore) {
-    const legacy = await supabase
-      .from('product_process_catalog')
-      .select(CATALOG_SELECT_LEGACY)
-      .eq('active', true)
-      .order('product_name', { ascending: true })
-      .order('order_code', { ascending: true })
-      .range(from, from + limit - 1)
-
-    if (legacy.error) throw legacy.error
-
-    const data = legacy.data as CatalogRow[]
-    allRows.push(...data)
-    if (data.length < limit) {
-      hasMore = false
-    } else {
-      from += limit
-    }
-  }
-
   return normalizeCatalogRows(allRows)
-}
-
-function omitFields<T extends Record<string, unknown>>(row: T, fields: string[]) {
-  const copy = { ...row }
-  for (const field of fields) delete copy[field]
-  return copy
-}
-
-async function upsertCatalogRows(rows: LarkRow[], syncStartTime: string) {
-  if (rows.length === 0) return
-
-  const supabase = getSupabase()
-  const payload = rows.map((row) => ({
-    ...row,
-    active: true,
-    last_synced_at: syncStartTime,
-    updated_at: syncStartTime,
-    size_s_28: row.size_s_28 ?? 0,
-    size_m_29: row.size_m_29 ?? 0,
-    size_l_30: row.size_l_30 ?? 0,
-    size_xl_31: row.size_xl_31 ?? 0,
-    size_2xl_32: row.size_2xl_32 ?? 0,
-    size_3xl_33: row.size_3xl_33 ?? 0,
-  }))
-
-  const chunkSize = 500
-  for (let i = 0; i < payload.length; i += chunkSize) {
-    const chunk = payload.slice(i, i + chunkSize)
-    const full = await supabase
-      .from('product_process_catalog')
-      .upsert(chunk, { onConflict: 'lark_record_id' })
-
-    if (full.error) {
-      if (!isSchemaCacheError(full.error)) throw full.error
-
-      const withoutMau = await supabase
-        .from('product_process_catalog')
-        .upsert(chunk.map((row) => omitFields(row, ['mau'])), { onConflict: 'lark_record_id' })
-      if (withoutMau.error) {
-        if (!isSchemaCacheError(withoutMau.error)) throw withoutMau.error
-
-        const legacyFields = [
-          'warehouse_code',
-          'mau',
-          'order_date',
-          'total_quantity',
-          'size_s_28',
-          'size_m_29',
-          'size_l_30',
-          'size_xl_31',
-          'size_2xl_32',
-          'size_3xl_33',
-        ]
-        const legacy = await supabase
-          .from('product_process_catalog')
-          .upsert(chunk.map((row) => omitFields(row, legacyFields)), { onConflict: 'lark_record_id' })
-        if (legacy.error) throw legacy.error
-      }
-    }
-  }
 }
 
 async function fetchLarkRows() {
@@ -302,11 +195,12 @@ async function fetchLarkRows() {
     url.searchParams.set('page_size', '100')
     if (pageToken) url.searchParams.set('page_token', pageToken)
 
-    const res = await fetch(url, {
+    const res = await resilientFetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json; charset=utf-8',
       },
+      circuitKey: 'lark',
     })
     const json = await res.json() as {
       code?: number
@@ -366,39 +260,80 @@ async function fetchLarkRows() {
   return rows
 }
 
-router.get('/', async (_req: Request, res: Response): Promise<void> => {
+router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
-    const items = await selectCatalogRows()
-    if (hasEnrichedCatalogData(items) || !syncedCatalogRows) {
-      res.json({ items })
+    if (req.query.page_size) {
+      const page = Math.max(1, Number.parseInt(String(req.query.page ?? '1'), 10) || 1)
+      const pageSize = Math.min(100, Math.max(1, Number.parseInt(String(req.query.page_size), 10) || 50))
+      const search = String(req.query.search ?? '').trim().slice(0, 100).replace(/[%_,()]/g, '')
+      let query = getSupabase()
+        .from('product_process_catalog')
+        .select(CATALOG_SELECT_WITH_MAU, { count: 'exact' })
+        .eq('active', true)
+        .order('product_name')
+        .order('order_code')
+        .range((page - 1) * pageSize, page * pageSize - 1)
+      if (search) {
+        query = query.or(`product_name.ilike.%${search}%,order_code.ilike.%${search}%,warehouse_code.ilike.%${search}%,mau.ilike.%${search}%`)
+      }
+      const { data, error, count } = await query
+      if (error) throw error
+      res.json({ items: normalizeCatalogRows(data as CatalogRow[]), total: count ?? 0, page, page_size: pageSize })
       return
     }
-    res.json({ items: syncedCatalogRows })
+    const items = await selectCatalogRows()
+    res.json({ items })
   } catch (err) {
-    res.status(500).json({ error: (err as Error).message })
+    void err
+    res.status(500).json({ error: 'Catalog lookup failed' })
   }
 })
 
-router.post('/sync', async (_req: Request, res: Response): Promise<void> => {
+router.post('/sync', requireAuth([...CAPABILITY_ROLES.syncCatalog]), async (_req: Request, res: Response): Promise<void> => {
+  if (syncInProgress) {
+    res.status(409).json({ error: 'Catalog sync is already running' })
+    return
+  }
+  syncInProgress = true
+  const leaseOwner = randomUUID()
+  let leaseAcquired = false
   try {
+    const supabase = getSupabase()
+    const lease = await supabase.rpc('acquire_job_lease', {
+      p_job_name: 'product_catalog_sync',
+      p_owner_id: leaseOwner,
+      p_ttl_seconds: 300,
+    } as never)
+    if (lease.error) throw lease.error
+    leaseAcquired = lease.data === true
+    if (!leaseAcquired) {
+      res.status(409).json({ error: 'Catalog sync is already running' })
+      return
+    }
+
     const syncStartTime = new Date().toISOString()
     const rows = await fetchLarkRows()
-    const supabase = getSupabase()
+    if (rows.length === 0) {
+      res.status(502).json({ error: 'Catalog sync returned no rows; existing catalog was not changed' })
+      return
+    }
+    const syncResult = await supabase.rpc('sync_product_catalog_atomic', {
+      p_rows: rows,
+      p_sync_started_at: syncStartTime,
+    } as never)
+    if (syncResult.error) throw syncResult.error
 
-    await upsertCatalogRows(rows, syncStartTime)
-
-    const { error: deactivateError } = await supabase
-      .from('product_process_catalog')
-      .update({ active: false, updated_at: syncStartTime })
-      .or(`last_synced_at.lt."${syncStartTime}",last_synced_at.is.null`)
-
-    if (deactivateError) throw deactivateError
-
-    syncedCatalogRows = larkRowsToCatalogRows(rows, syncStartTime)
-
-    res.json({ synced: rows.length, ts: syncStartTime, items: syncedCatalogRows })
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message })
+    res.json({ synced: rows.length, ts: syncStartTime })
+  } catch {
+    res.status(500).json({ error: 'Catalog sync failed' })
+  } finally {
+    if (leaseAcquired) {
+      await getSupabase().rpc('release_job_lease', {
+        p_job_name: 'product_catalog_sync',
+        p_owner_id: leaseOwner,
+      } as never)
+    }
+    syncInProgress = false
   }
 })
 

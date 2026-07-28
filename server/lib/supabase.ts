@@ -18,7 +18,9 @@ function requestHost(input: FetchInput): string {
 
 async function supabaseFetch(input: FetchInput, init?: FetchInit): Promise<Response> {
   try {
-    return await fetch(input, init)
+    const timeout = AbortSignal.timeout(15_000)
+    const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout
+    return await fetch(input, { ...init, signal })
   } catch (error) {
     const cause = error instanceof Error ? error : undefined
     const code = (cause?.cause as { code?: string } | undefined)?.code

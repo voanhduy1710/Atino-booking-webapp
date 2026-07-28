@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { supabase } from '@/shared/lib/supabase'
 import { getCurrentUser } from '@/shared/lib/auth'
+import { getJson } from '@/shared/lib/apiClient'
 import { Navbar } from '@/shared/components/Navbar'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
@@ -41,41 +41,8 @@ export default function MyBookingsPage() {
     queryKey: ['my-bookings', user?.supplier_account_id, statusFilter],
     queryFn: async () => {
       if (!user?.supplier_account_id) return []
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, ghi_chu, warehouses!inner(name, code), booking_items(id, status, reject_reason, total_quantity, quantity_booked)')
-        .eq('supplier_account_id', user.supplier_account_id)
-        .order('submitted_at', { ascending: false })
-        .limit(100)
-
-      if (error) throw error
-
-      const rows = (data ?? []).flatMap((b: any) => {
-        const items = b.booking_items ?? []
-        const groups = [
-          { status: 'confirmed' as BookingStatus, items: items.filter((item: any) => item.status === 'confirmed') },
-          { status: 'rejected' as BookingStatus, items: items.filter((item: any) => item.status === 'rejected') },
-          { status: 'returned' as BookingStatus, items: items.filter((item: any) => item.status === 'returned') },
-          { status: 'pending' as BookingStatus, items: items.filter((item: any) => item.status === 'pending') },
-        ].filter((group) => group.items.length > 0)
-
-        return groups.map((group) => ({
-          row_id: `${b.id}-${group.status}`,
-          id: b.id,
-          booking_code: b.booking_code,
-          booking_token: b.booking_token,
-          delivery_date: b.delivery_date,
-          time_slot: b.time_slot,
-          status: group.status,
-          ghi_chu: b.ghi_chu,
-          reject_reasons: group.items.map((item: any) => item.reject_reason).filter(Boolean).join('; '),
-          submitted_at: b.submitted_at,
-          warehouse_name: b.warehouses?.name ?? '',
-          warehouse_code: b.warehouses?.code ?? '',
-          item_count: group.items.length,
-          total_quantity: group.items.reduce((sum: number, item: any) => sum + Number(item.total_quantity ?? item.quantity_booked ?? 0), 0),
-        }))
-      }) as MyBooking[]
+      const result = await getJson<{ bookings: MyBooking[] }>('/api/booking/finalize/mine')
+      const rows = result.bookings
 
       if (statusFilter === 'all') return rows
       return rows.filter((b) => b.status === statusFilter)

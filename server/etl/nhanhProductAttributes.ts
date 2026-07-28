@@ -1,3 +1,5 @@
+import { resilientFetch } from '../lib/resilientFetch.js'
+
 const SIZE_ATTRIBUTE_ID = 217118
 const COLOR_ATTRIBUTE_ID = 1239859
 
@@ -84,7 +86,7 @@ export async function fetchProductAttributes(productIds: Array<number | string>)
   url.searchParams.set('appId', appId)
   url.searchParams.set('businessId', businessId)
 
-  const upstream = await fetch(url, {
+  const upstream = await resilientFetch(url, {
     method: 'POST',
     headers: {
       Authorization: accessToken,
@@ -94,6 +96,9 @@ export async function fetchProductAttributes(productIds: Array<number | string>)
       filters: { ids },
       paginator: { size: Math.max(100, ids.length) },
     }),
+    timeoutMs: 10_000,
+    retryUnsafe: true,
+    circuitKey: 'nhanh',
   })
   const json = await upstream.json() as NhanhProductListResponse & { message?: string }
   if (!upstream.ok) throw new Error(json.message ?? upstream.statusText)

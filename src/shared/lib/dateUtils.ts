@@ -32,10 +32,6 @@ export function getDeliveryDateWindow(now = nowICT()): { minDate: Date; maxDate:
   }
 }
 
-export function computeDeliveryDatePreview(): Date {
-  return getDeliveryDateWindow().minDate
-}
-
 export function formatDateDisplay(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date
   return format(toZonedTime(d, ICT), 'dd/MM/yyyy', { timeZone: ICT })

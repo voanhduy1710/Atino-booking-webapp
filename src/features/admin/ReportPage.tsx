@@ -5,14 +5,13 @@
  */
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { supabase } from '@/shared/lib/supabase'
+import { getJson } from '@/shared/lib/apiClient'
 import { DateRangePickerPopup } from '@/shared/components/filters'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
 import { Navbar } from '@/shared/components/Navbar'
 import { getCurrentUser } from '@/shared/lib/auth'
 import { ROLE_TABS } from '@/shared/config/navTabs'
 import { type BookingStatus } from '@/shared/types/domain'
-import { countBookingItemStatuses, deriveBookingStatus } from '@/shared/lib/bookingStatus'
 import { BOOKING_STATUS_HEX_COLORS, BOOKING_STATUS_LABELS } from '@/shared/constants/status'
 import { CHART_PALETTE } from '@/shared/constants/ui'
 
@@ -57,6 +56,22 @@ interface ItemDateDatum {
   confirmed: number
   rejected: number
   pending: number
+}
+
+interface ReportData {
+  total: number
+  total_items: number
+  by_status: Record<string, number>
+  daily: Array<{
+    date: string
+    total: number
+    statuses: Record<string, number>
+    total_items: number
+    confirmed: number
+    rejected: number
+    pending: number
+  }>
+  suppliers: Array<{ name: string; count: number }>
 }
 
 const STACK_STATUS_ORDER: BookingStatus[] = ['pending', 'partially_approved', 'confirmed', 'partially_rejected', 'rejected', 'received', 'cancelled']
@@ -353,92 +368,37 @@ export default function ReportPage({ embedded = false }: { embedded?: boolean })
     document.title = 'Báo cáo — Atino'
   }, [])
 
-  // ── Fetch all bookings in range ───────────────────────────────────────────
-  const { data: bookings = [], isLoading } = useQuery({
+  const { data: report = { total: 0, total_items: 0, by_status: {}, daily: [], suppliers: [] } as ReportData, isLoading } = useQuery({
     queryKey: ['report-bookings', dateFrom, dateTo],
     queryFn: async () => {
-      let q = supabase
-        .from('bookings')
-        .select('id, status, delivery_date, submitted_at, suppliers!inner(name), booking_items(id, status)')
-        .order('delivery_date', { ascending: true })
-      if (dateFrom) q = q.gte('delivery_date', dateFrom)
-      if (dateTo) q = q.lte('delivery_date', dateTo)
-      const { data, error } = await q
-      if (error) throw error
-      return (data ?? []).map((b: any) => {
-        const items = b.booking_items ?? []
-        return {
-          id: b.id,
-          status: deriveBookingStatus(b.status, items),
-          delivery_date: b.delivery_date as string,
-          submitted_at: b.submitted_at as string,
-          supplier_name: b.suppliers?.name ?? '—',
-          items_count: items.length,
-          item_status_counts: countBookingItemStatuses(items),
-        }
-      })
+      const params = new URLSearchParams()
+      if (dateFrom) params.set('date_from', dateFrom)
+      if (dateTo) params.set('date_to', dateTo)
+      return getJson<ReportData>(`/api/reviewer/report?${params}`)
     },
   })
 
-  // ── Derived KPIs ─────────────────────────────────────────────────────────
-  const total = bookings.length
-  const byStatus = bookings.reduce((acc, b) => {
-    acc[b.status] = (acc[b.status] ?? 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-
-  const totalItems = bookings.reduce((s, b) => s + b.items_count, 0)
-  const returned = (byStatus['rejected'] ?? 0)
+  const total = report.total
+  const byStatus = report.by_status
+  const totalItems = report.total_items
+  const returned = (byStatus['rejected'] ?? 0) + (byStatus['returned'] ?? 0)
   const received = (byStatus['received'] ?? 0)
 
-  // ── Bookings and items by date ───────────────────────────────────────────
-  const byDate = bookings.reduce((acc, b) => {
-    const row = acc[b.delivery_date] ?? {
-      label: b.delivery_date.slice(5).replace('-', '/'),
-      total: 0,
-      statuses: {},
-      totalItems: 0,
-      confirmed: 0,
-      rejected: 0,
-      pending: 0,
-    }
-    row.total += 1
-    row.statuses[b.status] = (row.statuses[b.status] ?? 0) + 1
-    row.totalItems += b.items_count
-    row.confirmed += b.item_status_counts.confirmed
-    row.rejected += b.item_status_counts.rejected
-    row.pending += b.item_status_counts.pending
-    acc[b.delivery_date] = row
-    return acc
-  }, {} as Record<string, BookingDateDatum & ItemDateDatum & { totalItems: number }>)
-
-  const dateRows = Object.entries(byDate)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, row]) => row)
-
-  const dateSeries: BookingDateDatum[] = dateRows.map((row) => ({
-    label: row.label,
+  const dateSeries: BookingDateDatum[] = report.daily.map((row) => ({
+    label: row.date.slice(5).replace('-', '/'),
     total: row.total,
     statuses: row.statuses,
   }))
 
-  const itemSeries: ItemDateDatum[] = dateRows.map((row) => ({
-    label: row.label,
-    total: row.totalItems,
+  const itemSeries: ItemDateDatum[] = report.daily.map((row) => ({
+    label: row.date.slice(5).replace('-', '/'),
+    total: row.total_items,
     confirmed: row.confirmed,
     rejected: row.rejected,
     pending: row.pending,
   }))
 
-  // ── By supplier ──────────────────────────────────────────────────────────
-  const bySupplier = bookings.reduce((acc, b) => {
-    acc[b.supplier_name] = (acc[b.supplier_name] ?? 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-
-  const supplierEntries = Object.entries(bySupplier)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 10)
+  const supplierEntries = report.suppliers.map(({ name, count }) => [name, count] as [string, number])
 
   const supplierMax = supplierEntries[0]?.[1] ?? 1
 

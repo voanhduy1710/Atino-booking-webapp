@@ -1,6 +1,6 @@
 import { type RefObject } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { supabase } from '@/shared/lib/supabase'
+import { getJson } from '@/shared/lib/apiClient'
 import { buildPhotoList } from '@/shared/lib/gcs'
 import { formatDateDisplay, formatDateTimeDisplay } from '@/shared/lib/dateUtils'
 import { TIME_SLOT_LABELS, type TimeSlot, type BookingStatus } from '@/shared/types/domain'
@@ -52,33 +52,13 @@ interface Props {
   onViewDetails: () => void
 }
 
-const TOOLTIP_ITEM_SELECT = 'product_code, process_code, warehouse_code, mau, delivery_round, is_final_round, quantity_booked, total_quantity, vat_invoice_url, booking_item_photos(storage_path, photo_type)'
-const TOOLTIP_ITEM_LEGACY_SELECT = 'product_code, process_code, delivery_round, is_final_round, quantity_booked, vat_invoice_url, booking_item_photos(storage_path, photo_type)'
-
-function isSchemaColumnError(error: unknown): boolean {
-  const message = String((error as { message?: string } | null)?.message ?? '')
-  const code = String((error as { code?: string } | null)?.code ?? '')
-  return code === 'PGRST204' || message.includes('schema cache') || message.includes('does not exist')
-}
-
 export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, onMouseLeave, onPhotoClick, onPin, onViewDetails }: Props) {
   const { data } = useQuery({
     queryKey: ['tooltip-items', row.id],
     queryFn: async () => {
-      let { data, error } = await supabase
-        .from('booking_items')
-        .select(TOOLTIP_ITEM_SELECT)
-        .eq('booking_id', row.id)
-      if (error && isSchemaColumnError(error)) {
-        const legacyResult = await supabase
-          .from('booking_items')
-          .select(TOOLTIP_ITEM_LEGACY_SELECT)
-          .eq('booking_id', row.id)
-        data = legacyResult.data
-        error = legacyResult.error
-      }
-      if (error) return { items: [], photos: [] }
-      const items: TooltipItem[] = (data ?? []).map((d: any) => ({
+      const result = await getJson<{ booking: { booking_items?: any[] } }>(`/api/reviewer/bookings/${row.id}`)
+      const data = result.booking.booking_items ?? []
+      const items: TooltipItem[] = data.map((d: any) => ({
         product_code: d.product_code,
         process_code: d.process_code,
         warehouse_code: d.warehouse_code,
@@ -88,7 +68,7 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
         quantity_booked: d.quantity_booked,
         total_quantity: d.total_quantity,
       }))
-      const photos = (data ?? []).flatMap((item) => buildPhotoList(item as any))
+      const photos = data.flatMap((item) => buildPhotoList(item as any))
       return { items, photos }
     },
     staleTime: 8 * 60 * 1000,
@@ -100,7 +80,7 @@ export function BookingTooltip({ row, x, y, isPinned, tooltipRef, onMouseEnter, 
   const clampedY = Math.max(4, Math.min(y, window.innerHeight - 400))
 
   return (
-    <div ref={tooltipRef} className="fixed z-40 w-96 bg-white border border-[#ecdbe8] rounded-lg shadow-xl p-3 pointer-events-auto" style={{ left: clampedX, top: clampedY }} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <div ref={tooltipRef} className="fixed z-40 w-[min(24rem,calc(100vw-1rem))] bg-white border border-[#ecdbe8] rounded-lg shadow-xl p-3 pointer-events-auto" style={{ left: clampedX, top: clampedY }} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <p className="font-mono font-bold text-xs mb-2">{row.booking_code}</p>
       <div className="space-y-1.5 mb-3">
         {([

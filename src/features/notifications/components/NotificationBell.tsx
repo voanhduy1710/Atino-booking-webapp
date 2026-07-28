@@ -1,17 +1,18 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useUnreadCount } from '@/features/notifications/hooks/useNotifications'
 import { NotificationPanel } from './NotificationPanel'
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const { data: unreadCount = 0 } = useUnreadCount()
+  const closePanel = useCallback(() => setOpen(false), [])
 
   return (
     <>
       <button
         id="notification-bell"
         onClick={() => setOpen(true)}
-        className="relative p-2 text-[#888888] hover:text-black transition-colors"
+        className="relative flex min-h-11 min-w-11 items-center justify-center text-[#888888] hover:text-black transition-colors"
         aria-label={`Thông báo${unreadCount > 0 ? ` (${unreadCount} chưa đọc)` : ''}`}
       >
         {/* Bell SVG */}
@@ -28,7 +29,7 @@ export function NotificationBell() {
         )}
       </button>
 
-      <NotificationPanel isOpen={open} onClose={() => setOpen(false)} />
+      <NotificationPanel isOpen={open} onClose={closePanel} />
     </>
   )
 }

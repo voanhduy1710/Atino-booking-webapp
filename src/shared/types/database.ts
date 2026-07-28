@@ -89,6 +89,7 @@ export interface Database {
           id: string
           booking_code: string
           booking_token: string
+          client_session_id: string | null
           supplier_account_id: string
           supplier_id: string
           warehouse_id: string
@@ -108,6 +109,7 @@ export interface Database {
           id?: string
           booking_code?: string
           booking_token?: string
+          client_session_id?: string | null
           supplier_account_id: string
           supplier_id: string
           warehouse_id: string

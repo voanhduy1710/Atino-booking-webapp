@@ -1,121 +1,153 @@
-import { Router } from 'express'
+import { Router, type Response } from 'express'
+import { z } from 'zod'
+import { issueJWT, verifyJWT } from '../lib/jwt.js'
+import { hashPassword, verifyPassword } from '../lib/password.js'
 import { getSupabase } from '../lib/supabase.js'
+import { registerSession, revokeSession } from '../lib/sessionStore.js'
+import { authenticatedUser } from '../lib/httpAuth.js'
+import { isAppRole, type AppRole } from '../config/capabilities.js'
 
 const router = Router()
+const SESSION_TTL_SECONDS = 8 * 60 * 60
 
 interface StaffUser {
   username: string
   password_hash: string
-  role: string
-  allowedRoutes?: string[]
+  role: AppRole
 }
 
-function getStaffUsers(): StaffUser[] {
+const loginSchema = z.object({
+  username: z.string().trim().min(1).max(100),
+  password: z.string().min(1).max(256),
+})
+const registerSchema = z.object({
+  full_name: z.string().trim().min(1).max(200),
+  username: z.string().trim().min(3).max(100),
+  password: z.string().min(8).max(256),
+})
+
+export function getStaffUsers(): StaffUser[] {
   const raw = process.env.STAFF_USERS_B64
     ? Buffer.from(process.env.STAFF_USERS_B64, 'base64').toString('utf8')
-    : (process.env.STAFF_USERS ?? process.env.VITE_STAFF_USERS)
+    : (process.env.STAFF_USERS ?? (process.env.NODE_ENV !== 'production' ? process.env.VITE_STAFF_USERS : undefined))
   if (!raw) return []
   try {
-    const parsed = JSON.parse(raw) as StaffUser[]
-    return Array.isArray(parsed) ? parsed : []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((user): user is StaffUser => {
+      if (!user || typeof user !== 'object') return false
+      const candidate = user as Record<string, unknown>
+      return typeof candidate.username === 'string' &&
+        typeof candidate.password_hash === 'string' &&
+        isAppRole(candidate.role) &&
+        candidate.role !== 'supplier'
+    })
   } catch {
     return []
   }
 }
 
+function setSessionCookie(res: Response, token: string): void {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
+  res.setHeader(
+    'Set-Cookie',
+    `atino_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL_SECONDS}${secure}`
+  )
+}
+
+async function loginResponse(res: Response, claims: {
+  sub: string
+  username: string
+  role: AppRole
+  supplier_id?: string
+  supplier_account_id?: string
+}) {
+  const token = issueJWT(claims, SESSION_TTL_SECONDS)
+  const payload = verifyJWT(token)
+  if (!payload) throw new Error('Could not issue session')
+  await registerSession(payload)
+  setSessionCookie(res, token)
+  return res.json({ role: claims.role, user: { ...claims, exp: payload.exp } })
+}
+
 router.post('/login', async (req, res, next) => {
   try {
-    const username = String(req.body?.username ?? '').trim()
-    const passwordHash = String(req.body?.password_hash ?? '').trim()
-    if (!username || !passwordHash) {
-      res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' })
-      return
-    }
-
+    const parsed = loginSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid credentials' })
+    const { username, password } = parsed.data
     const staffUser = getStaffUsers().find((user) => user.username === username)
     if (staffUser) {
-      if (staffUser.password_hash !== passwordHash) {
-        res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' })
-        return
-      }
-      res.json({
-        session: {
-          username: staffUser.username,
-          role: staffUser.role,
-          allowedRoutes: staffUser.allowedRoutes ?? [],
-        },
+      const verification = await verifyPassword(password, staffUser.password_hash)
+      if (!verification.valid) return res.status(401).json({ error: 'Invalid credentials' })
+      return loginResponse(res, {
+        sub: `staff:${staffUser.username}`,
+        username: staffUser.username,
         role: staffUser.role,
       })
-      return
     }
 
     const supabase = getSupabase()
-    const { data, error } = await supabase.rpc('login_supplier', {
-      p_username: username,
-      p_password_hash: passwordHash,
-    } as never)
+    const { data, error } = await supabase
+      .from('supplier_accounts')
+      .select('id, username, password_hash, status, supplier_id')
+      .eq('username', username)
+      .maybeSingle()
     if (error) throw error
-    if (!data) {
-      res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' })
-      return
+    if (!data) return res.status(401).json({ error: 'Invalid credentials' })
+    const account = data as { id: string; username: string; password_hash: string; status: string; supplier_id: string | null }
+    const verification = await verifyPassword(password, account.password_hash)
+    if (!verification.valid) return res.status(401).json({ error: 'Invalid credentials' })
+    if (account.status !== 'active') return res.status(403).json({ error: 'Account is not approved' })
+    if (verification.needsUpgrade) {
+      const upgradedHash = await hashPassword(password)
+      const { error: upgradeError } = await supabase
+        .from('supplier_accounts')
+        .update({ password_hash: upgradedHash } as never)
+        .eq('id', account.id)
+        .eq('password_hash', account.password_hash)
+      if (upgradeError) throw upgradeError
     }
-
-    const account = data as { id: string; username: string; status: string; supplier_id: string | null }
-    if (account.status === 'pending') {
-      res.status(403).json({ error: 'Tài khoản đang chờ admin xác nhận' })
-      return
-    }
-    if (account.status === 'rejected') {
-      res.status(403).json({ error: 'Tài khoản đã bị từ chối' })
-      return
-    }
-
-    res.json({
-      session: {
-        username: account.username,
-        role: 'supplier',
-        supplier_id: account.supplier_id ?? undefined,
-        supplier_account_id: account.id,
-      },
+    return loginResponse(res, {
+      sub: `supplier:${account.id}`,
+      username: account.username,
       role: 'supplier',
+      supplier_id: account.supplier_id ?? undefined,
+      supplier_account_id: account.id,
     })
   } catch (err) {
     next(err)
   }
 })
 
+router.post('/logout', async (req, res, next) => {
+  try {
+    const payload = authenticatedUser(req)
+    if (payload) await revokeSession(payload)
+  } catch (error) {
+    next(error)
+    return
+  }
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
+  res.setHeader('Set-Cookie', `atino_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`)
+  res.json({ ok: true })
+})
+
 router.post('/register-supplier', async (req, res, next) => {
   try {
-    const fullName = String(req.body?.full_name ?? '').trim()
-    const username = String(req.body?.username ?? '').trim()
-    const passwordHash = String(req.body?.password_hash ?? '').trim()
-    const password = String(req.body?.password ?? '').trim()
-    if (!fullName || !username || !passwordHash || !password) {
-      res.status(400).json({ error: 'Vui lòng điền đầy đủ thông tin' })
-      return
-    }
-
+    const parsed = registerSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'Invalid registration data' })
+    const { full_name: fullName, username, password } = parsed.data
+    const passwordHash = await hashPassword(password)
     const supabase = getSupabase()
     const { data, error } = await supabase.rpc('register_supplier', {
       p_username: username,
       p_password_hash: passwordHash,
       p_full_name: fullName,
-      p_password: password,
     } as never)
     if (error) throw error
-
-    const result = data as { error?: string; success?: boolean } | null
-    if (result?.error) {
-      const map: Record<string, string> = {
-        'Ten dang nhap da ton tai': 'Tên đăng nhập đã tồn tại',
-        'Vui long dien day du thong tin': 'Vui lòng điền đầy đủ thông tin',
-        'Loi he thong': 'Lỗi hệ thống, vui lòng thử lại',
-      }
-      res.status(400).json({ error: map[result.error] ?? result.error })
-      return
-    }
-
-    res.json({ message: 'Đăng ký thành công. Vui lòng chờ admin xác nhận.' })
+    const result = data as { error?: string } | null
+    if (result?.error) return res.status(400).json({ error: result.error })
+    return res.json({ message: 'Registration submitted. Await administrator approval.' })
   } catch (err) {
     next(err)
   }

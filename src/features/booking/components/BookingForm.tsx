@@ -13,7 +13,7 @@ import { useActiveSupplierAccounts, useWarehouses, useSupplierInfo } from '@/fea
 import { PoRow } from './PoRow'
 import { TIME_SLOT_LABELS, STANDARD_DELIVERY_NOTE, type TimeSlot } from '@/shared/types/domain'
 import { formatDateDisplay, getDeliveryDateWindow } from '@/shared/lib/dateUtils'
-import { getCurrentUser, getToken } from '@/shared/lib/auth'
+import { getCurrentUser } from '@/shared/lib/auth'
 import { SUPPLIER_TABS } from '@/shared/constants/supplierTabs'
 import { ROLE_TABS } from '@/shared/config/navTabs'
 import { pageMainClass } from '@/shared/config/pageLayout'
@@ -27,7 +27,6 @@ import {
 // Re-export for any legacy imports
 export { SUPPLIER_TABS }
 
-const SESSION_ID = crypto.randomUUID()
 const DEFAULT_WAREHOUSE_NAME = 'Tân Hoàng Long'
 
 const emptyItem = {
@@ -72,6 +71,7 @@ function maxISODate(...dates: Array<string | undefined>): string {
 }
 
 export function BookingForm() {
+  const [sessionId] = useState(() => crypto.randomUUID())
   const navigate = useNavigate()
   const user = getCurrentUser()
   const isAdmin = user?.role === 'admin'
@@ -123,7 +123,6 @@ export function BookingForm() {
   const poCount = watch('items').length
   const selectedDeliveryDate = watch('delivery_date')
   const watchedItems = watch('items')
-  const token = getToken()
   const requestedTotal = useMemo(
     () => (watchedItems ?? []).reduce((sum, item) => sum + bookingItemTotal(item), 0),
     [watchedItems]
@@ -131,20 +130,18 @@ export function BookingForm() {
   const { data: deliveryCapacity, isLoading: deliveryCapacityLoading } = useQuery({
     queryKey: ['booking-delivery-capacity', selectedDeliveryDate],
     queryFn: () => getJson<DeliveryCapacity>(
-      `/api/booking/finalize/capacity?delivery_date=${encodeURIComponent(selectedDeliveryDate)}`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      `/api/booking/finalize/capacity?delivery_date=${encodeURIComponent(selectedDeliveryDate)}`
     ),
-    enabled: Boolean(token && selectedDeliveryDate),
+    enabled: Boolean(user && selectedDeliveryDate),
     refetchInterval: 30_000,
     staleTime: 0,
   })
   const { data: deliveryCapacityWindow } = useQuery({
     queryKey: ['booking-delivery-capacity-window', requestedTotal, selectedDeliveryDate],
     queryFn: () => getJson<DeliveryCapacityWindow>(
-      `/api/booking/finalize/capacity-window?requested_total=${encodeURIComponent(requestedTotal)}&delivery_date=${encodeURIComponent(selectedDeliveryDate)}`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      `/api/booking/finalize/capacity-window?requested_total=${encodeURIComponent(requestedTotal)}&delivery_date=${encodeURIComponent(selectedDeliveryDate)}`
     ),
-    enabled: Boolean(token),
+    enabled: Boolean(user),
     placeholderData: (previous) => previous,
     refetchInterval: 30_000,
     staleTime: 0,
@@ -197,7 +194,7 @@ export function BookingForm() {
 
   const onSubmit = async (data: BookingFormData) => {
     const deliveryDate = getValues('delivery_date') || data.delivery_date
-    if (!token) return
+    if (!user) return
     if (isAdmin && !adminSupplierAccountId) {
       alert('Vui lòng chọn tài khoản nhà cung cấp')
       return
@@ -214,13 +211,9 @@ export function BookingForm() {
         time_slot: data.time_slot,
         ghi_chu: data.ghi_chu || null,
         delivery_note: STANDARD_DELIVERY_NOTE,
-        session_id: SESSION_ID,
+        session_id: sessionId,
         ...(isAdmin ? { supplier_account_id: adminSupplierAccountId } : {}),
         items: data.items,
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       })
 
       const { booking_token } = result
@@ -263,7 +256,7 @@ export function BookingForm() {
 
             <div className="px-6 py-5 space-y-4">
               {isAdmin && (
-                <div className="grid grid-cols-3 gap-4 items-start">
+                <div className="grid grid-cols-1 gap-4 items-start sm:grid-cols-3">
                   <label className="form-label col-span-1 pt-2">
                     Tài khoản NCC <span className="text-[#CC0000]">*</span>
                   </label>
@@ -287,7 +280,7 @@ export function BookingForm() {
               )}
 
               {/* Cửa hàng */}
-              <div className="grid grid-cols-3 gap-4 items-start">
+              <div className="grid grid-cols-1 gap-4 items-start sm:grid-cols-3">
                 <label className="form-label col-span-1 pt-2">
                   Cửa hàng <span className="text-[#CC0000]">*</span>
                 </label>
@@ -307,7 +300,7 @@ export function BookingForm() {
               </div>
 
               {/* Mã NCC */}
-              <div className="grid grid-cols-3 gap-4 items-center">
+              <div className="grid grid-cols-1 gap-4 items-center sm:grid-cols-3">
                 <label className="form-label col-span-1">Mã NCC</label>
                 <div className="col-span-2">
                   <input
@@ -320,7 +313,7 @@ export function BookingForm() {
               </div>
 
               {/* Tên NCC */}
-              <div className="grid grid-cols-3 gap-4 items-center">
+              <div className="grid grid-cols-1 gap-4 items-center sm:grid-cols-3">
                 <label className="form-label col-span-1">Tên NCC</label>
                 <div className="col-span-2">
                   <input
@@ -333,7 +326,7 @@ export function BookingForm() {
               </div>
 
               {/* Ngày giao hàng */}
-              <div className="grid grid-cols-3 gap-4 items-center">
+              <div className="grid grid-cols-1 gap-4 items-center sm:grid-cols-3">
                 <label className="form-label col-span-1">Ngày đăng ký giao hàng</label>
                 <div className="col-span-2">
                   <div className="flex items-center justify-between gap-3">
@@ -373,7 +366,7 @@ export function BookingForm() {
               </div>
 
               {/* Số lượng đơn hàng */}
-              <div className="grid grid-cols-3 gap-4 items-center">
+              <div className="grid grid-cols-1 gap-4 items-center sm:grid-cols-3">
                 <label className="form-label col-span-1">
                   Số lượng đơn hàng <span className="text-[#CC0000]">*</span>
                 </label>
@@ -391,8 +384,8 @@ export function BookingForm() {
 
               {/* PO Table */}
               <div>
-                <div className="overflow-visible border border-[#ecdbe8] rounded">
-                  <table className="w-full table-fixed text-xs">
+                <div className="sm:overflow-x-auto sm:border sm:border-[#ecdbe8] sm:rounded">
+                  <table className="po-table w-full text-xs sm:min-w-[1100px] sm:table-fixed">
                     <thead>
                       <tr className="bg-[#F5F5F5]">
                         <th className="table-header !px-1 !py-2 w-[3%]">STT</th>
@@ -420,7 +413,7 @@ export function BookingForm() {
                           rowId={field.id}
                           register={register}
                           errors={errors}
-                          sessionId={SESSION_ID}
+                          sessionId={sessionId}
                           supplierCode={effectiveSupplier?.code ?? 'NCC'}
                           onCopy={(copiedAttachmentNames) => copyRow(index, copiedAttachmentNames)}
                           onRemove={fields.length > 1 ? () => remove(index) : undefined}

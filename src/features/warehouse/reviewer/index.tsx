@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '@/shared/lib/supabase'
+import { getJson } from '@/shared/lib/apiClient'
 import { Navbar } from '@/shared/components/Navbar'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
@@ -29,16 +29,6 @@ const STATUS_FILTER_OPTIONS: Array<{
   { value: 'returned', label: 'Trả hàng', style: { backgroundColor: '#FFF4E5', color: '#7A3E00' } },
 ]
 const PAGE_SIZE = DEFAULT_PAGE_SIZE
-const REVIEWER_BOOKING_SELECT =
-  'id, booking_code, booking_token, supplier_account_id, delivery_date, time_slot, status, submitted_at, ghi_chu, nhanh_draft_bill_id, suppliers!inner(name, code), warehouses!inner(name), booking_items(id, status, reject_reason, product_code, process_code, warehouse_code, mau, total_quantity, quantity_booked)'
-const REVIEWER_BOOKING_LEGACY_SELECT =
-  'id, booking_code, booking_token, supplier_account_id, delivery_date, time_slot, status, submitted_at, ghi_chu, suppliers!inner(name, code), warehouses!inner(name), booking_items(id, status, reject_reason, product_code, process_code, quantity_booked)'
-
-function isSchemaColumnError(error: unknown): boolean {
-  const message = String((error as { message?: string } | null)?.message ?? '')
-  const code = String((error as { code?: string } | null)?.code ?? '')
-  return code === 'PGRST204' || message.includes('schema cache') || message.includes('does not exist')
-}
 
 export default function ReviewerPage({ embedded = false }: { embedded?: boolean }) {
   const [dateFrom, setDateFrom] = useState('')
@@ -111,35 +101,25 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
   const { data: suppliers = [] } = useQuery({
     queryKey: ['reviewer-suppliers'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('suppliers').select('id, name').order('name')
-      if (error) return []
-      return data as { id: string; name: string }[]
+      const result = await getJson<{ suppliers: { id: string; name: string }[] }>('/api/reviewer/suppliers')
+      return result.suppliers
     },
     staleTime: 5 * 60 * 1000,
   })
 
-  const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ['reviewer-bookings', dateFrom, dateTo, statusFilter, debouncedSearch, supplierFilter],
+  const { data: bookingPage = { bookings: [] as BookingRow[], total: 0 }, isLoading } = useQuery({
+    queryKey: ['reviewer-bookings', dateFrom, dateTo, statusFilter, debouncedSearch, supplierFilter, currentPage],
     queryFn: async () => {
-      const buildQuery = (selectClause: string) => {
-        let q = supabase
-          .from('bookings')
-          .select(selectClause)
-          .order('submitted_at', { ascending: false })
-        if (dateFrom) q = q.gte('delivery_date', dateFrom)
-        if (dateTo) q = q.lte('delivery_date', dateTo)
-        if (debouncedSearch) q = q.ilike('booking_code', `%${debouncedSearch}%`)
-        if (supplierFilter !== 'all') q = q.eq('supplier_id', supplierFilter)
-        return q
-      }
-
-      let { data, error } = await buildQuery(REVIEWER_BOOKING_SELECT)
-      if (error && isSchemaColumnError(error)) {
-        const legacyResult = await buildQuery(REVIEWER_BOOKING_LEGACY_SELECT)
-        data = legacyResult.data
-        error = legacyResult.error
-      }
-      if (error) throw error
+      const params = new URLSearchParams()
+      if (dateFrom) params.set('date_from', dateFrom)
+      if (dateTo) params.set('date_to', dateTo)
+      if (debouncedSearch) params.set('search', debouncedSearch)
+      if (supplierFilter !== 'all') params.set('supplier_id', supplierFilter)
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      params.set('page', String(currentPage))
+      params.set('page_size', String(PAGE_SIZE))
+      const result = await getJson<{ bookings: any[]; total: number }>(`/api/reviewer/bookings?${params}`)
+      const data = result.bookings
       const rows = (data ?? []).map((b: any) => {
         const items = b.booking_items ?? []
         const statusTags = getBookingStatusTags(items)
@@ -159,25 +139,22 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
           nhanh_draft_bill_id: b.nhanh_draft_bill_id,
         }
       }) as BookingRow[]
-      return statusFilter === 'all' ? rows : rows.filter((b) => b.status_tags.includes(statusFilter))
+      return { bookings: rows, total: result.total }
     },
   })
 
-  const totalPages = Math.max(1, Math.ceil(bookings.length / PAGE_SIZE))
+  const bookings = bookingPage.bookings
+  const totalPages = Math.max(1, Math.ceil(bookingPage.total / PAGE_SIZE))
   const safePage = Math.min(currentPage, totalPages)
-  const paginatedBookings = bookings.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const paginatedBookings = bookings
 
   useEffect(() => {
     if (currentPage !== safePage) setCurrentPage(safePage)
   }, [currentPage, safePage])
 
   const openBooking = async (row: BookingRow) => {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('*, booking_items(*, booking_item_photos(id, storage_path, photo_type))')
-      .eq('id', row.id)
-      .single()
-    if (error || !data) return
+    const result = await getJson<{ booking: any }>(`/api/reviewer/bookings/${row.id}`)
+    const data = result.booking
     const d = data as any
     const items = d.booking_items ?? []
     setSelectedBooking({
@@ -253,8 +230,8 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
         </div>
       ) : (
         <div className="overflow-hidden bg-white border border-[#ecdbe8] rounded-lg relative">
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm data-table">
+          <div className="hidden overflow-x-auto md:block">
+          <table className="min-w-[900px] w-full text-sm data-table">
             <thead>
               <tr>
                 <th className="table-header">Mã booking</th>
@@ -311,10 +288,37 @@ export default function ReviewerPage({ embedded = false }: { embedded?: boolean 
             </tbody>
           </table>
           </div>
+          <div className="divide-y divide-[#ecdbe8] md:hidden">
+            {paginatedBookings.map((booking) => (
+              <button
+                key={booking.id}
+                type="button"
+                onClick={() => void openBooking(booking)}
+                className="block min-h-11 w-full p-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#80417A]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-mono text-sm font-bold">{booking.booking_code}</p>
+                    <p className="mt-1 text-xs text-[#555555]">{booking.supplier_code} · {booking.warehouse_name}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    {booking.status_tags.map((status) => <StatusBadge key={status} status={status} />)}
+                  </div>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                  <div><dt className="text-[#888888]">Ngày giao</dt><dd className="font-medium">{formatDateDisplay(booking.delivery_date)}</dd></div>
+                  <div><dt className="text-[#888888]">Khung giờ</dt><dd className="font-medium">{TIME_SLOT_LABELS[booking.time_slot]}</dd></div>
+                  <div><dt className="text-[#888888]">Sản phẩm</dt><dd>{booking.items_count}</dd></div>
+                  <div><dt className="text-[#888888]">Tiến độ</dt><dd>{booking.item_status_counts.confirmed} duyệt · {booking.item_status_counts.rejected} từ chối</dd></div>
+                </dl>
+                {booking.ghi_chu && <p className="mt-3 line-clamp-2 text-xs text-[#555555]">{booking.ghi_chu}</p>}
+              </button>
+            ))}
+          </div>
           <Pagination
             currentPage={safePage}
             pageSize={PAGE_SIZE}
-            totalItems={bookings.length}
+            totalItems={bookingPage.total}
             onPageChange={setCurrentPage}
           />
         </div>

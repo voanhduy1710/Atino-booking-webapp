@@ -7,10 +7,11 @@ import type { Warehouse } from '@/shared/types/domain'
 
 interface Props {
   canDelete?: boolean
+  canManage?: boolean
   queryKey?: string
 }
 
-export function WarehouseTable({ canDelete = false, queryKey = 'warehouses' }: Props) {
+export function WarehouseTable({ canDelete = false, canManage = canDelete, queryKey = 'warehouses' }: Props) {
   const queryClient = useQueryClient()
   const [adding, setAdding] = useState(false)
   const [newCode, setNewCode] = useState('')
@@ -21,7 +22,7 @@ export function WarehouseTable({ canDelete = false, queryKey = 'warehouses' }: P
   const { data: warehouses = [] } = useQuery({
     queryKey: [queryKey],
     queryFn: async () => {
-      const { data, error } = await supabase.from('warehouses').select('*').order('code')
+      const { data, error } = await supabase.from('warehouses').select('id, code, name, active').order('code')
       if (error) throw error
       return data as Warehouse[]
     },
@@ -58,11 +59,11 @@ export function WarehouseTable({ canDelete = false, queryKey = 'warehouses' }: P
 
   return (
     <>
-      <div className="flex justify-end mb-3">
+      {canManage && <div className="flex justify-end mb-3">
         <button type="button" onClick={() => { setAdding(true); setNewCode(''); setNewName('') }} className="btn-green">+ Thêm kho</button>
-      </div>
+      </div>}
       <div className="overflow-x-auto bg-white border border-[#ecdbe8] rounded-lg">
-        <table className="w-full text-sm">
+        <table className="hidden w-full text-sm sm:table">
           <thead>
             <tr className="bg-[#F5F5F5]">
               <th className="table-header">Mã kho</th>
@@ -92,7 +93,7 @@ export function WarehouseTable({ canDelete = false, queryKey = 'warehouses' }: P
                       </>
                     ) : (
                       <>
-                        <LinkBtn onClick={() => { setEditing(w); setEditName(w.name) }}>Sửa</LinkBtn>
+                        {canManage && <LinkBtn onClick={() => { setEditing(w); setEditName(w.name) }}>Sửa</LinkBtn>}
                         {canDelete && (
                           <LinkBtn danger onClick={() => {
                             if (window.confirm(`Xóa kho "${w.name}"? Không thể hoàn tác.`)) deleteMutation.mutate(w.id)
@@ -123,6 +124,45 @@ export function WarehouseTable({ canDelete = false, queryKey = 'warehouses' }: P
             )}
           </tbody>
         </table>
+        <div className="divide-y divide-[#ecdbe8] sm:hidden">
+          {adding && (
+            <div className="space-y-2 p-4">
+              <input value={newCode} onChange={(event) => setNewCode(event.target.value.toUpperCase())} placeholder="Mã kho" className="input-field font-mono" />
+              <input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Tên kho" className="input-field" />
+              <div className="flex gap-2">
+                <button type="button" className="min-h-11 rounded bg-[#1a7a3e] px-3 text-sm text-white" onClick={() => addMutation.mutate({ code: newCode, name: newName })}>Lưu</button>
+                <button type="button" className="min-h-11 rounded border border-[#d5c0d5] px-3 text-sm" onClick={() => setAdding(false)}>Hủy</button>
+              </div>
+            </div>
+          )}
+          {warehouses.map((warehouse) => (
+            <article key={warehouse.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div><p className="font-medium">{warehouse.name}</p><p className="font-mono text-xs text-[#555555]">{warehouse.code}</p></div>
+                {warehouse.active ? <span className="status-confirmed">Hoạt động</span> : <span className="status-rejected">Ngừng</span>}
+              </div>
+              {canManage && (
+                editing?.id === warehouse.id ? (
+                  <div className="mt-3 space-y-2">
+                    <input value={editName} onChange={(event) => setEditName(event.target.value)} className="input-field" aria-label="Tên kho" />
+                    <div className="flex gap-2">
+                      <button type="button" className="min-h-11 rounded bg-[#1a7a3e] px-3 text-sm text-white" onClick={() => editMutation.mutate({ id: warehouse.id, name: editName })}>Lưu</button>
+                      <button type="button" className="min-h-11 rounded border border-[#d5c0d5] px-3 text-sm" onClick={() => setEditing(null)}>Hủy</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex gap-2">
+                    <button type="button" className="min-h-11 rounded border border-[#d5c0d5] px-3 text-sm" onClick={() => { setEditing(warehouse); setEditName(warehouse.name) }}>Sửa</button>
+                    {canDelete && <button type="button" className="min-h-11 rounded border border-[#CC0000] px-3 text-sm text-[#CC0000]" onClick={() => {
+                      if (window.confirm(`Xóa kho "${warehouse.name}"? Không thể hoàn tác.`)) deleteMutation.mutate(warehouse.id)
+                    }}>Xóa</button>}
+                  </div>
+                )
+              )}
+            </article>
+          ))}
+          {warehouses.length === 0 && <p className="p-8 text-center text-sm text-[#888888]">Không có dữ liệu</p>}
+        </div>
       </div>
     </>
   )

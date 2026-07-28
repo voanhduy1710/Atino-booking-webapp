@@ -7,3 +7,12 @@ export async function fetchProductProcessCatalog(): Promise<ProductProcessCatalo
   const result = await getJson<{ items: ProductProcessCatalog[] }>('/api/product-process')
   return result.items ?? []
 }
+
+export async function fetchProductProcessPage(page: number, pageSize: number, search: string): Promise<{
+  items: ProductProcessCatalog[]
+  total: number
+}> {
+  const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  if (search) params.set('search', search)
+  return getJson<{ items: ProductProcessCatalog[]; total: number }>(`/api/product-process?${params}`)
+}

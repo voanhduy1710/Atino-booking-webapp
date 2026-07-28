@@ -1,7 +1,6 @@
 ﻿import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { supabase } from '@/shared/lib/supabase'
 import { Navbar } from '@/shared/components/Navbar'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
@@ -14,19 +13,18 @@ import { buildPhotoList } from '@/shared/lib/gcs'
 import { countBookingItemStatuses, deriveBookingStatus, formatBookingItemSummary } from '@/shared/lib/bookingStatus'
 import { BookingAmendmentSection } from './BookingAmendmentSection'
 import { SUPPLIER_TABS } from '@/shared/constants/supplierTabs'
+import { getJson } from '@/shared/lib/apiClient'
 
 interface BookingRow {
   id: string
   booking_code: string
   booking_token: string
-  supplier_account_id: string
+  supplier_account_id: string | null
   delivery_date: string
   time_slot: TimeSlot
   status: BookingStatus
   submitted_at: string
   ghi_chu: string | null
-  confirmed_by: string | null
-  received_by: string | null
   warehouses: { name: string; code: string } | null
   suppliers: { name: string; code: string } | null
   booking_items: Array<{
@@ -54,23 +52,8 @@ export default function BookingDetailPublic() {
   const { data: booking, isLoading, error } = useQuery({
     queryKey: ['booking-public', token],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select(`
-          id, booking_code, booking_token, supplier_account_id, delivery_date, time_slot, status,
-          submitted_at, ghi_chu, confirmed_by, received_by,
-          suppliers(name, code),
-          warehouses(name, code),
-          booking_items(
-            id, product_code, process_code, delivery_round, is_final_round,
-            quantity_booked, quantity_received, status, vat_invoice_url,
-            booking_item_photos(id, storage_path, photo_type)
-          )
-        `)
-        .eq('booking_token', token!)
-        .single()
-      if (error) throw error
-      return data as unknown as BookingRow
+      const result = await getJson<{ booking: BookingRow }>(`/api/public-bookings/${encodeURIComponent(token!)}`)
+      return result.booking
     },
     enabled: !!token,
   })
@@ -120,8 +103,6 @@ export default function BookingDetailPublic() {
             <div><p className="text-xs text-[#888888] mb-0.5">Ngày giao</p><p className="font-medium">{formatDateDisplay(booking.delivery_date)}</p></div>
             <div><p className="text-xs text-[#888888] mb-0.5">Khung giờ</p><p className="font-medium">{TIME_SLOT_LABELS[booking.time_slot]}</p></div>
             <div><p className="text-xs text-[#888888] mb-0.5">Nhà cung cấp</p><p className="font-medium">{booking.suppliers?.name ?? '—'}</p></div>
-            {booking.confirmed_by && <div><p className="text-xs text-[#888888] mb-0.5">Xác nhận bởi</p><p className="font-medium">{booking.confirmed_by}</p></div>}
-            {booking.received_by && <div><p className="text-xs text-[#888888] mb-0.5">Nhận bởi</p><p className="font-medium">{booking.received_by}</p></div>}
           </div>
         </div>
 
@@ -130,7 +111,7 @@ export default function BookingDetailPublic() {
             <h2 className="font-bold text-sm">Danh sách đơn hàng ({items.length})</h2>
             <p className="text-xs text-[#888888] mt-1">{formatBookingItemSummary(itemCounts)}</p>
           </div>
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto sm:block">
             <table className="min-w-[820px] w-full text-sm table-fixed">
               <thead>
                 <tr className="bg-[#F5F5F5]">
@@ -171,6 +152,34 @@ export default function BookingDetailPublic() {
               </tbody>
             </table>
           </div>
+          <div className="divide-y divide-[#ecdbe8] sm:hidden">
+            {items.map((item) => {
+              const photos = buildPhotoList(item)
+              return (
+                <article key={item.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-mono text-sm font-semibold">{item.product_code}</p>
+                      <p className="font-mono text-xs text-[#555555]">{item.process_code}</p>
+                    </div>
+                    <StatusBadge status={item.status as BookingStatus} />
+                  </div>
+                  <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                    <div><dt className="text-[#888888]">Lần giao</dt><dd>{item.is_final_round ? 'Cuối' : item.delivery_round}</dd></div>
+                    <div><dt className="text-[#888888]">SL đăng ký</dt><dd>{item.quantity_booked}</dd></div>
+                    <div><dt className="text-[#888888]">SL nhận</dt><dd>{item.quantity_received ?? '—'}</dd></div>
+                  </dl>
+                  {photos.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {photos.map((photo, index) => (
+                        <AttachmentThumbnail key={index} src={photo.src} label={photo.label} onClick={() => setLightboxSrc(photo.src)} className="h-11 w-11" />
+                      ))}
+                    </div>
+                  )}
+                </article>
+              )
+            })}
+          </div>
         </div>
 
         {booking.ghi_chu && (
@@ -180,7 +189,7 @@ export default function BookingDetailPublic() {
           </div>
         )}
 
-        <BookingAmendmentSection
+        {booking.supplier_account_id && <BookingAmendmentSection
           booking={{
             id: booking.id,
             delivery_date: booking.delivery_date,
@@ -196,7 +205,7 @@ export default function BookingDetailPublic() {
             })),
           }}
           user={user}
-        />
+        />}
       </main>
     </div>
   )

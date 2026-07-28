@@ -1,10 +1,11 @@
 import { Router } from 'express'
 import { requireAuth } from '../lib/httpAuth.js'
 import { getSupabase } from '../lib/supabase.js'
+import { CAPABILITY_ROLES } from '../config/capabilities.js'
 
 const router = Router()
 
-router.use(requireAuth(['admin']))
+router.use(requireAuth([...CAPABILITY_ROLES.manageResources]))
 
 router.post('/warehouses', async (req, res, next) => {
   try {

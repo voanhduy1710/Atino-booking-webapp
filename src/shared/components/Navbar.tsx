@@ -1,6 +1,11 @@
+import { lazy, Suspense } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { removeToken, getCurrentUser } from '@/shared/lib/auth'
-import { NotificationBell } from '@/features/notifications/components/NotificationBell'
+import { removeSession, getCurrentUser } from '@/shared/lib/auth'
+import { postJson } from '@/shared/lib/apiClient'
+
+const NotificationBell = lazy(() => import('@/features/notifications/components/NotificationBell').then((module) => ({
+  default: module.NotificationBell,
+})))
 
 export type NavTab = { id: string; label: string; href?: string }
 
@@ -23,13 +28,17 @@ export function Navbar({
   const navigate = useNavigate()
   const user = getCurrentUser()
 
-  const handleLogout = () => {
-    removeToken()
+  const handleLogout = async () => {
+    try {
+      await postJson<{ ok: true }>('/api/auth/logout')
+    } finally {
+      removeSession()
+    }
     navigate('/login')
   }
 
   return (
-    <nav className="bg-white border-b border-[#d5c0d5] px-4 sm:px-6 h-14 flex items-center justify-between flex-shrink-0 shadow-sm">
+    <nav className="relative bg-white border-b border-[#d5c0d5] px-3 sm:px-6 h-14 flex items-center justify-between flex-shrink-0 shadow-sm gap-2">
       {/* Logo */}
       <Link to="/" className="flex items-center flex-shrink-0">
         <img src="/Atino Logo.svg" alt="Atino" className="h-7 w-auto" />
@@ -37,9 +46,9 @@ export function Navbar({
 
       {/* Center tabs (optional) */}
       {tabs && tabs.length > 0 && (
-        <div className="flex items-stretch h-full gap-0 mx-4">
+        <div className="flex min-w-0 flex-1 items-stretch h-full gap-0 overflow-x-auto mx-1 sm:mx-4 md:absolute md:left-1/2 md:w-auto md:max-w-[calc(100%-24rem)] md:-translate-x-1/2 md:flex-none md:mx-0">
           {tabs.map((tab) => {
-            const cls = `px-4 text-sm transition-colors h-full flex items-center ${activeTab === tab.id
+            const cls = `shrink-0 px-3 sm:px-4 text-sm transition-colors h-full flex items-center ${activeTab === tab.id
               ? 'bg-[#9F27C7] text-white font-bold'
               : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
               }`
@@ -65,18 +74,20 @@ export function Navbar({
       <div className="flex items-center gap-3 flex-shrink-0">
         {user && (
           <span className="hidden sm:block text-sm font-semibold text-black">
-            {user.sub}
+            {user.username ?? user.sub}
           </span>
         )}
 
         {showNotifications && user && (
-          <NotificationBell />
+          <Suspense fallback={<span className="min-h-11 min-w-11" aria-hidden="true" />}>
+            <NotificationBell />
+          </Suspense>
         )}
 
         {user && (
           <button
-            onClick={handleLogout}
-            className="text-sm font-semibold text-[#9F27C7] hover:text-[#77009a] transition-colors"
+            onClick={() => void handleLogout()}
+            className="min-h-11 min-w-11 text-sm font-semibold text-[#9F27C7] hover:text-[#77009a] transition-colors"
             id="logout-btn"
           >
             Đăng xuất

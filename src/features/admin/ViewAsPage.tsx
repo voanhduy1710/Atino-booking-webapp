@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, lazy, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { supabase } from '@/shared/lib/supabase'
+import { getJson } from '@/shared/lib/apiClient'
 import { Navbar } from '@/shared/components/Navbar'
 import { StatusBadge } from '@/shared/components/StatusBadge'
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
@@ -48,12 +48,8 @@ function SupplierView() {
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ['viewas-supplier-bookings'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('id, booking_code, booking_token, delivery_date, time_slot, status, submitted_at, ghi_chu, suppliers!inner(name), warehouses!inner(name), booking_items(status, reject_reason)')
-        .order('submitted_at', { ascending: false })
-        .limit(200)
-      if (error) throw error
+      const result = await getJson<{ bookings: any[] }>('/api/reviewer/admin-view')
+      const data = result.bookings
       return (data ?? []).map((b: any) => ({
         id: b.id,
         booking_code: b.booking_code,

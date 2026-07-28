@@ -3,6 +3,52 @@
 @tailwind components;
 @tailwind utilities;
 
+@media (max-width: 639px) {
+  .po-table,
+  .po-table tbody {
+    display: block;
+  }
+
+  .po-table thead {
+    display: none;
+  }
+
+  .po-table tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .po-mobile-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.75rem;
+    border: 1px solid #ecdbe8;
+    border-radius: 0.5rem;
+    background: white;
+    padding: 0.75rem;
+  }
+
+  .po-mobile-cell {
+    display: block;
+    min-width: 0;
+    padding: 0 !important;
+    text-align: left;
+  }
+
+  .po-mobile-cell::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.25rem;
+    color: #888;
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  .po-mobile-cell.po-wide {
+    grid-column: 1 / -1;
+  }
+}
+
 @layer base {
   * {
     box-sizing: border-box;

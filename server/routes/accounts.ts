@@ -1,10 +1,46 @@
 import { Router } from 'express'
 import { requireAuth } from '../lib/httpAuth.js'
+import { hashPassword } from '../lib/password.js'
 import { getSupabase } from '../lib/supabase.js'
+import { CAPABILITY_ROLES } from '../config/capabilities.js'
 
 const router = Router()
 
-router.use(requireAuth(['admin']))
+router.use(requireAuth([...CAPABILITY_ROLES.manageAccounts]))
+
+router.get('/', async (req, res, next) => {
+  try {
+    const status = String(req.query.status ?? 'all')
+    if (!['all', 'pending', 'active', 'rejected'].includes(status)) {
+      res.status(400).json({ error: 'Invalid account status' })
+      return
+    }
+    let query = getSupabase()
+      .from('supplier_accounts')
+      .select('id, username, full_name, supplier_code_requested, supplier_id, status, created_at, suppliers(name)')
+      .order('created_at', { ascending: false })
+    if (status !== 'all') query = query.eq('status', status)
+    const { data, error } = await query
+    if (error) throw error
+    res.json({ accounts: data ?? [] })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.get('/suppliers', async (_req, res, next) => {
+  try {
+    const { data, error } = await getSupabase()
+      .from('suppliers')
+      .select('id, code, name, active')
+      .eq('active', true)
+      .order('code')
+    if (error) throw error
+    res.json({ suppliers: data ?? [] })
+  } catch (err) {
+    next(err)
+  }
+})
 
 router.post('/:accountId/approve', async (req, res, next) => {
   try {
@@ -46,18 +82,17 @@ router.post('/:accountId/reject', async (req, res, next) => {
 
 router.post('/:accountId/reset-password', async (req, res, next) => {
   try {
-    const passwordHash = String(req.body?.password_hash ?? '').trim()
-    const plaintextPassword = String(req.body?.plaintext_password ?? '').trim()
-    if (!passwordHash || !plaintextPassword) {
-      res.status(400).json({ error: 'Password is required' })
+    const password = String(req.body?.password ?? '')
+    if (password.length < 8 || password.length > 256) {
+      res.status(400).json({ error: 'Password must contain 8 to 256 characters' })
       return
     }
+    const passwordHash = await hashPassword(password)
     const supabase = getSupabase()
-    const { error } = await supabase.rpc('admin_reset_supplier_password', {
-      p_account_id: req.params.accountId,
-      p_password_hash: passwordHash,
-      p_plaintext_password: plaintextPassword,
-    } as never)
+    const { error } = await supabase
+      .from('supplier_accounts')
+      .update({ password_hash: passwordHash } as never)
+      .eq('id', req.params.accountId)
     if (error) throw error
     res.json({ ok: true })
   } catch (err) {
