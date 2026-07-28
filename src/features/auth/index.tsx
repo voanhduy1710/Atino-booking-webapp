@@ -1,10 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { LoginForm } from './components/LoginForm'
-import { RegisterForm } from './components/RegisterForm'
 import { getCurrentUser } from '@/shared/lib/auth'
-
-type Tab = 'login' | 'register'
 
 const roleRouteMap: Record<string, string> = {
   supplier: '/my-bookings',
@@ -15,7 +12,6 @@ const roleRouteMap: Record<string, string> = {
 }
 
 export default function LoginPage() {
-  const [tab, setTab] = useState<Tab>('login')
   const user = getCurrentUser()
 
   useEffect(() => {
@@ -36,38 +32,8 @@ export default function LoginPage() {
 
       {/* Card */}
       <div className="w-full max-w-md bg-white border border-[#ecdbe8] rounded-lg overflow-hidden">
-        {/* Tabs */}
-        <div className="flex border-b border-[#d5c0d5] bg-white">
-          <button
-            id="tab-login"
-            onClick={() => setTab('login')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'login'
-              ? 'bg-[#9F27C7] text-white'
-              : 'text-[#514253] hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
-              }`}
-          >
-            Đăng nhập
-          </button>
-          <button
-            id="tab-register"
-            onClick={() => setTab('register')}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === 'register'
-              ? 'bg-[#9F27C7] text-white'
-              : 'text-[#514253] hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
-              }`}
-          >
-            Đăng ký tài khoản
-          </button>
-        </div>
-
-        {/* Form */}
-        <div className="p-6">
-          {tab === 'login' ? (
-            <LoginForm />
-          ) : (
-            <RegisterForm onSuccess={() => setTab('login')} />
-          )}
-        </div>
+        <div className="bg-[#9F27C7] px-6 py-3 text-center text-sm font-semibold text-white">Đăng nhập</div>
+        <div className="p-6"><LoginForm /></div>
       </div>
 
       <p className="mt-6 text-xs text-[#888888]">

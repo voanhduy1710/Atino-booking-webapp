@@ -4,7 +4,7 @@ import { getJson, postJson } from '@/shared/lib/apiClient'
 import { Button } from '@/shared/components/Button'
 import { Modal } from '@/shared/components/Modal'
 import { FilterDatePicker } from '@/shared/components/FilterDatePicker'
-import { TIME_SLOT_LABELS, type TimeSlot, type BookingStatus } from '@/shared/types/domain'
+import { BOOKING_TIME_SLOTS, TIME_SLOT_LABELS, type TimeSlot, type BookingStatus } from '@/shared/types/domain'
 import type { DecodedToken } from '@/shared/lib/auth'
 
 interface BookingItem {
@@ -158,9 +158,7 @@ export function BookingAmendmentSection({ booking, user }: Props) {
               <div>
                 <label className="text-xs font-medium text-[#888888] block mb-1">Khung giờ</label>
                 <select value={editForm.time_slot} onChange={(e) => setEditForm({ ...editForm, time_slot: e.target.value })} className="input-field text-sm">
-                  {(Object.entries(TIME_SLOT_LABELS) as [string, string][]).map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
+                  {BOOKING_TIME_SLOTS.map((slot) => <option key={slot} value={slot}>{TIME_SLOT_LABELS[slot]}</option>)}
                 </select>
               </div>
             </div>

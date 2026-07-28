@@ -1,62 +1,92 @@
-import { useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { getJson, postJson } from '@/shared/lib/apiClient'
-import { Button } from '@/shared/components/Button'
-import { Modal } from '@/shared/components/Modal'
-import { formatDateDisplay } from '@/shared/lib/dateUtils'
-import { TIME_SLOT_LABELS, type TimeSlot } from '@/shared/types/domain'
-import type { BookingRow } from './BookingTooltip'
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getJson, postJson } from "@/shared/lib/apiClient";
+import { Button } from "@/shared/components/Button";
+import { Modal } from "@/shared/components/Modal";
+import { formatDateDisplay } from "@/shared/lib/dateUtils";
+import { TIME_SLOT_LABELS, type TimeSlot } from "@/shared/types/domain";
+import type { BookingRow } from "./BookingTooltip";
 
 interface SelectedBooking extends BookingRow {
-  items: any[]
-  ghi_chu: string | null
+  items: any[];
+  ghi_chu: string | null;
 }
 
 interface Props {
-  bookingId: string
-  currentBooking: SelectedBooking
-  onSuccess: () => void
+  bookingId: string;
+  currentBooking: SelectedBooking;
+  onSuccess: () => void;
 }
 
-export function AmendmentPanel({ bookingId, currentBooking, onSuccess }: Props) {
-  const [resolveId, setResolveId] = useState<string | null>(null)
-  const [resolveDecision, setResolveDecision] = useState<'approved' | 'denied' | null>(null)
-  const [resolveNote, setResolveNote] = useState('')
+export function AmendmentPanel({
+  bookingId,
+  currentBooking,
+  onSuccess,
+}: Props) {
+  const [resolveId, setResolveId] = useState<string | null>(null);
+  const [resolveDecision, setResolveDecision] = useState<
+    "approved" | "denied" | null
+  >(null);
+  const [resolveNote, setResolveNote] = useState("");
 
   const { data: amendment, refetch } = useQuery({
-    queryKey: ['reviewer-amendment', bookingId],
+    queryKey: ["reviewer-amendment", bookingId],
     queryFn: async () => {
-      const result = await getJson<{ amendment: {
-        id: string; amendment_type: string; request_note: string
-        proposed_changes: { delivery_date?: string; time_slot?: string; ghi_chu?: string; items?: Array<{ id: string; quantity_booked: number }> } | null
-        status: string; reviewer_note: string | null; created_at: string
-      } | null }>(`/api/amendments/bookings/${bookingId}/pending`)
-      return result.amendment
+      const result = await getJson<{
+        amendment: {
+          id: string;
+          amendment_type: string;
+          request_note: string;
+          proposed_changes: {
+            delivery_date?: string;
+            time_slot?: string;
+            ghi_chu?: string;
+            items?: Array<{ id: string; quantity_booked: number }>;
+          } | null;
+          status: string;
+          reviewer_note: string | null;
+          created_at: string;
+        } | null;
+      }>(`/api/amendments/bookings/${bookingId}/pending`);
+      return result.amendment;
     },
     enabled: !!bookingId,
-  })
+  });
 
   const resolveMutation = useMutation({
-    mutationFn: async ({ amendmentId, decision, note }: { amendmentId: string; decision: string; note: string }) => {
-      await postJson<{ ok: true }>(`/api/amendments/${amendmentId}/resolve`, { decision, note })
+    mutationFn: async ({
+      amendmentId,
+      decision,
+      note,
+    }: {
+      amendmentId: string;
+      decision: string;
+      note: string;
+    }) => {
+      await postJson<{ ok: true }>(`/api/amendments/${amendmentId}/resolve`, {
+        decision,
+        note,
+      });
     },
     onSuccess: () => {
-      setResolveId(null); setResolveDecision(null); setResolveNote('')
-      onSuccess()
-      void refetch()
+      setResolveId(null);
+      setResolveDecision(null);
+      setResolveNote("");
+      onSuccess();
+      void refetch();
     },
-  })
+  });
 
-  if (!amendment) return null
+  if (!amendment) return null;
 
-  const pc = amendment.proposed_changes
-  const isUpdate = amendment.amendment_type === 'update'
+  const pc = amendment.proposed_changes;
+  const isUpdate = amendment.amendment_type === "update";
 
   return (
     <>
       <div className="border border-[#F5C518] bg-[#FFF8E1] rounded-lg p-4 space-y-3">
         <p className="font-semibold text-sm">
-          {isUpdate ? '🖍 Yêu cầu chỉnh sửa booking' : '⚠️ Yêu cầu huỷ booking'}
+          {isUpdate ? "🖍 Yêu cầu chỉnh sửa booking" : "⚠️ Yêu cầu huỷ booking"}
         </p>
         <p className="text-xs text-[#888888]">{amendment.request_note}</p>
 
@@ -65,71 +95,119 @@ export function AmendmentPanel({ bookingId, currentBooking, onSuccess }: Props) 
             <table className="w-full">
               <thead>
                 <tr className="bg-[#F5F5F5]">
-                  <th className="px-3 py-2 text-left font-medium text-[#888888]">Trường</th>
-                  <th className="px-3 py-2 text-left font-medium text-[#888888]">Hiện tại</th>
-                  <th className="px-3 py-2 text-left font-medium text-[#888888]">Đề xuất</th>
+                  <th className="px-3 py-2 text-left font-medium text-[#888888]">
+                    Trường
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[#888888]">
+                    Hiện tại
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-[#888888]">
+                    Đề xuất
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {pc.delivery_date && pc.delivery_date !== currentBooking.delivery_date && (
-                  <tr className="border-t border-[#ecdbe8]">
-                    <td className="px-3 py-2 text-[#888888]">Ngày giao</td>
-                    <td className="px-3 py-2">{formatDateDisplay(currentBooking.delivery_date)}</td>
-                    <td className="px-3 py-2 font-medium text-[#1a7a3e]">{formatDateDisplay(pc.delivery_date)}</td>
-                  </tr>
-                )}
+                {pc.delivery_date &&
+                  pc.delivery_date !== currentBooking.delivery_date && (
+                    <tr className="border-t border-[#ecdbe8]">
+                      <td className="px-3 py-2 text-[#888888]">Ngày giao</td>
+                      <td className="px-3 py-2">
+                        {formatDateDisplay(currentBooking.delivery_date)}
+                      </td>
+                      <td className="px-3 py-2 font-medium text-[#1a7a3e]">
+                        {formatDateDisplay(pc.delivery_date)}
+                      </td>
+                    </tr>
+                  )}
                 {pc.time_slot && pc.time_slot !== currentBooking.time_slot && (
                   <tr className="border-t border-[#ecdbe8]">
                     <td className="px-3 py-2 text-[#888888]">Khung giờ</td>
-                    <td className="px-3 py-2">{TIME_SLOT_LABELS[currentBooking.time_slot]}</td>
-                    <td className="px-3 py-2 font-medium text-[#1a7a3e]">{TIME_SLOT_LABELS[pc.time_slot as TimeSlot] ?? pc.time_slot}</td>
+                    <td className="px-3 py-2">
+                      {TIME_SLOT_LABELS[currentBooking.time_slot]}
+                    </td>
+                    <td className="px-3 py-2 font-medium text-[#1a7a3e]">
+                      {TIME_SLOT_LABELS[pc.time_slot as TimeSlot] ??
+                        pc.time_slot}
+                    </td>
                   </tr>
                 )}
-                {'ghi_chu' in pc && pc.ghi_chu !== (currentBooking.ghi_chu ?? '') && (
-                  <tr className="border-t border-[#ecdbe8]">
-                    <td className="px-3 py-2 text-[#888888]">Ghi chú</td>
-                    <td className="px-3 py-2 text-[#888888] italic">{currentBooking.ghi_chu || '(trống)'}</td>
-                    <td className="px-3 py-2 font-medium text-[#1a7a3e]">{pc.ghi_chu || '(xoá)'}</td>
-                  </tr>
-                )}
+                {"ghi_chu" in pc &&
+                  pc.ghi_chu !== (currentBooking.ghi_chu ?? "") && (
+                    <tr className="border-t border-[#ecdbe8]">
+                      <td className="px-3 py-2 text-[#888888]">Ghi chú</td>
+                      <td className="px-3 py-2 text-[#888888] italic">
+                        {currentBooking.ghi_chu || "(trống)"}
+                      </td>
+                      <td className="px-3 py-2 font-medium text-[#1a7a3e]">
+                        {pc.ghi_chu || "(xoá)"}
+                      </td>
+                    </tr>
+                  )}
               </tbody>
             </table>
 
-            {pc.items && pc.items.length > 0 && (() => {
-              const changedItems = pc.items.filter((pi) => {
-                const orig = currentBooking.items.find((it: any) => it.id === pi.id)
-                return orig && orig.quantity_booked !== pi.quantity_booked
-              })
-              if (changedItems.length === 0) return null
-              return (
-                <div className="border-t border-[#ecdbe8]">
-                  <p className="px-3 pt-2 pb-1 text-[10px] text-[#888888] uppercase tracking-wider">Số lượng đơn hàng</p>
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-[#F5F5F5]">
-                        <th className="px-3 py-1 text-left font-medium text-[#888888]">Mã SP</th>
-                        <th className="px-3 py-1 text-left font-medium text-[#888888]">Mã QT</th>
-                        <th className="px-3 py-1 text-right font-medium text-[#888888]">Hiện tại</th>
-                        <th className="px-3 py-1 text-right font-medium text-[#888888]">Đề xuất</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {changedItems.map((pi) => {
-                        const orig = currentBooking.items.find((it: any) => it.id === pi.id)
-                        return (
-                          <tr key={pi.id} className="border-t border-[#ecdbe8]">
-                            <td className="px-3 py-1 font-mono">{orig?.product_code}</td>
-                            <td className="px-3 py-1 font-mono">{orig?.process_code}</td>
-                            <td className="px-3 py-1 text-right">{orig?.quantity_booked}</td>
-                            <td className="px-3 py-1 text-right font-medium text-[#1a7a3e]">{pi.quantity_booked}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )
-            })()}
+            {pc.items &&
+              pc.items.length > 0 &&
+              (() => {
+                const changedItems = pc.items.filter((pi) => {
+                  const orig = currentBooking.items.find(
+                    (it: any) => it.id === pi.id,
+                  );
+                  return orig && orig.quantity_booked !== pi.quantity_booked;
+                });
+                if (changedItems.length === 0) return null;
+                return (
+                  <div className="border-t border-[#ecdbe8]">
+                    <p className="px-3 pt-2 pb-1 text-xs text-[#888888] uppercase tracking-wider">
+                      Số lượng đơn hàng
+                    </p>
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-[#F5F5F5]">
+                          <th className="px-3 py-1 text-left font-medium text-[#888888]">
+                            Mã SP
+                          </th>
+                          <th className="px-3 py-1 text-left font-medium text-[#888888]">
+                            Mã QT
+                          </th>
+                          <th className="px-3 py-1 text-right font-medium text-[#888888]">
+                            Hiện tại
+                          </th>
+                          <th className="px-3 py-1 text-right font-medium text-[#888888]">
+                            Đề xuất
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {changedItems.map((pi) => {
+                          const orig = currentBooking.items.find(
+                            (it: any) => it.id === pi.id,
+                          );
+                          return (
+                            <tr
+                              key={pi.id}
+                              className="border-t border-[#ecdbe8]"
+                            >
+                              <td className="px-3 py-1 font-mono">
+                                {orig?.product_code}
+                              </td>
+                              <td className="px-3 py-1 font-mono">
+                                {orig?.process_code}
+                              </td>
+                              <td className="px-3 py-1 text-right">
+                                {orig?.quantity_booked}
+                              </td>
+                              <td className="px-3 py-1 text-right font-medium text-[#1a7a3e]">
+                                {pi.quantity_booked}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
           </div>
         )}
 
@@ -137,16 +215,26 @@ export function AmendmentPanel({ bookingId, currentBooking, onSuccess }: Props) 
           <Button
             variant="success"
             className="text-xs py-1 px-3"
-            loading={resolveMutation.isPending && resolveDecision === 'approved'}
-            onClick={() => { setResolveId(amendment.id); setResolveDecision('approved'); setResolveNote('') }}
+            loading={
+              resolveMutation.isPending && resolveDecision === "approved"
+            }
+            onClick={() => {
+              setResolveId(amendment.id);
+              setResolveDecision("approved");
+              setResolveNote("");
+            }}
           >
             Chấp thuận
           </Button>
           <Button
             variant="danger-outline"
             className="text-xs py-1 px-3"
-            loading={resolveMutation.isPending && resolveDecision === 'denied'}
-            onClick={() => { setResolveId(amendment.id); setResolveDecision('denied'); setResolveNote('') }}
+            loading={resolveMutation.isPending && resolveDecision === "denied"}
+            onClick={() => {
+              setResolveId(amendment.id);
+              setResolveDecision("denied");
+              setResolveNote("");
+            }}
           >
             Từ chối
           </Button>
@@ -155,13 +243,22 @@ export function AmendmentPanel({ bookingId, currentBooking, onSuccess }: Props) 
 
       <Modal
         isOpen={!!resolveId && !!resolveDecision}
-        onClose={() => { setResolveId(null); setResolveDecision(null) }}
-        title={resolveDecision === 'approved' ? 'Chấp thuận yêu cầu' : 'Từ chối yêu cầu'}
+        onClose={() => {
+          setResolveId(null);
+          setResolveDecision(null);
+        }}
+        title={
+          resolveDecision === "approved"
+            ? "Chấp thuận yêu cầu"
+            : "Từ chối yêu cầu"
+        }
         size="sm"
       >
         <div className="space-y-4">
           <p className="text-sm text-[#888888]">
-            {resolveDecision === 'denied' ? 'Nhập lý do từ chối (bắt buộc):' : 'Ghi chú phản hồi (tuỳ chọn):'}
+            {resolveDecision === "denied"
+              ? "Nhập lý do từ chối (bắt buộc):"
+              : "Ghi chú phản hồi (tuỳ chọn):"}
           </p>
           <textarea
             value={resolveNote}
@@ -171,14 +268,30 @@ export function AmendmentPanel({ bookingId, currentBooking, onSuccess }: Props) 
             placeholder="Ghi chú..."
           />
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => { setResolveId(null); setResolveDecision(null) }} className="flex-1">Huỷ</Button>
             <Button
-              variant={resolveDecision === 'approved' ? 'success' : 'danger-outline'}
+              variant="outline"
+              onClick={() => {
+                setResolveId(null);
+                setResolveDecision(null);
+              }}
+              className="flex-1"
+            >
+              Huỷ
+            </Button>
+            <Button
+              variant={
+                resolveDecision === "approved" ? "success" : "danger-outline"
+              }
               loading={resolveMutation.isPending}
-              disabled={resolveDecision === 'denied' && !resolveNote.trim()}
+              disabled={resolveDecision === "denied" && !resolveNote.trim()}
               onClick={() =>
-                resolveId && resolveDecision &&
-                resolveMutation.mutate({ amendmentId: resolveId, decision: resolveDecision, note: resolveNote })
+                resolveId &&
+                resolveDecision &&
+                resolveMutation.mutate({
+                  amendmentId: resolveId,
+                  decision: resolveDecision,
+                  note: resolveNote,
+                })
               }
               className="flex-1"
             >
@@ -188,6 +301,5 @@ export function AmendmentPanel({ bookingId, currentBooking, onSuccess }: Props) 
         </div>
       </Modal>
     </>
-  )
+  );
 }
-

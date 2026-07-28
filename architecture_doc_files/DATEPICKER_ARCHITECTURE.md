@@ -318,8 +318,8 @@ import { DateRangePickerPopup, FilterBar, FilterMultiSelect, ... }
 | `/ledger/report` | `features/ledger/LedgerReportTab.tsx` | `minDate=LEDGER_START_DATE` |
 | `/balance/transactions` | `features/balance-summary/components/BalanceFilters.tsx` | No minDate |
 | `/cashflow/reconciliation` | `features/cashflow/CashFlowOutPage.tsx` | `minDate=HARD_MIN` |
-| `/approval/productdevelopmentreport` | `features/approval-summary/ProductDevReportPage.tsx` | No minDate |
-| `/approval/productapprovalreport` | `features/approval-summary/ProductApprovalReportPage.tsx` | No minDate |
+| `/approval/product_development_report` | `features/approval-summary/ProductDevReportPage.tsx` | No minDate |
+| `/approval/product_approval_report` | `features/approval-summary/ProductApprovalReportPage.tsx` | No minDate |
 | `/report` | `features/report/components/ReportExpenseFilters.tsx` | No minDate |
 | `/dashboard/*` | `features/dashboard/components/DashboardFilters.tsx` | No minDate |
 

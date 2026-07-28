@@ -94,7 +94,7 @@ export interface Database {
           supplier_id: string
           warehouse_id: string
           delivery_date: string
-          time_slot: '07-09' | '09-11' | '13-15' | '15-17'
+          time_slot: '08-1130' | '1330-17' | '07-09' | '09-11' | '13-15' | '15-17'
           ghi_chu: string | null
           delivery_note: string
           nhanh_draft_bill_id: string | null
@@ -114,7 +114,7 @@ export interface Database {
           supplier_id: string
           warehouse_id: string
           delivery_date?: string
-          time_slot: '07-09' | '09-11' | '13-15' | '15-17'
+          time_slot: '08-1130' | '1330-17' | '07-09' | '09-11' | '13-15' | '15-17'
           ghi_chu?: string | null
           delivery_note: string
           nhanh_draft_bill_id?: string | null
@@ -141,6 +141,7 @@ export interface Database {
           reviewed_at: string | null
           size_2xl_32: number
           size_3xl_33: number
+          size_4xl_34: number
           size_l_30: number
           size_m_29: number
           size_s_28: number
@@ -164,6 +165,7 @@ export interface Database {
           reviewed_at?: string | null
           size_2xl_32?: number
           size_3xl_33?: number
+          size_4xl_34?: number
           size_l_30?: number
           size_m_29?: number
           size_s_28?: number
@@ -280,6 +282,7 @@ export interface Database {
           size_xl_31: number
           size_2xl_32: number
           size_3xl_33: number
+          size_4xl_34: number
           active: boolean
           last_synced_at: string
           created_at: string
@@ -300,6 +303,7 @@ export interface Database {
           size_xl_31?: number
           size_2xl_32?: number
           size_3xl_33?: number
+          size_4xl_34?: number
           active?: boolean
           last_synced_at?: string
           created_at?: string
@@ -323,7 +327,7 @@ export interface Database {
       account_status: 'pending' | 'active' | 'rejected'
       booking_status: 'pending' | 'partially_approved' | 'partially_rejected' | 'confirmed' | 'rejected' | 'returned' | 'received' | 'cancelled'
       booking_item_status: 'pending' | 'confirmed' | 'rejected' | 'returned'
-      time_slot: '07-09' | '09-11' | '13-15' | '15-17'
+      time_slot: '08-1130' | '1330-17' | '07-09' | '09-11' | '13-15' | '15-17'
       photo_type: 'delivery_slip' | 'discrepancy' | 'vat_invoice'
       notification_recipient: 'supplier_account' | 'staff'
     }

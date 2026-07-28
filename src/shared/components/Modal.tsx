@@ -18,7 +18,10 @@ const sizeMap = {
 
 export function Modal({ isOpen, onClose, title, children, size = 'lg' }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
   const titleId = useId()
+
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
 
   useEffect(() => {
     if (!isOpen) return
@@ -29,7 +32,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'lg' }: Props) 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (event.key !== 'Tab' || !panelRef.current) return
@@ -51,7 +54,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'lg' }: Props) 
       document.removeEventListener('keydown', onKeyDown)
       previouslyFocused?.focus()
     }
-  }, [isOpen, onClose])
+  }, [isOpen])
 
   if (!isOpen) return null
 

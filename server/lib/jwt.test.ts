@@ -51,8 +51,10 @@ describe('JWT access tokens', () => {
   it('rejects unsigned, altered, expired, and wrong-secret tokens', () => {
     process.env.AUTH_JWT_SECRET = 'a'.repeat(32)
     const token = issueJWT({ sub: 'staff:alice', username: 'alice', role: 'admin' })
+    const [header, payload, signature] = token.split('.')
+    const altered = `${header}.${payload}.${signature.startsWith('A') ? 'B' : 'A'}${signature.slice(1)}`
     expect(verifyJWT(Buffer.from(JSON.stringify({ role: 'admin' })).toString('base64'))).toBeNull()
-    expect(verifyJWT(`${token.slice(0, -1)}x`)).toBeNull()
+    expect(verifyJWT(altered)).toBeNull()
     expect(verifyJWT(issueJWT({ sub: 'staff:alice', username: 'alice', role: 'admin' }, -1))).toBeNull()
     process.env.AUTH_JWT_SECRET = 'b'.repeat(32)
     expect(verifyJWT(token)).toBeNull()

@@ -1,9 +1,9 @@
-Generated at: 2026-07-27 17:18:07
+Generated at: 2026-07-28 18:06:55
 Root directory: C:\Atino-booking-webapp
-Folders: 77
-Files: 251
-Lines of code: 33538
-Bytes: 5,496,348
+Folders: 81
+Files: 278
+Lines of code: 38155
+Bytes: 5,633,087
 
 Structure:
 📁 Atino-booking-webapp/
@@ -90,6 +90,7 @@ Structure:
 │   ├── 📄 settings.json
 │   └── 📄 settings.json.bak
 ├── 📁 architecture_doc_files/
+│   ├── 📄 ACCOUNT_MANAGEMENT_ARCHITECTURE.md
 │   ├── 📄 ACCOUNT_MANAGEMENT_PRINCIPLE.md
 │   ├── 📄 DASHBOARD ARCHITECTURE.md
 │   ├── 📄 DATE_FILTER_ARCHITECTURE.md
@@ -108,8 +109,6 @@ Structure:
 │   ├── 📄 fix_encoding.py
 │   ├── 📄 fix_encoding2.py
 │   ├── 📄 project_tester.py
-│   ├── 📄 raw_data.json
-│   ├── 📄 raw_data_product.json
 │   ├── 📄 run-project-audit.mjs
 │   ├── 📄 test-finalize.mjs
 │   ├── 📄 test-upload.mjs
@@ -133,16 +132,25 @@ Structure:
 │   └── 📄 gcs_booking_webapp_key.json
 ├── 📁 server/
 │   ├── 📁 config/
+│   │   ├── 📄 capabilities.ts
 │   │   └── 📄 storage.ts
 │   ├── 📁 etl/
 │   │   ├── 📄 nhanhDraftInfo.ts
 │   │   └── 📄 nhanhProductAttributes.ts
 │   ├── 📁 lib/
+│   │   ├── 📄 accountPasswordVault.ts
 │   │   ├── 📄 gcs.ts
+│   │   ├── 📄 httpAuth.test.ts
 │   │   ├── 📄 httpAuth.ts
 │   │   ├── 📄 jwt.test.ts
 │   │   ├── 📄 jwt.ts
 │   │   ├── 📄 logger.ts
+│   │   ├── 📄 mediaDto.ts
+│   │   ├── 📄 password.test.ts
+│   │   ├── 📄 password.ts
+│   │   ├── 📄 resilientFetch.test.ts
+│   │   ├── 📄 resilientFetch.ts
+│   │   ├── 📄 sessionStore.ts
 │   │   └── 📄 supabase.ts
 │   ├── 📁 routes/
 │   │   ├── 📄 accounts.ts
@@ -150,19 +158,20 @@ Structure:
 │   │   ├── 📄 amendments.ts
 │   │   ├── 📄 auth.test.ts
 │   │   ├── 📄 auth.ts
+│   │   ├── 📄 authorization.test.ts
 │   │   ├── 📄 booking.test.ts
 │   │   ├── 📄 booking.ts
+│   │   ├── 📄 media.ts
 │   │   ├── 📄 nhanh.ts
 │   │   ├── 📄 notifications.ts
 │   │   ├── 📄 productProcess.ts
+│   │   ├── 📄 publicBooking.ts
 │   │   ├── 📄 receiver.ts
 │   │   ├── 📄 reviewer.ts
 │   │   └── 📄 upload.ts
 │   └── 📄 index.ts
 ├── 📁 src/
 │   ├── 📁 app/
-│   │   ├── 📄 App.tsx
-│   │   ├── 📄 AppStartupSync.tsx
 │   │   ├── 📄 main.tsx
 │   │   ├── 📄 providers.tsx
 │   │   └── 📄 routes.tsx
@@ -171,12 +180,12 @@ Structure:
 │   │   │   └── 📄 AccountManagement.tsx
 │   │   ├── 📁 admin/
 │   │   │   ├── 📁 components/
-│   │   │   │   └── 📄 LinkBtn.tsx
 │   │   │   ├── 📁 tabs/
 │   │   │   │   ├── 📄 AccountsTab.tsx
 │   │   │   │   ├── 📄 SuppliersTab.tsx
 │   │   │   │   └── 📄 WarehousesTab.tsx
-│   │   │   ├── 📄 index.tsx
+│   │   │   ├── 📄 reportDate.ts
+│   │   │   ├── 📄 ReportPage.test.ts
 │   │   │   ├── 📄 ReportPage.tsx
 │   │   │   └── 📄 ViewAsPage.tsx
 │   │   ├── 📁 adminResources/
@@ -184,8 +193,7 @@ Structure:
 │   │   │   └── 📄 WarehouseTable.tsx
 │   │   ├── 📁 auth/
 │   │   │   ├── 📁 components/
-│   │   │   │   ├── 📄 LoginForm.tsx
-│   │   │   │   └── 📄 RegisterForm.tsx
+│   │   │   │   └── 📄 LoginForm.tsx
 │   │   │   ├── 📁 guard/
 │   │   │   │   └── 📄 RequireRole.tsx
 │   │   │   ├── 📁 services/
@@ -211,7 +219,6 @@ Structure:
 │   │   │   ├── 📄 GuideReceiving.tsx
 │   │   │   └── 📄 LandingPage.tsx
 │   │   ├── 📁 manager/
-│   │   │   └── 📄 index.tsx
 │   │   ├── 📁 notifications/
 │   │   │   ├── 📁 components/
 │   │   │   │   ├── 📄 NotificationBell.tsx
@@ -238,7 +245,9 @@ Structure:
 │   │   │   ├── 📁 filters/
 │   │   │   │   ├── 📄 DateRangePickerPopup.tsx
 │   │   │   │   ├── 📄 filterDateUtils.ts
-│   │   │   │   └── 📄 index.ts
+│   │   │   │   ├── 📄 index.ts
+│   │   │   │   └── 📄 SingleDatePickerPopup.tsx
+│   │   │   ├── 📄 ActionIconButton.tsx
 │   │   │   ├── 📄 AttachmentThumbnail.tsx
 │   │   │   ├── 📄 Button.tsx
 │   │   │   ├── 📄 FilterDatePicker.tsx
@@ -259,6 +268,7 @@ Structure:
 │   │   │   ├── 📄 booking.ts
 │   │   │   ├── 📄 status.ts
 │   │   │   ├── 📄 supplierTabs.ts
+│   │   │   ├── 📄 textSizes.ts
 │   │   │   ├── 📄 ui.ts
 │   │   │   └── 📄 uploads.ts
 │   │   ├── 📁 lib/
@@ -267,7 +277,6 @@ Structure:
 │   │   │   ├── 📄 auth.ts
 │   │   │   ├── 📄 bookingStatus.test.ts
 │   │   │   ├── 📄 bookingStatus.ts
-│   │   │   ├── 📄 crypto.ts
 │   │   │   ├── 📄 dateUtils.ts
 │   │   │   ├── 📄 gcs.ts
 │   │   │   └── 📄 supabase.ts
@@ -279,6 +288,8 @@ Structure:
 │   ├── 📄 index.css
 │   └── 📄 vite-env.d.ts
 ├── 📁 supabase/
+│   ├── 📁 .temp/
+│   │   └── 📄 cli-latest
 │   ├── 📁 functions/
 │   │   ├── 📁 auth/
 │   │   │   └── 📄 index.ts
@@ -298,7 +309,26 @@ Structure:
 │       ├── 📄 20260519144500_lock_down_browser_writes.sql
 │       ├── 📄 20260519150000_finish_security_advisor_cleanup.sql
 │       ├── 📄 20260519151000_dedupe_booking_amendment_select_policy.sql
-│       └── 📄 20260727000000_remove_plaintext_supplier_credentials.sql
+│       ├── 📄 20260727000000_remove_plaintext_supplier_credentials.sql
+│       ├── 📄 20260727000500_pending_upload_retention.sql
+│       ├── 📄 20260727000700_revocable_auth_sessions.sql
+│       ├── 📄 20260727001000_atomic_booking_creation.sql
+│       ├── 📄 20260727002000_revoke_sensitive_browser_reads.sql
+│       ├── 📄 20260727003000_transactional_catalog_sync.sql
+│       ├── 📄 20260727004000_grouped_booking_capacity.sql
+│       ├── 📄 20260727005000_server_report_aggregation.sql
+│       ├── 📄 20260728010000_lock_down_legacy_security_definer.sql
+│       ├── 📄 20260729010000_booking_4xl_and_delivery_slots.sql
+│       ├── 📄 20260729020000_account_password_vault.sql
+│       ├── 📄 20260729030000_account_disable_status.sql
+│       ├── 📄 20260729040000_account_soft_delete_status.sql
+│       ├── 📄 20260730010000_sync_product_catalog_4xl.sql
+│       └── 📄 20260730020000_restore_return_booking_item.sql
+├── 📁 test-results/
+│   └── 📄 .last-run.json
+├── 📁 tests/
+│   └── 📁 e2e/
+│       └── 📄 mobile.spec.ts
 ├── 📄 .dockerignore
 ├── 📄 .env
 ├── 📄 .gcloudignore
@@ -316,15 +346,16 @@ Structure:
 ├── 📄 DUAL_SYNC_SETUP.md
 ├── 📄 eslint.config.js
 ├── 📄 index.html
-├── 📄 mcp.json
 ├── 📄 nginx.conf
 ├── 📄 package-lock.json
 ├── 📄 package.json
+├── 📄 playwright.config.ts
 ├── 📄 postcss.config.js
 ├── 📄 PROJECT_CODE_REVIEW_2026-07-14.md
 ├── 📄 project_structure.py
 ├── 📄 Project_structure.txt
 ├── 📄 project_tester.py
+├── 📄 SECURITY.md
 ├── 📄 start.sh
 ├── 📄 tailwind.config.ts
 ├── 📄 tsconfig.app.json
@@ -337,34 +368,39 @@ Structure:
 └── 📄 Z_Update_prompt_typer.md
 
 Large Files (> 300 lines):
-📄 debug/raw_data_product.json: 840 lines
-📄 src/features/admin/ReportPage.tsx: 574 lines
-📄 src/features/booking/components/BookingForm.tsx: 525 lines
+📄 src/features/admin/ReportPage.tsx: 868 lines
+📄 src/features/warehouse/reviewer/BookingDetailModal.tsx: 765 lines
+📄 src/features/booking/components/PoRow.tsx: 708 lines
+📄 src/features/booking/components/BookingForm.tsx: 648 lines
+📄 src/features/accounts/AccountManagement.tsx: 600 lines
+📄 src/features/warehouse/reviewer/index.tsx: 597 lines
+📄 src/shared/components/filters/DateRangePickerPopup.tsx: 586 lines
 📄 debug/project_tester.py: 515 lines
-📄 server/routes/booking.ts: 503 lines
 📄 project_tester.py: 495 lines
-📄 debug/raw_data.json: 483 lines
-📄 src/shared/components/filters/DateRangePickerPopup.tsx: 448 lines
-📄 server/routes/productProcess.ts: 418 lines
-📄 src/features/booking/components/PoRow.tsx: 416 lines
-📄 src/features/warehouse/reviewer/index.tsx: 359 lines
-📄 src/features/warehouse/reviewer/BookingDetailModal.tsx: 351 lines
-📄 Project_structure.txt: 329 lines
-📄 src/shared/types/database.ts: 329 lines
+📄 src/features/adminResources/SupplierTable.tsx: 490 lines
+📄 server/routes/booking.ts: 487 lines
+📄 Project_structure.txt: 447 lines
+📄 server/routes/reviewer.ts: 426 lines
+📄 server/routes/productProcess.ts: 397 lines
+📄 src/features/adminResources/WarehouseTable.tsx: 381 lines
+📄 src/features/productProcess/ProductProcessPage.tsx: 352 lines
+📄 src/features/warehouse/receiver/index.tsx: 350 lines
+📄 src/shared/types/database.ts: 335 lines
+📄 src/features/warehouse/reviewer/AmendmentPanel.tsx: 305 lines
 
 Small Files (< 60 lines):
-📄 src/features/admin/components/LinkBtn.tsx: 1 lines
 📄 src/features/warehouse/ReviewerPage.tsx: 1 lines
 📄 src/test/setup.ts: 1 lines
-📄 src/shared/components/filters/index.ts: 2 lines
+📄 supabase/migrations/20260729030000_account_disable_status.sql: 1 lines
+📄 supabase/migrations/20260729040000_account_soft_delete_status.sql: 1 lines
 📄 supabase/migrations/20260514194500_drop_product_process_pair_unique.sql: 2 lines
 📄 .agents/skills/caveman-compress/scripts/__main__.py: 3 lines
+📄 src/shared/components/filters/index.ts: 3 lines
 📄 src/shared/constants/uploads.ts: 3 lines
 📄 supabase/migrations/20260513090000_partial_booking_approval.sql: 3 lines
 📄 supabase/migrations/20260518101500_add_product_process_order_date.sql: 3 lines
 📄 supabase/migrations/20260519151000_dedupe_booking_amendment_select_policy.sql: 3 lines
-📄 src/shared/lib/crypto.ts: 4 lines
-📄 src/app/App.tsx: 5 lines
+📄 test-results/.last-run.json: 4 lines
 📄 src/features/admin/tabs/AccountsTab.tsx: 5 lines
 📄 src/features/admin/tabs/SuppliersTab.tsx: 5 lines
 📄 src/features/admin/tabs/WarehousesTab.tsx: 5 lines
@@ -379,69 +415,81 @@ Small Files (< 60 lines):
 📄 start.sh: 7 lines
 📄 tsconfig.json: 7 lines
 📄 src/shared/lib/attachments.ts: 8 lines
-📄 src/features/productProcess/api.ts: 9 lines
 📄 .gemini/hooks/crg-update.sh: 10 lines
 📄 src/shared/components/filters/filterDateUtils.ts: 11 lines
 📄 src/shared/config/pageLayout.ts: 11 lines
 📄 src/shared/lib/supabase.ts: 11 lines
 📄 server/config/storage.ts: 12 lines
+📄 src/features/admin/reportDate.ts: 12 lines
 📄 .claude/settings.local.json: 13 lines
 📄 secrets/gcs_booking_webapp_key.json: 13 lines
 📄 src/shared/constants/supplierTabs.ts: 13 lines
+📄 supabase/migrations/20260727000500_pending_upload_retention.sql: 13 lines
+📄 src/shared/constants/textSizes.ts: 14 lines
 📄 src/shared/constants/ui.ts: 14 lines
 📄 .gemini/hooks/crg-session-start.sh: 15 lines
+📄 src/features/admin/ReportPage.test.ts: 15 lines
+📄 supabase/migrations/20260727000700_revocable_auth_sessions.sql: 15 lines
 📄 .opencode.json: 16 lines
 📄 tsconfig.server.json: 16 lines
-📄 vitest.config.ts: 16 lines
 📄 src/app/main.tsx: 16 lines
 📄 src/shared/components/StatusBadge.tsx: 16 lines
+📄 vitest.config.ts: 17 lines
+📄 supabase/migrations/20260729020000_account_password_vault.sql: 17 lines
+📄 src/features/auth/services/auth.service.ts: 18 lines
+📄 src/features/productProcess/api.ts: 18 lines
+📄 server/lib/password.test.ts: 19 lines
 📄 src/shared/components/LinkBtn.tsx: 19 lines
 📄 tsconfig.node.json: 20 lines
 📄 src/shared/components/LoadingSpinner.tsx: 20 lines
 📄 supabase/migrations/20260519135000_preserve_booking_delivery_date.sql: 20 lines
-📄 server/routes/booking.test.ts: 21 lines
+📄 playwright.config.ts: 21 lines
 📄 src/features/auth/AccountsPage.tsx: 21 lines
-📄 src/shared/config/permissions.ts: 21 lines
+📄 server/lib/mediaDto.ts: 22 lines
+📄 src/shared/config/permissions.ts: 22 lines
 📄 supabase/migrations/20260514194000_create_product_process_catalog.sql: 22 lines
+📄 tests/e2e/mobile.spec.ts: 22 lines
+📄 server/config/capabilities.ts: 24 lines
 📄 supabase/migrations/20260727000000_remove_plaintext_supplier_credentials.sql: 24 lines
 📄 src/features/auth/guard/RequireRole.tsx: 25 lines
 📄 tsconfig.app.json: 26 lines
 📄 src/app/providers.tsx: 26 lines
 📄 tailwind.config.ts: 27 lines
+📄 server/lib/password.ts: 27 lines
 📄 src/features/supplier/SuppliersPage.tsx: 27 lines
 📄 src/features/warehouse/WarehousesPage.tsx: 27 lines
+📄 supabase/migrations/20260728010000_lock_down_legacy_security_definer.sql: 27 lines
+📄 server/lib/accountPasswordVault.ts: 28 lines
+📄 supabase/migrations/20260727002000_revoke_sensitive_browser_reads.sql: 28 lines
 📄 eslint.config.js: 29 lines
 📄 src/shared/lib/gcs.ts: 29 lines
-📄 src/shared/components/AttachmentThumbnail.tsx: 31 lines
+📄 src/shared/config/navTabs.ts: 31 lines
+📄 supabase/migrations/20260727004000_grouped_booking_capacity.sql: 31 lines
+📄 src/shared/components/AttachmentThumbnail.tsx: 32 lines
 📄 debug/fix_encoding2.py: 33 lines
-📄 src/features/notifications/components/NotificationBell.tsx: 34 lines
-📄 src/features/auth/services/auth.service.ts: 35 lines
-📄 src/shared/config/navTabs.ts: 35 lines
+📄 src/features/notifications/components/NotificationBell.tsx: 35 lines
 📄 server/etl/nhanhDraftInfo.ts: 36 lines
-📄 server/lib/httpAuth.ts: 36 lines
 📄 src/shared/components/Input.tsx: 36 lines
-📄 server/routes/notifications.ts: 37 lines
+📄 supabase/migrations/20260729010000_booking_4xl_and_delivery_slots.sql: 37 lines
 📄 supabase/migrations/20260518091000_rename_color_to_mau.sql: 38 lines
-📄 server/lib/jwt.test.ts: 39 lines
-📄 server/lib/supabase.ts: 39 lines
 📄 src/shared/components/Button.tsx: 39 lines
+📄 src/shared/lib/auth.ts: 40 lines
 📄 .gemini/settings.json: 41 lines
-📄 server/routes/upload.ts: 42 lines
+📄 server/lib/supabase.ts: 41 lines
 📄 src/shared/components/Select.tsx: 42 lines
+📄 supabase/migrations/20260730020000_restore_return_booking_item.sql: 42 lines
 📄 .mcp.json: 43 lines
+📄 src/features/auth/index.tsx: 44 lines
+📄 src/shared/components/FilterDatePicker.tsx: 44 lines
+📄 server/lib/resilientFetch.test.ts: 46 lines
 📄 .codex/hooks.json: 48 lines
-📄 server/routes/receiver.ts: 49 lines
-📄 src/app/AppStartupSync.tsx: 49 lines
-📄 src/shared/components/Lightbox.tsx: 49 lines
+📄 server/lib/httpAuth.test.ts: 48 lines
 📄 src/shared/components/Pagination.tsx: 52 lines
 📄 server/lib/logger.ts: 53 lines
-📄 server/routes/auth.test.ts: 53 lines
-📄 src/shared/constants/status.ts: 53 lines
 📄 src/shared/lib/bookingStatus.ts: 53 lines
-📄 mcp.json: 55 lines
-📄 server/lib/gcs.ts: 55 lines
-📄 src/shared/lib/auth.ts: 56 lines
+📄 src/features/notifications/hooks/useNotifications.ts: 55 lines
+📄 server/routes/publicBooking.ts: 56 lines
 📄 .claude/settings.json: 57 lines
-📄 server/lib/jwt.ts: 58 lines
+📄 server/lib/httpAuth.ts: 58 lines
 📄 src/features/booking/hooks/useBookingData.ts: 58 lines
-📄 src/shared/components/FilterDatePicker.tsx: 58 lines
+📄 src/shared/constants/status.ts: 59 lines

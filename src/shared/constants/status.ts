@@ -3,18 +3,24 @@ import type { AccountStatus, BookingStatus } from '@/shared/types/domain'
 export const ACCOUNT_STATUS_LABELS: Record<AccountStatus, string> = {
   pending: 'Chờ xác nhận',
   active: 'Đang hoạt động',
+  disabled: 'Đã vô hiệu hóa',
+  deleted: 'Đã xóa',
   rejected: 'Đã từ chối',
 }
 
 export const ACCOUNT_STATUS_CLASSES: Record<AccountStatus, string> = {
   pending: 'status-pending',
   active: 'status-confirmed',
+  disabled: 'status-cancelled',
+  deleted: 'status-cancelled',
   rejected: 'status-rejected',
 }
 
 export const ACCOUNT_STATUS_FILTER_OPTIONS: Array<{ value: AccountStatus | 'all'; label: string }> = [
   { value: 'pending', label: ACCOUNT_STATUS_LABELS.pending },
   { value: 'active', label: ACCOUNT_STATUS_LABELS.active },
+  { value: 'disabled', label: ACCOUNT_STATUS_LABELS.disabled },
+  { value: 'deleted', label: ACCOUNT_STATUS_LABELS.deleted },
   { value: 'rejected', label: ACCOUNT_STATUS_LABELS.rejected },
   { value: 'all', label: 'Tất cả' },
 ]

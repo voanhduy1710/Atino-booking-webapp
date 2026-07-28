@@ -18,6 +18,7 @@ import amendmentsRouter from './routes/amendments.js'
 import adminResourcesRouter from './routes/adminResources.js'
 import notificationsRouter from './routes/notifications.js'
 import publicBookingRouter from './routes/publicBooking.js'
+import mediaRouter from './routes/media.js'
 import { logger } from './lib/logger.js'
 import { getSupabase } from './lib/supabase.js'
 
@@ -117,7 +118,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 })
 
 app.use('/api/auth/login', rateLimit(10, 15 * 60 * 1000))
-app.use('/api/auth/register-supplier', rateLimit(5, 60 * 60 * 1000))
 app.use('/api/upload/gcs', rateLimit(20, 15 * 60 * 1000), uploadRouter)
 app.use('/api/booking/finalize', bookingRouter)
 app.use('/api/product-process', rateLimit(120, 15 * 60 * 1000), productProcessRouter)
@@ -130,6 +130,7 @@ app.use('/api/amendments', amendmentsRouter)
 app.use('/api/admin-resources', adminResourcesRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/public-bookings', rateLimit(60, 15 * 60 * 1000), publicBookingRouter)
+app.use('/api/media', rateLimit(60, 15 * 60 * 1000), mediaRouter)
 
 app.get('/api/health', async (_req, res) => {
   const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'AUTH_JWT_SECRET']

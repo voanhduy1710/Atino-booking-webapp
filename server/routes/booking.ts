@@ -38,6 +38,7 @@ interface PoItem {
   size_xl_31?: number | null
   size_2xl_32?: number | null
   size_3xl_33?: number | null
+  size_4xl_34?: number | null
   vat_temp_paths?: string[]
   slip_temp_paths?: string[]
 }
@@ -53,7 +54,8 @@ interface FinalizeBody {
   items: PoItem[]
 }
 
-const nonNegativeNumber = z.number().finite().nonnegative().max(1_000_000)
+const TIME_SLOT_REQUIRED_MESSAGE = 'Vui lòng chọn khung giờ giao hàng (08:00–11:30 hoặc 13:30–17:00)'
+const nonNegativeNumber = z.number().finite().int().nonnegative().max(1_000_000)
 const bookingItemSchema = z.object({
   product_code: z.string().trim().min(1).max(100),
   process_code: z.string().trim().min(1).max(100),
@@ -69,6 +71,7 @@ const bookingItemSchema = z.object({
   size_xl_31: nonNegativeNumber.nullable().optional(),
   size_2xl_32: nonNegativeNumber.nullable().optional(),
   size_3xl_33: nonNegativeNumber.nullable().optional(),
+  size_4xl_34: nonNegativeNumber.nullable().optional(),
   vat_temp_paths: z.array(z.string().regex(/^(?:[A-Za-z0-9_-]+\/)?uploads\/[A-Za-z0-9_/-]+\.(jpg|png|pdf)$/)).max(10).optional(),
   slip_temp_paths: z.array(z.string().regex(/^(?:[A-Za-z0-9_-]+\/)?uploads\/[A-Za-z0-9_/-]+\.(jpg|png|pdf)$/)).max(10).optional(),
 })
@@ -76,12 +79,47 @@ export const finalizeSchema = z.object({
   supplier_account_id: z.string().uuid().optional(),
   warehouse_id: z.string().uuid(),
   delivery_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  time_slot: z.enum(['07-09', '09-11', '13-15', '15-17']),
+  time_slot: z.enum(['08-1130', '1330-17'], {
+    errorMap: () => ({ message: TIME_SLOT_REQUIRED_MESSAGE }),
+  }),
   ghi_chu: z.string().trim().max(2_000).nullable().optional(),
   delivery_note: z.string().trim().min(1).max(2_000),
   session_id: z.string().uuid(),
   items: z.array(bookingItemSchema).min(1).max(100),
+}).superRefine((body, ctx) => {
+  let requestedTotal = 0
+
+  body.items.forEach((item, index) => {
+    const total = itemTotal(item)
+    requestedTotal += total
+    if (!Number.isSafeInteger(total) || total <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Dòng ${index + 1}: Tổng số lượng phải lớn hơn 0`,
+        path: ['items', index, 'total_quantity'],
+      })
+    }
+  })
+
+  if (requestedTotal > MAX_DAILY_TOTAL_QUANTITY) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Tổng số lượng ${requestedTotal.toLocaleString('vi-VN')} vượt giới hạn ${MAX_DAILY_TOTAL_QUANTITY.toLocaleString('vi-VN')} sản phẩm cho một booking`,
+      path: ['items'],
+    })
+  }
 })
+
+export function bookingRequestError(error: z.ZodError): string {
+  const issue = error.issues[0]
+  const field = issue?.path[0]
+  if (field === 'time_slot') return TIME_SLOT_REQUIRED_MESSAGE
+  if (issue?.code === z.ZodIssueCode.custom) return issue.message
+  if (field === 'warehouse_id') return 'Vui lòng chọn kho nhận hàng'
+  if (field === 'delivery_date') return 'Ngày giao hàng không hợp lệ'
+  if (field === 'items') return 'Danh sách sản phẩm không hợp lệ'
+  return 'Dữ liệu booking không hợp lệ'
+}
 
 function isoDateInICT(offsetDays: number): string {
   const now = new Date(Date.now() + ICT_OFFSET_MS)
@@ -132,7 +170,8 @@ function itemTotal(item: PoItem): number {
     Number(item.size_l_30 ?? 0) +
     Number(item.size_xl_31 ?? 0) +
     Number(item.size_2xl_32 ?? 0) +
-    Number(item.size_3xl_33 ?? 0)
+    Number(item.size_3xl_33 ?? 0) +
+    Number(item.size_4xl_34 ?? 0)
   return sizeTotal > 0 ? sizeTotal : Number(item.total_quantity ?? item.quantity_booked ?? 0)
 }
 
@@ -334,7 +373,7 @@ router.post('/', requireAuth(['supplier', 'admin']), async (req: Request, res: R
     const supabase = getSupabase()
     const parsedBody = finalizeSchema.safeParse(req.body)
     if (!parsedBody.success) {
-      res.status(400).json({ error: 'Invalid booking request' })
+      res.status(400).json({ error: bookingRequestError(parsedBody.error) })
       return
     }
     const body = parsedBody.data as FinalizeBody
@@ -361,7 +400,13 @@ router.post('/', requireAuth(['supplier', 'admin']), async (req: Request, res: R
 
     const totalRequested = (body.items ?? []).reduce((sum, item) => sum + itemTotal(item), 0)
     if (!Number.isFinite(totalRequested) || totalRequested <= 0) {
-      res.status(400).json({ error: 'Booking quantity must be greater than zero' })
+      res.status(400).json({ error: 'Tổng số lượng booking phải lớn hơn 0' })
+      return
+    }
+    if (totalRequested > MAX_DAILY_TOTAL_QUANTITY) {
+      res.status(400).json({
+        error: `Tổng số lượng ${totalRequested.toLocaleString('vi-VN')} vượt giới hạn ${MAX_DAILY_TOTAL_QUANTITY.toLocaleString('vi-VN')} sản phẩm cho một booking`,
+      })
       return
     }
     const allowedWindow = await capacityWindow(totalRequested)
@@ -388,7 +433,7 @@ router.post('/', requireAuth(['supplier', 'admin']), async (req: Request, res: R
       }
     })
 
-    const { data, error } = await supabase.rpc('create_booking_atomic', {
+    const { data, error } = await supabase.rpc('create_booking_atomic_v2', {
       p_supplier_account_id: supplierAccountId,
       p_warehouse_id: body.warehouse_id,
       p_delivery_date: requestedDeliveryDate,
@@ -403,6 +448,12 @@ router.post('/', requireAuth(['supplier', 'admin']), async (req: Request, res: R
       const message = error.message ?? 'Booking creation failed'
       if (message.includes('capacity exceeded')) {
         res.status(409).json({ error: 'Ngày này đã hết công suất. Vui lòng chọn ngày khác.' })
+        return
+      }
+      if (message.includes('invalid requested quantity')) {
+        res.status(400).json({
+          error: `Tổng số lượng booking phải từ 1 đến ${MAX_DAILY_TOTAL_QUANTITY.toLocaleString('vi-VN')} sản phẩm`,
+        })
         return
       }
       if (message.includes('not active')) {

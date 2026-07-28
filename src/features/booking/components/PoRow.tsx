@@ -1,424 +1,708 @@
-import { useMemo, useRef } from 'react'
-import type { UseFormRegister, FieldErrors, UseFormSetValue, UseFormWatch } from 'react-hook-form'
-import type { BookingFormData } from '@/features/booking/schemas'
-import { usePhotoUpload } from '@/features/booking/hooks/usePhotoUpload'
-import { LoadingSpinner } from '@/shared/components/LoadingSpinner'
-import type { ProductProcessCatalog } from '@/shared/types/domain'
-import { DELIVERY_ROUNDS } from '@/shared/constants/booking'
-import { MAX_FILES_PER_ATTACHMENT_TYPE } from '@/shared/constants/uploads'
-import { ProductProcessCombobox } from './ProductProcessCombobox'
+import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import type {
+  UseFormRegister,
+  FieldErrors,
+  UseFormSetValue,
+  UseFormWatch,
+} from "react-hook-form";
+import type { BookingFormData } from "@/features/booking/schemas";
+import { usePhotoUpload } from "@/features/booking/hooks/usePhotoUpload";
+import { LoadingSpinner } from "@/shared/components/LoadingSpinner";
+import { Lightbox } from "@/shared/components/Lightbox";
+import { isPdfAttachment } from "@/shared/lib/attachments";
+import type { ProductProcessCatalog } from "@/shared/types/domain";
+import { DELIVERY_ROUNDS } from "@/shared/constants/booking";
+import { MAX_FILES_PER_ATTACHMENT_TYPE } from "@/shared/constants/uploads";
+import { ProductProcessCombobox } from "./ProductProcessCombobox";
 
 interface Props {
-  index: number
-  rowId: string
-  register: UseFormRegister<BookingFormData>
-  errors: FieldErrors<BookingFormData>
-  sessionId: string
-  supplierCode: string
-  onCopy?: (attachmentNames: Record<string, string>) => void
-  onRemove?: () => void
-  setValue: UseFormSetValue<BookingFormData>
-  watch: UseFormWatch<BookingFormData>
-  productProcessOptions: ProductProcessCatalog[]
-  attachmentNames: Record<string, string>
-  onAttachmentName: (path: string, name: string) => void
+  index: number;
+  rowId: string;
+  register: UseFormRegister<BookingFormData>;
+  errors: FieldErrors<BookingFormData>;
+  sessionId: string;
+  supplierCode: string;
+  onCopy?: (attachmentNames: Record<string, string>) => void;
+  onRemove?: () => void;
+  setValue: UseFormSetValue<BookingFormData>;
+  watch: UseFormWatch<BookingFormData>;
+  productProcessOptions: ProductProcessCatalog[];
+  attachmentNames: Record<string, string>;
+  onAttachmentName: (path: string, name: string) => void;
 }
 
 const SIZE_FIELDS = [
-  ['size_s_28', 'S/28'],
-  ['size_m_29', 'M/29'],
-  ['size_l_30', 'L/30'],
-  ['size_xl_31', 'XL/31'],
-  ['size_2xl_32', '2XL/32'],
-  ['size_3xl_33', '3XL/33'],
-] as const
+  ["size_s_28", "S/28"],
+  ["size_m_29", "M/29"],
+  ["size_l_30", "L/30"],
+  ["size_xl_31", "XL/31"],
+  ["size_2xl_32", "2XL/32"],
+  ["size_3xl_33", "3XL/33"],
+  ["size_4xl_34", "4XL/34"],
+] as const;
 
 function unique(values: Array<string | null | undefined>): string[] {
-  return Array.from(new Set(values.filter(Boolean) as string[]))
+  return Array.from(new Set(values.filter(Boolean) as string[]));
 }
 
 function pathLabel(path: string, names: Record<string, string>): string {
-  return names[path] ?? path.split('/').pop() ?? path
+  return names[path] ?? path.split("/").pop() ?? path;
 }
 
-export function PoRow({ index, rowId, register, errors, sessionId, supplierCode, onCopy, onRemove, setValue, watch, productProcessOptions, attachmentNames, onAttachmentName }: Props) {
-  const { files: slipFiles, upload: uploadSlip, remove: removeSlip, isUploading: slipUploading } = usePhotoUpload(sessionId, supplierCode)
-  const { files: vatFiles, upload: uploadVat, remove: removeVat, isUploading: vatUploading } = usePhotoUpload(sessionId, supplierCode)
+export function PoRow({
+  index,
+  rowId,
+  register,
+  errors,
+  sessionId,
+  supplierCode,
+  onCopy,
+  onRemove,
+  setValue,
+  watch,
+  productProcessOptions,
+  attachmentNames,
+  onAttachmentName,
+}: Props) {
+  const {
+    files: slipFiles,
+    upload: uploadSlip,
+    remove: removeSlip,
+    isUploading: slipUploading,
+  } = usePhotoUpload(sessionId, supplierCode);
+  const {
+    files: vatFiles,
+    upload: uploadVat,
+    remove: removeVat,
+    isUploading: vatUploading,
+  } = usePhotoUpload(sessionId, supplierCode);
 
-  const slipInputRef = useRef<HTMLInputElement>(null)
-  const vatInputRef = useRef<HTMLInputElement>(null)
-  const slipCameraRef = useRef<HTMLInputElement>(null)
-  const vatCameraRef = useRef<HTMLInputElement>(null)
+  const slipInputRef = useRef<HTMLInputElement>(null);
+  const vatInputRef = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  const deliveryRound = watch(`items.${index}.delivery_round`)
-  const isFinalRound = watch(`items.${index}.is_final_round`)
-  const productCode = watch(`items.${index}.product_code`)
-  const processCode = watch(`items.${index}.process_code`)
-  const warehouseCode = watch(`items.${index}.warehouse_code`)
-  const mau = watch(`items.${index}.mau`)
-  const totalQuantity = Number(watch(`items.${index}.total_quantity`) ?? 0)
-  const slipPaths = (watch(`items.${index}.slip_temp_paths`) as string[]) ?? []
-  const vatPaths = (watch(`items.${index}.vat_temp_paths`) as string[]) ?? []
+  const deliveryRound = watch(`items.${index}.delivery_round`);
+  const isFinalRound = watch(`items.${index}.is_final_round`);
+  const productCode = watch(`items.${index}.product_code`);
+  const processCode = watch(`items.${index}.process_code`);
+  const warehouseCode = watch(`items.${index}.warehouse_code`);
+  const mau = watch(`items.${index}.mau`);
+  const totalQuantity = Number(watch(`items.${index}.total_quantity`) ?? 0);
+  const slipPaths = (watch(`items.${index}.slip_temp_paths`) as string[]) ?? [];
+  const vatPaths = (watch(`items.${index}.vat_temp_paths`) as string[]) ?? [];
 
-  const itemErrors = errors.items?.[index]
-  const uploadPrefix = rowId.replace(/[^a-zA-Z0-9_-]/g, '')
+  const itemErrors = errors.items?.[index];
+  const uploadPrefix = rowId.replace(/[^a-zA-Z0-9_-]/g, "");
 
   const productToOrderCodesMap = useMemo(() => {
-    const map = new Map<string, string[]>()
+    const map = new Map<string, string[]>();
     for (const item of productProcessOptions) {
-      const list = map.get(item.product_name) || []
+      const list = map.get(item.product_name) || [];
       if (!list.includes(item.order_code)) {
-        list.push(item.order_code)
-        map.set(item.product_name, list)
+        list.push(item.order_code);
+        map.set(item.product_name, list);
       }
     }
     for (const val of map.values()) {
-      val.sort()
+      val.sort();
     }
-    return map
-  }, [productProcessOptions])
+    return map;
+  }, [productProcessOptions]);
 
   const orderCodeToProductsMap = useMemo(() => {
-    const map = new Map<string, string[]>()
+    const map = new Map<string, string[]>();
     for (const item of productProcessOptions) {
-      const list = map.get(item.order_code) || []
+      const list = map.get(item.order_code) || [];
       if (!list.includes(item.product_name)) {
-        list.push(item.product_name)
-        map.set(item.order_code, list)
+        list.push(item.product_name);
+        map.set(item.order_code, list);
       }
     }
     for (const val of map.values()) {
-      val.sort()
+      val.sort();
     }
-    return map
-  }, [productProcessOptions])
+    return map;
+  }, [productProcessOptions]);
 
   const productOptions = useMemo(() => {
     const filtered = productProcessOptions.filter(
-      (item) => !processCode || item.order_code === processCode
-    )
-    return Array.from(new Set(filtered.map((item) => item.product_name))).sort()
-  }, [productProcessOptions, processCode])
+      (item) => !processCode || item.order_code === processCode,
+    );
+    return Array.from(
+      new Set(filtered.map((item) => item.product_name)),
+    ).sort();
+  }, [productProcessOptions, processCode]);
 
   const processOptions = useMemo(() => {
     const filtered = productProcessOptions.filter(
-      (item) => !productCode || item.product_name === productCode
-    )
-    return Array.from(new Set(filtered.map((item) => item.order_code))).sort()
-  }, [productProcessOptions, productCode])
+      (item) => !productCode || item.product_name === productCode,
+    );
+    return Array.from(new Set(filtered.map((item) => item.order_code))).sort();
+  }, [productProcessOptions, productCode]);
 
   const getProductSubtext = (productName: string) => {
-    const orderCodes = productToOrderCodesMap.get(productName) || []
-    return `${productName} · ${orderCodes.join(', ')}`
-  }
+    const orderCodes = productToOrderCodesMap.get(productName) || [];
+    return `${productName} · ${orderCodes.join(", ")}`;
+  };
 
   const getProcessSubtext = (orderCode: string) => {
-    const productNames = orderCodeToProductsMap.get(orderCode) || []
-    return `${productNames.join(', ')} · ${orderCode}`
-  }
+    const productNames = orderCodeToProductsMap.get(orderCode) || [];
+    return `${productNames.join(", ")} · ${orderCode}`;
+  };
 
   const matchingProductRows = useMemo(
-    () => productProcessOptions.filter(
-      (option) =>
-        (!productCode || option.product_name === productCode) &&
-        (!processCode || option.order_code === processCode)
-    ),
-    [productProcessOptions, productCode, processCode]
-  )
-  const warehouseOptions = unique(matchingProductRows.map((option) => option.warehouse_code)).sort()
+    () =>
+      productProcessOptions.filter(
+        (option) =>
+          (!productCode || option.product_name === productCode) &&
+          (!processCode || option.order_code === processCode),
+      ),
+    [productProcessOptions, productCode, processCode],
+  );
+  const warehouseOptions = unique(
+    matchingProductRows.map((option) => option.warehouse_code),
+  ).sort();
   const mauOptions = unique(
     matchingProductRows
-      .filter((option) => !warehouseCode || option.warehouse_code === warehouseCode)
-      .map((option) => option.mau)
-  ).sort()
+      .filter(
+        (option) => !warehouseCode || option.warehouse_code === warehouseCode,
+      )
+      .map((option) => option.mau),
+  ).sort();
 
   const handleProductSelect = (productName: string | null) => {
-    setValue(`items.${index}.product_code`, productName ?? '', { shouldValidate: true })
+    setValue(`items.${index}.product_code`, productName ?? "", {
+      shouldValidate: true,
+    });
     if (productName) {
       const matches = productProcessOptions.filter(
-        (item) => item.product_name === productName
-      )
-      const uniqueOrderCodes = Array.from(new Set(matches.map((item) => item.order_code)))
+        (item) => item.product_name === productName,
+      );
+      const uniqueOrderCodes = Array.from(
+        new Set(matches.map((item) => item.order_code)),
+      );
       if (uniqueOrderCodes.length === 1) {
-        setValue(`items.${index}.process_code`, uniqueOrderCodes[0], { shouldValidate: true })
+        setValue(`items.${index}.process_code`, uniqueOrderCodes[0], {
+          shouldValidate: true,
+        });
       } else if (processCode && uniqueOrderCodes.includes(processCode)) {
         // Keep current processCode if it's still valid
       } else {
-        setValue(`items.${index}.process_code`, '')
+        setValue(`items.${index}.process_code`, "");
       }
     } else {
-      setValue(`items.${index}.process_code`, '')
+      setValue(`items.${index}.process_code`, "");
     }
-    setValue(`items.${index}.warehouse_code`, '')
-    setValue(`items.${index}.mau`, '')
-  }
+    setValue(`items.${index}.warehouse_code`, "");
+    setValue(`items.${index}.mau`, "");
+  };
 
   const handleProcessSelect = (orderCode: string | null) => {
-    setValue(`items.${index}.process_code`, orderCode ?? '', { shouldValidate: true })
+    setValue(`items.${index}.process_code`, orderCode ?? "", {
+      shouldValidate: true,
+    });
     if (orderCode) {
       const matches = productProcessOptions.filter(
-        (item) => item.order_code === orderCode
-      )
-      const uniqueProductNames = Array.from(new Set(matches.map((item) => item.product_name)))
+        (item) => item.order_code === orderCode,
+      );
+      const uniqueProductNames = Array.from(
+        new Set(matches.map((item) => item.product_name)),
+      );
       if (uniqueProductNames.length === 1) {
-        setValue(`items.${index}.product_code`, uniqueProductNames[0], { shouldValidate: true })
+        setValue(`items.${index}.product_code`, uniqueProductNames[0], {
+          shouldValidate: true,
+        });
       } else if (productCode && uniqueProductNames.includes(productCode)) {
         // Keep current productCode if it's still valid
       } else {
-        setValue(`items.${index}.product_code`, '')
+        setValue(`items.${index}.product_code`, "");
       }
     } else {
-      setValue(`items.${index}.product_code`, '')
+      setValue(`items.${index}.product_code`, "");
     }
-    setValue(`items.${index}.warehouse_code`, '')
-    setValue(`items.${index}.mau`, '')
-  }
+    setValue(`items.${index}.warehouse_code`, "");
+    setValue(`items.${index}.mau`, "");
+  };
 
-  const recalcTotal = (field: (typeof SIZE_FIELDS)[number][0], nextValue: number | null) => {
+  const recalcTotal = (
+    field: (typeof SIZE_FIELDS)[number][0],
+    nextValue: number | null,
+  ) => {
     const total = SIZE_FIELDS.reduce((sum, [key]) => {
-      if (key === field) return sum + (nextValue ?? 0)
-      return sum + Number(watch(`items.${index}.${key}`) ?? 0)
-    }, 0)
-    setValue(`items.${index}.${field}`, nextValue, { shouldValidate: true })
-    setValue(`items.${index}.total_quantity`, total, { shouldValidate: true })
-    setValue(`items.${index}.quantity_booked`, Math.max(1, total), { shouldValidate: true })
-  }
+      if (key === field) return sum + (nextValue ?? 0);
+      return sum + Number(watch(`items.${index}.${key}`) ?? 0);
+    }, 0);
+    setValue(`items.${index}.${field}`, nextValue, { shouldValidate: true });
+    setValue(`items.${index}.total_quantity`, total, { shouldValidate: true });
+    setValue(`items.${index}.quantity_booked`, Math.max(1, total), {
+      shouldValidate: true,
+    });
+  };
 
   const handleSlipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newFiles = Array.from(e.target.files ?? [])
-    const basePaths = slipPaths
+    const newFiles = Array.from(e.target.files ?? []);
+    const basePaths = slipPaths;
     if (basePaths.length + newFiles.length > MAX_FILES_PER_ATTACHMENT_TYPE) {
-      alert(`Tối đa ${MAX_FILES_PER_ATTACHMENT_TYPE} ảnh phiếu giao mỗi đơn hàng`)
-      return
+      alert(
+        `Tối đa ${MAX_FILES_PER_ATTACHMENT_TYPE} ảnh phiếu giao mỗi đơn hàng`,
+      );
+      return;
     }
-    const accumulated: string[] = [...basePaths]
+    const accumulated: string[] = [...basePaths];
     for (const file of newFiles) {
-      const path = await uploadSlip(file, `slip_${uploadPrefix}`)
+      const path = await uploadSlip(file, `slip_${uploadPrefix}`);
       if (path) {
-        accumulated.push(path)
-        onAttachmentName(path, file.name)
+        accumulated.push(path);
+        onAttachmentName(path, file.name);
       }
     }
-    setValue(`items.${index}.slip_temp_paths`, accumulated, { shouldValidate: true })
-    e.target.value = ''
-  }
+    setValue(`items.${index}.slip_temp_paths`, accumulated, {
+      shouldValidate: true,
+    });
+    e.target.value = "";
+  };
 
   const handleVatUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newFiles = Array.from(e.target.files ?? [])
-    const basePaths = vatPaths
+    const newFiles = Array.from(e.target.files ?? []);
+    const basePaths = vatPaths;
     if (basePaths.length + newFiles.length > MAX_FILES_PER_ATTACHMENT_TYPE) {
-      alert(`Tối đa ${MAX_FILES_PER_ATTACHMENT_TYPE} hóa đơn VAT mỗi đơn hàng`)
-      return
+      alert(`Tối đa ${MAX_FILES_PER_ATTACHMENT_TYPE} hóa đơn VAT mỗi đơn hàng`);
+      return;
     }
-    const accumulated: string[] = [...basePaths]
+    const accumulated: string[] = [...basePaths];
     for (const file of newFiles) {
-      const path = await uploadVat(file, `vat_${uploadPrefix}`)
+      const path = await uploadVat(file, `vat_${uploadPrefix}`);
       if (path) {
-        accumulated.push(path)
-        onAttachmentName(path, file.name)
+        accumulated.push(path);
+        onAttachmentName(path, file.name);
       }
     }
-    setValue(`items.${index}.vat_temp_paths`, accumulated, { shouldValidate: true })
-    e.target.value = ''
-  }
+    setValue(`items.${index}.vat_temp_paths`, accumulated, {
+      shouldValidate: true,
+    });
+    e.target.value = "";
+  };
 
   const handleRemoveSlip = (tempPath: string) => {
-    removeSlip(tempPath)
-    setValue(`items.${index}.slip_temp_paths`, slipPaths.filter((p) => p !== tempPath), { shouldValidate: true })
-  }
+    removeSlip(tempPath);
+    setValue(
+      `items.${index}.slip_temp_paths`,
+      slipPaths.filter((p) => p !== tempPath),
+      { shouldValidate: true },
+    );
+  };
 
   const handleRemoveVat = (tempPath: string) => {
-    removeVat(tempPath)
-    setValue(`items.${index}.vat_temp_paths`, vatPaths.filter((p) => p !== tempPath), { shouldValidate: true })
-  }
+    removeVat(tempPath);
+    setValue(
+      `items.${index}.vat_temp_paths`,
+      vatPaths.filter((p) => p !== tempPath),
+      { shouldValidate: true },
+    );
+  };
 
   const handleCopy = () => {
-    const names: Record<string, string> = {}
+    const names: Record<string, string> = {};
     for (const file of [...slipFiles, ...vatFiles]) {
-      names[file.tempPath] = file.file.name
+      names[file.tempPath] = file.file.name;
     }
     for (const path of [...slipPaths, ...vatPaths]) {
-      names[path] = pathLabel(path, attachmentNames)
+      names[path] = pathLabel(path, attachmentNames);
     }
-    onCopy?.(names)
-  }
+    onCopy?.(names);
+  };
 
   return (
-    <tr className="po-mobile-row border-b border-[#ecdbe8] align-top">
-      <td data-label="PO" className="po-mobile-cell po-wide table-cell !px-1 !py-2 text-center text-xs font-medium text-[#888888]">{index + 1}</td>
+    <>
+      {previewUrl && createPortal(
+        <Lightbox src={previewUrl} onClose={() => setPreviewUrl(null)} />,
+        document.body,
+      )}
+      <tr className="po-mobile-row border-b border-[#ecdbe8] align-top">
+      <td
+        data-label="PO"
+        className="po-mobile-cell po-wide table-cell !px-1 !py-2 text-center font-medium text-[#888888]"
+      >
+        {index + 1}
+      </td>
 
-      <td data-label="Tên sản phẩm" className="po-mobile-cell po-wide table-cell !px-1 !py-2">
+      <td
+        data-label="Tên sản phẩm"
+        className="po-mobile-cell po-wide table-cell !px-1 !py-2"
+      >
         <ProductProcessCombobox
           placeholder="Tên SP"
-          value={productCode ?? ''}
+          value={productCode ?? ""}
           options={productOptions}
           getLabel={(option) => option}
           getSubtext={getProductSubtext}
           onSelect={handleProductSelect}
           error={Boolean(itemErrors?.product_code)}
-          inputClassName="!px-2 !py-1 text-xs"
+          inputClassName="!px-2 !py-1 text-sm"
         />
-        {itemErrors?.product_code?.message && <p className="form-error mt-1">{itemErrors.product_code.message}</p>}
+        {itemErrors?.product_code?.message && (
+          <p className="form-error mt-1">{itemErrors.product_code.message}</p>
+        )}
         <input type="hidden" {...register(`items.${index}.product_code`)} />
       </td>
 
-      <td data-label="Mã đơn" className="po-mobile-cell po-wide table-cell !px-1 !py-2">
+      <td
+        data-label="Mã đơn"
+        className="po-mobile-cell po-wide table-cell !px-1 !py-2"
+      >
         <ProductProcessCombobox
           placeholder="Mã đơn"
-          value={processCode ?? ''}
+          value={processCode ?? ""}
           options={processOptions}
           getLabel={(option) => option}
           getSubtext={getProcessSubtext}
           onSelect={handleProcessSelect}
           error={Boolean(itemErrors?.process_code)}
-          inputClassName="!px-2 !py-1 text-xs"
+          inputClassName="!px-2 !py-1 text-sm"
         />
-        {itemErrors?.process_code?.message && <p className="form-error mt-1">{itemErrors.process_code.message}</p>}
+        {itemErrors?.process_code?.message && (
+          <p className="form-error mt-1">{itemErrors.process_code.message}</p>
+        )}
         <input type="hidden" {...register(`items.${index}.process_code`)} />
       </td>
 
       <td data-label="Mã kho" className="po-mobile-cell table-cell !px-1 !py-2">
         <select
-          className={`input-field !px-1 !py-1 text-xs ${itemErrors?.warehouse_code ? 'input-field-error' : ''}`}
-          value={warehouseCode ?? ''}
+          className={`input-field !px-1 !py-1 ${itemErrors?.warehouse_code ? "input-field-error" : ""}`}
+          value={warehouseCode ?? ""}
           onChange={(e) => {
-            setValue(`items.${index}.warehouse_code`, e.target.value, { shouldValidate: true })
-            setValue(`items.${index}.mau`, '', { shouldValidate: true })
+            setValue(`items.${index}.warehouse_code`, e.target.value, {
+              shouldValidate: true,
+            });
+            setValue(`items.${index}.mau`, "", { shouldValidate: true });
           }}
         >
           <option value="">Chọn</option>
-          {warehouseOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+          {warehouseOptions.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
         </select>
         <input type="hidden" {...register(`items.${index}.warehouse_code`)} />
       </td>
 
       <td data-label="Màu" className="po-mobile-cell table-cell !px-1 !py-2">
         <select
-          className={`input-field !px-1 !py-1 text-xs ${itemErrors?.mau ? 'input-field-error' : ''}`}
-          value={mau ?? ''}
-          onChange={(e) => setValue(`items.${index}.mau`, e.target.value, { shouldValidate: true })}
+          className={`input-field !px-1 !py-1 ${itemErrors?.mau ? "input-field-error" : ""}`}
+          value={mau ?? ""}
+          onChange={(e) =>
+            setValue(`items.${index}.mau`, e.target.value, {
+              shouldValidate: true,
+            })
+          }
         >
           <option value="">Chọn</option>
-          {mauOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+          {mauOptions.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
         </select>
         <input type="hidden" {...register(`items.${index}.mau`)} />
       </td>
 
-      <td data-label="Tổng số lượng" className="po-mobile-cell table-cell !px-1 !py-2 text-right">
-        <input readOnly value={totalQuantity} className={`input-field !px-1 !py-1 text-xs bg-[#F5F5F5] ${itemErrors?.total_quantity ? 'input-field-error' : ''}`} />
-        <input type="hidden" {...register(`items.${index}.total_quantity`, { valueAsNumber: true })} />
-        <input type="hidden" {...register(`items.${index}.quantity_booked`, { valueAsNumber: true })} />
-        {itemErrors?.total_quantity?.message && <p className="form-error">{itemErrors.total_quantity.message}</p>}
+      <td
+        data-label="Tổng số lượng"
+        className="po-mobile-cell table-cell !px-1 !py-2 text-right"
+      >
+        <input
+          readOnly
+          value={totalQuantity}
+          className={`input-field !px-1 !py-1 bg-[#F5F5F5] ${itemErrors?.total_quantity ? "input-field-error" : ""}`}
+        />
+        <input
+          type="hidden"
+          {...register(`items.${index}.total_quantity`, {
+            valueAsNumber: true,
+          })}
+        />
+        <input
+          type="hidden"
+          {...register(`items.${index}.quantity_booked`, {
+            valueAsNumber: true,
+          })}
+        />
+        {itemErrors?.total_quantity?.message && (
+          <p className="form-error">{itemErrors.total_quantity.message}</p>
+        )}
       </td>
 
       {SIZE_FIELDS.map(([field, label]) => (
-        <td key={field} data-label={label} className="po-mobile-cell table-cell !px-1 !py-2">
+        <td
+          key={field}
+          data-label={label}
+          className="po-mobile-cell table-cell !px-1 !py-2"
+        >
           <input
             type="number"
             min={0}
             aria-label={label}
-            value={watch(`items.${index}.${field}`) ?? ''}
+            value={watch(`items.${index}.${field}`) ?? ""}
             onChange={(e) => {
-              const value = e.target.value
-              recalcTotal(field, value === '' ? null : Math.max(0, Number(value) || 0))
+              const value = e.target.value;
+              recalcTotal(
+                field,
+                value === "" ? null : Math.max(0, Number(value) || 0),
+              );
             }}
-            className="number-input-clean input-field !px-1 !py-1 text-xs text-right"
+            className="number-input-clean input-field !px-1 !py-1 text-right"
           />
-          <input type="hidden" {...register(`items.${index}.${field}`, { valueAsNumber: true })} />
+          <input
+            type="hidden"
+            {...register(`items.${index}.${field}`, { valueAsNumber: true })}
+          />
         </td>
       ))}
 
-      <td data-label="Lần giao / VAT" className="po-mobile-cell po-wide table-cell !px-1 !py-2">
+      <td
+        data-label="Lần giao / VAT"
+        className="po-mobile-cell po-wide table-cell !px-1 !py-2"
+      >
         <select
-          className="input-field !px-1 !py-1 text-xs"
-          value={isFinalRound ? 'final' : deliveryRound}
+          className="input-field !px-1 !py-1"
+          value={isFinalRound ? "final" : deliveryRound}
           onChange={(e) => {
-            if (e.target.value === 'final') {
-              setValue(`items.${index}.is_final_round`, true, { shouldValidate: true })
+            if (e.target.value === "final") {
+              setValue(`items.${index}.is_final_round`, true, {
+                shouldValidate: true,
+              });
             } else {
-              setValue(`items.${index}.is_final_round`, false)
-              setValue(`items.${index}.delivery_round`, Number(e.target.value), { shouldValidate: true })
+              setValue(`items.${index}.is_final_round`, false);
+              setValue(
+                `items.${index}.delivery_round`,
+                Number(e.target.value),
+                { shouldValidate: true },
+              );
             }
           }}
         >
-          {DELIVERY_ROUNDS.map((n) => <option key={n} value={n}>{n}</option>)}
+          {DELIVERY_ROUNDS.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
           <option value="final">Cuối</option>
         </select>
-        <input type="hidden" {...register(`items.${index}.delivery_round`, { valueAsNumber: true })} />
+        <input
+          type="hidden"
+          {...register(`items.${index}.delivery_round`, {
+            valueAsNumber: true,
+          })}
+        />
         <input type="hidden" {...register(`items.${index}.is_final_round`)} />
 
         {deliveryRound === 1 && !isFinalRound && (
           <div className="mt-2">
-            <label className="text-xs font-medium text-[#CC0000] block mb-1">Hóa đơn VAT *</label>
+            <label className="text-xs font-medium text-[#CC0000] block mb-1">
+              Hóa đơn VAT *
+            </label>
             <div className="space-y-1">
               <div className="flex flex-wrap gap-1">
-                {vatPaths.filter((path) => !vatFiles.some((file) => file.tempPath === path)).map((path) => (
-                  <div key={path} className="flex items-center gap-1 text-xs border border-[#ecdbe8] rounded px-1.5 py-0.5">
-                    <span className="max-w-[60px] truncate">{pathLabel(path, attachmentNames)}</span>
-                    <button type="button" onClick={() => handleRemoveVat(path)} className="text-[#888888] hover:text-black">×</button>
-                  </div>
-                ))}
+                {vatPaths
+                  .filter(
+                    (path) => !vatFiles.some((file) => file.tempPath === path),
+                  )
+                  .map((path) => (
+                    <div
+                      key={path}
+                      className="flex items-center gap-1 text-xs border border-[#ecdbe8] rounded px-1.5 py-0.5"
+                    >
+                      <span className="max-w-[60px] truncate">
+                        {pathLabel(path, attachmentNames)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveVat(path)}
+                        className="text-[#888888] hover:text-black"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
                 {vatFiles.map((f) => (
-                  <div key={f.tempPath} className={`flex items-center gap-1 text-xs border rounded px-1.5 py-0.5 ${f.status === 'error' ? 'border-[#CC0000] text-[#CC0000]' : 'border-[#ecdbe8]'}`}>
-                    {f.status === 'uploading' ? <LoadingSpinner size="sm" /> : <span className="max-w-[60px] truncate">{f.file.name}</span>}
-                    <button type="button" onClick={() => handleRemoveVat(f.tempPath)} className="text-[#888888] hover:text-black">×</button>
+                  <div
+                    key={f.tempPath}
+                    className={`flex items-center gap-1 text-xs border rounded px-1.5 py-0.5 ${f.status === "error" ? "border-[#CC0000] text-[#CC0000]" : "border-[#ecdbe8]"}`}
+                  >
+                    {f.status === "uploading" ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!f.publicUrl}
+                        onClick={() => setPreviewUrl(f.publicUrl)}
+                        className="flex items-center gap-1 text-left hover:text-[#80417A] disabled:cursor-default disabled:hover:text-inherit"
+                        title={f.publicUrl ? `Xem trước ${f.file.name}` : f.file.name}
+                      >
+                        {isPdfAttachment(f.file.name) && (
+                          <span className="font-bold text-[#CC0000]">PDF</span>
+                        )}
+                        <span className="max-w-[60px] truncate">{f.file.name}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveVat(f.tempPath)}
+                      className="text-[#888888] hover:text-black"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => vatCameraRef.current?.click()} disabled={vatFiles.filter((f) => f.status !== 'error').length >= MAX_FILES_PER_ATTACHMENT_TYPE} className="min-h-11 rounded border border-dashed border-[#ecdbe8] px-3 text-xs hover:border-[#80417A] disabled:opacity-40">📷 Chụp</button>
-                <button type="button" onClick={() => vatInputRef.current?.click()} disabled={vatFiles.filter((f) => f.status !== 'error').length >= MAX_FILES_PER_ATTACHMENT_TYPE} className="min-h-11 rounded border border-dashed border-[#ecdbe8] px-3 text-xs hover:border-[#80417A] disabled:opacity-40">
-                  {vatUploading ? <LoadingSpinner size="sm" /> : '+'} Thư viện
+                <button
+                  type="button"
+                  onClick={() => vatInputRef.current?.click()}
+                  disabled={
+                    vatFiles.filter((f) => f.status !== "error").length >=
+                    MAX_FILES_PER_ATTACHMENT_TYPE
+                  }
+                  className="min-h-11 rounded border border-dashed border-[#ecdbe8] px-3 text-xs hover:border-[#80417A] disabled:opacity-40"
+                >
+                  {vatUploading ? <LoadingSpinner size="sm" /> : "+"} Tải lên
                 </button>
               </div>
             </div>
-            <input ref={vatCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleVatUpload} />
-            <input ref={vatInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" multiple className="hidden" onChange={handleVatUpload} />
-            {(itemErrors?.vat_temp_paths as any)?.message && <p className="form-error">{(itemErrors?.vat_temp_paths as any).message}</p>}
+            <input
+              ref={vatInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.pdf"
+              multiple
+              className="hidden"
+              onChange={handleVatUpload}
+            />
+            {(itemErrors?.vat_temp_paths as any)?.message && (
+              <p className="form-error">
+                {(itemErrors?.vat_temp_paths as any).message}
+              </p>
+            )}
           </div>
         )}
       </td>
 
-      <td data-label="Ảnh phiếu giao" className="po-mobile-cell po-wide table-cell !px-1 !py-2">
+      <td
+        data-label="Ảnh phiếu giao"
+        className="po-mobile-cell po-wide table-cell !px-1 !py-2"
+      >
         <div className="space-y-1">
           <div className="flex flex-wrap gap-1">
-            {slipPaths.filter((path) => !slipFiles.some((file) => file.tempPath === path)).map((path) => (
-              <div key={path} className="flex items-center gap-1 text-xs border border-[#ecdbe8] rounded px-1.5 py-0.5">
-                <span className="max-w-[60px] truncate">{pathLabel(path, attachmentNames)}</span>
-                <button type="button" onClick={() => handleRemoveSlip(path)} className="text-[#888888] hover:text-black">×</button>
-              </div>
-            ))}
+            {slipPaths
+              .filter(
+                (path) => !slipFiles.some((file) => file.tempPath === path),
+              )
+              .map((path) => (
+                <div
+                  key={path}
+                  className="flex items-center gap-1 text-xs border border-[#ecdbe8] rounded px-1.5 py-0.5"
+                >
+                  <span className="max-w-[60px] truncate">
+                    {pathLabel(path, attachmentNames)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSlip(path)}
+                    className="text-[#888888] hover:text-black"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
             {slipFiles.map((f) => (
-              <div key={f.tempPath} className={`flex items-center gap-1 text-xs border rounded px-1.5 py-0.5 ${f.status === 'error' ? 'border-[#CC0000] text-[#CC0000]' : 'border-[#ecdbe8]'}`}>
-                {f.status === 'uploading' ? <LoadingSpinner size="sm" /> : <span className="max-w-[60px] truncate">{f.file.name}</span>}
-                <button type="button" onClick={() => handleRemoveSlip(f.tempPath)} className="text-[#888888] hover:text-black">×</button>
+              <div
+                key={f.tempPath}
+                className={`flex items-center gap-1 text-xs border rounded px-1.5 py-0.5 ${f.status === "error" ? "border-[#CC0000] text-[#CC0000]" : "border-[#ecdbe8]"}`}
+              >
+                {f.status === "uploading" ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!f.publicUrl}
+                    onClick={() => setPreviewUrl(f.publicUrl)}
+                    className="flex items-center gap-1 text-left hover:text-[#80417A] disabled:cursor-default disabled:hover:text-inherit"
+                    title={f.publicUrl ? `Xem trước ${f.file.name}` : f.file.name}
+                  >
+                    {isPdfAttachment(f.file.name) && (
+                      <span className="font-bold text-[#CC0000]">PDF</span>
+                    )}
+                    <span className="max-w-[60px] truncate">{f.file.name}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveSlip(f.tempPath)}
+                  className="text-[#888888] hover:text-black"
+                >
+                  ×
+                </button>
               </div>
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => slipCameraRef.current?.click()} disabled={slipFiles.filter((f) => f.status !== 'error').length >= MAX_FILES_PER_ATTACHMENT_TYPE} className="min-h-11 rounded border border-dashed border-[#ecdbe8] px-3 text-[11px] hover:border-[#80417A] disabled:opacity-40">📷 Chụp</button>
-            <button type="button" onClick={() => slipInputRef.current?.click()} disabled={slipFiles.filter((f) => f.status !== 'error').length >= MAX_FILES_PER_ATTACHMENT_TYPE} className="min-h-11 rounded border border-dashed border-[#ecdbe8] px-3 text-[11px] hover:border-[#80417A] disabled:opacity-40">
-              {slipUploading ? <LoadingSpinner size="sm" /> : '+'} Thư viện
+            <button
+              type="button"
+              onClick={() => slipInputRef.current?.click()}
+              disabled={
+                slipFiles.filter((f) => f.status !== "error").length >=
+                MAX_FILES_PER_ATTACHMENT_TYPE
+              }
+              className="min-h-11 rounded border border-dashed border-[#ecdbe8] px-3 text-sm hover:border-[#80417A] disabled:opacity-40"
+            >
+              {slipUploading ? <LoadingSpinner size="sm" /> : "+"} Tải lên
             </button>
           </div>
-          <input ref={slipCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleSlipUpload} />
-          <input ref={slipInputRef} type="file" accept=".jpg,.jpeg,.png,.pdf" multiple className="hidden" onChange={handleSlipUpload} />
+          <input
+            ref={slipInputRef}
+            type="file"
+            accept=".jpg,.jpeg,.png,.pdf"
+            multiple
+            className="hidden"
+            onChange={handleSlipUpload}
+          />
         </div>
-        {itemErrors?.slip_temp_paths?.message && <p className="form-error">{itemErrors.slip_temp_paths.message as string}</p>}
+        {itemErrors?.slip_temp_paths?.message && (
+          <p className="form-error">
+            {itemErrors.slip_temp_paths.message as string}
+          </p>
+        )}
       </td>
 
-      <td data-label="Thao tác" className="po-mobile-cell po-wide table-cell !px-1 !py-2">
+      <td
+        data-label="Thao tác"
+        className="po-mobile-cell po-wide table-cell !px-1 !py-2"
+      >
         <div className="flex items-center justify-center gap-1">
-          <button type="button" onClick={handleCopy} className="h-7 whitespace-nowrap rounded border border-[#d5c0d5] px-1.5 text-xs text-[#514253] hover:border-[#80417A] hover:text-[#80417A] transition-colors" aria-label="Copy dòng" title="Copy dòng">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="h-7 whitespace-nowrap rounded border border-[#d5c0d5] px-1.5 text-xs text-[#514253] hover:border-[#80417A] hover:text-[#80417A] transition-colors"
+            aria-label="Copy dòng"
+            title="Copy dòng"
+          >
             Copy dòng
           </button>
           {onRemove && (
-          <button type="button" onClick={onRemove} className="!m-0 !inline !h-auto !w-auto appearance-none !rounded-none !border-0 !bg-transparent !p-0 text-lg leading-none text-[#888888] !shadow-none hover:text-[#CC0000] transition-colors" aria-label="Xóa hàng" title="Xóa hàng">
-            ×
-          </button>
+            <button
+              type="button"
+              onClick={onRemove}
+              className="!m-0 !inline !h-auto !w-auto appearance-none !rounded-none !border-0 !bg-transparent !p-0 text-lg leading-none text-[#888888] !shadow-none hover:text-[#CC0000] transition-colors"
+              aria-label="Xóa hàng"
+              title="Xóa hàng"
+            >
+              ×
+            </button>
           )}
         </div>
       </td>
-    </tr>
-  )
+      </tr>
+    </>
+  );
 }

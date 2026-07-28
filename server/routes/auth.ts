@@ -20,11 +20,6 @@ const loginSchema = z.object({
   username: z.string().trim().min(1).max(100),
   password: z.string().min(1).max(256),
 })
-const registerSchema = z.object({
-  full_name: z.string().trim().min(1).max(200),
-  username: z.string().trim().min(3).max(100),
-  password: z.string().min(8).max(256),
-})
 
 export function getStaffUsers(): StaffUser[] {
   const raw = process.env.STAFF_USERS_B64
@@ -130,27 +125,6 @@ router.post('/logout', async (req, res, next) => {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
   res.setHeader('Set-Cookie', `atino_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`)
   res.json({ ok: true })
-})
-
-router.post('/register-supplier', async (req, res, next) => {
-  try {
-    const parsed = registerSchema.safeParse(req.body)
-    if (!parsed.success) return res.status(400).json({ error: 'Invalid registration data' })
-    const { full_name: fullName, username, password } = parsed.data
-    const passwordHash = await hashPassword(password)
-    const supabase = getSupabase()
-    const { data, error } = await supabase.rpc('register_supplier', {
-      p_username: username,
-      p_password_hash: passwordHash,
-      p_full_name: fullName,
-    } as never)
-    if (error) throw error
-    const result = data as { error?: string } | null
-    if (result?.error) return res.status(400).json({ error: result.error })
-    return res.json({ message: 'Registration submitted. Await administrator approval.' })
-  } catch (err) {
-    next(err)
-  }
 })
 
 export default router

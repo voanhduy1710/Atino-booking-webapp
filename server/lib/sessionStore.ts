@@ -60,3 +60,13 @@ export async function revokeSession(payload: JWTPayload): Promise<void> {
     .eq('subject', payload.sub)
   if (error && !handleMissingTable(error)) throw error
 }
+
+export async function revokeSessionsForSubject(subject: string): Promise<void> {
+  if (disabled()) return
+  const { error } = await getSupabase()
+    .from('auth_sessions')
+    .update({ revoked_at: new Date().toISOString() } as never)
+    .eq('subject', subject)
+    .is('revoked_at', null)
+  if (error && !handleMissingTable(error)) throw error
+}

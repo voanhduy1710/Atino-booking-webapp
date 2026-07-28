@@ -1,14 +1,18 @@
 // Domain types and enums, hand-written until Supabase types are regenerated.
 
-export type AccountStatus = 'pending' | 'active' | 'rejected'
+export type AccountStatus = 'pending' | 'active' | 'disabled' | 'deleted' | 'rejected'
 export type BookingStatus = 'pending' | 'partially_approved' | 'partially_rejected' | 'confirmed' | 'rejected' | 'returned' | 'received' | 'cancelled'
 export type BookingItemStatus = 'pending' | 'confirmed' | 'rejected' | 'returned'
-export type TimeSlot = '07-09' | '09-11' | '13-15' | '15-17'
+export type TimeSlot = '08-1130' | '1330-17' | '07-09' | '09-11' | '13-15' | '15-17'
+
+export const BOOKING_TIME_SLOTS = ['08-1130', '1330-17'] as const
 export type PhotoType = 'delivery_slip' | 'vat_invoice' | 'discrepancy'
 export type NotificationRecipient = 'supplier_account' | 'staff'
 export type UserRole = 'admin' | 'warehouse_reviewer' | 'warehouse_receiver' | 'manager' | 'supplier'
 
 export const TIME_SLOT_LABELS: Record<TimeSlot, string> = {
+  '08-1130': 'Sáng: 08:00 - 11:30',
+  '1330-17': 'Chiều: 13:30 - 17:00',
   '07-09': '07:00 - 09:00',
   '09-11': '09:00 - 11:00',
   '13-15': '13:30 - 15:30',
@@ -94,6 +98,7 @@ export interface BookingItem {
   size_xl_31: number
   size_2xl_32: number
   size_3xl_33: number
+  size_4xl_34: number
   quantity_received: number | null
   status: BookingItemStatus
   vat_invoice_url: string | null
@@ -123,6 +128,7 @@ export interface ProductProcessCatalog {
   size_xl_31: number | null
   size_2xl_32: number | null
   size_3xl_33: number | null
+  size_4xl_34: number | null
   active: boolean
   last_synced_at: string
   created_at: string
