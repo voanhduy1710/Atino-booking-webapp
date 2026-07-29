@@ -6,7 +6,7 @@ import { LoadingSpinner } from "@/shared/components/LoadingSpinner";
 import { Modal } from "@/shared/components/Modal";
 import { getJson, postJson } from "@/shared/lib/apiClient";
 import { formatDateTimeDisplay } from "@/shared/lib/dateUtils";
-import type { Supplier, SupplierAccount } from "@/shared/types/domain";
+import type { Supplier, SupplierAccount, UserRole } from "@/shared/types/domain";
 
 interface Props {
   accountsQueryKey?: string;
@@ -17,13 +17,67 @@ type AccountForm = {
   username: string;
   password: string;
   supplier_id: string;
+  account_type: "supplier" | "staff";
+  role: Exclude<UserRole, "supplier"> | "supplier";
+};
+type ManagedAccount = SupplierAccount & {
+  account_type: "supplier" | "staff";
+  role: UserRole;
 };
 const emptyForm = (): AccountForm => ({
   full_name: "",
   username: "",
   password: "",
   supplier_id: "",
+  account_type: "supplier",
+  role: "supplier",
 });
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  admin: "Quản trị viên",
+  warehouse_reviewer: "Nhân sự xác nhận booking",
+  warehouse_receiver: "Nhân sự nhận hàng",
+  manager: "Quản lý",
+  supplier: "Nhà cung cấp",
+};
+
+const ROLE_GUIDE: Array<{ role: UserRole; permissions: string[] }> = [
+  {
+    role: "admin",
+    permissions: [
+      "Toàn quyền quản lý tài khoản, nhà cung cấp, kho hàng và danh mục sản phẩm.",
+      "Tạo booking, xác nhận booking, nhận hàng và xem báo cáo.",
+    ],
+  },
+  {
+    role: "warehouse_reviewer",
+    permissions: [
+      "Xem danh mục, nhà cung cấp và kho hàng.",
+      "Xác nhận hoặc từ chối chi tiết booking và xem báo cáo.",
+    ],
+  },
+  {
+    role: "warehouse_receiver",
+    permissions: [
+      "Xem danh mục, nhà cung cấp và kho hàng.",
+      "Xác nhận việc nhận hàng cho booking và xem báo cáo.",
+    ],
+  },
+  {
+    role: "manager",
+    permissions: [
+      "Xem danh mục, nhà cung cấp, kho hàng và báo cáo.",
+      "Xác nhận booking và xác nhận nhận hàng.",
+    ],
+  },
+  {
+    role: "supplier",
+    permissions: [
+      "Tạo và theo dõi booking của chính nhà cung cấp.",
+      "Không có quyền quản trị tài khoản, danh mục hoặc báo cáo.",
+    ],
+  },
+];
 
 function Icon({
   name,
@@ -70,19 +124,23 @@ export function AccountManagement({
   const queryClient = useQueryClient();
   const uploadRef = useRef<HTMLInputElement>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [roleGuideOpen, setRoleGuideOpen] = useState(false);
   const [form, setForm] = useState<AccountForm>(emptyForm);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
-  const [editAccount, setEditAccount] = useState<SupplierAccount | null>(null);
+  const [editAccount, setEditAccount] = useState<ManagedAccount | null>(null);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<UserRole | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [revealErrors, setRevealErrors] = useState<Record<string, string>>({});
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: [accountsQueryKey],
     queryFn: async () =>
       (
-        await getJson<{ accounts: SupplierAccount[] }>(
+        await getJson<{ accounts: ManagedAccount[] }>(
           "/api/accounts?status=all",
         )
       ).accounts,
@@ -95,6 +153,13 @@ export function AccountManagement({
   });
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: [accountsQueryKey] });
+  const visibleAccounts = accounts.filter((account) =>
+    (roleFilter === "all" || account.role === roleFilter) &&
+    (statusFilter === "all" || account.status === statusFilter) &&
+    (!search.trim() || `${account.username} ${account.full_name}`.toLowerCase().includes(search.trim().toLowerCase())),
+  );
+  const availableRoles = Array.from(new Set(accounts.map((account) => account.role)))
+    .sort((left, right) => ROLE_LABELS[left].localeCompare(ROLE_LABELS[right], "vi"));
 
   const create = useMutation({
     mutationFn: () => postJson("/api/accounts", form),
@@ -121,20 +186,20 @@ export function AccountManagement({
     onError: (e: Error) => setError(e.message),
   });
   const toggle = useMutation({
-    mutationFn: (id: string) =>
-      postJson(`/api/accounts/${id}/toggle-disabled`, {}),
+    mutationFn: (account: ManagedAccount) =>
+      postJson(`/api/accounts/${account.id}/toggle-disabled`, { account_type: account.account_type }),
     onSuccess: refresh,
   });
   const remove = useMutation({
-    mutationFn: (id: string) =>
-      postJson(`/api/accounts/${id}`, undefined, { method: "DELETE" }),
+    mutationFn: (account: ManagedAccount) =>
+      postJson(`/api/accounts/${account.id}`, { account_type: account.account_type }, { method: "DELETE" }),
     onSuccess: refresh,
   });
   const reveal = useMutation({
-    mutationFn: (id: string) =>
+    mutationFn: (account: ManagedAccount) =>
       postJson<{ account_id: string; actual_password: string }>(
-        `/api/accounts/${id}/reveal-password`,
-        {},
+        `/api/accounts/${account.id}/reveal-password`,
+        { account_type: account.account_type },
       ),
     onSuccess: (data) => {
       setRevealErrors((current) => ({ ...current, [data.account_id]: "" }));
@@ -152,8 +217,8 @@ export function AccountManagement({
         30_000,
       );
     },
-    onError: (e: Error, id) =>
-      setRevealErrors((current) => ({ ...current, [id]: e.message })),
+    onError: (e: Error, account) =>
+      setRevealErrors((current) => ({ ...current, [account.id]: e.message })),
   });
 
   const downloadExcel = () => {
@@ -162,10 +227,11 @@ export function AccountManagement({
         "Họ tên": account.full_name,
         Username: account.username,
         Password: "",
+        "Vai trò": ROLE_LABELS[account.role],
         "Mã NCC": account.supplier_code_requested ?? "",
       })),
     );
-    sheet["!cols"] = [{ wch: 24 }, { wch: 14 }, { wch: 20 }, { wch: 18 }];
+    sheet["!cols"] = [{ wch: 24 }, { wch: 14 }, { wch: 20 }, { wch: 18 }, { wch: 30 }];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, "Accounts");
     XLSX.writeFile(workbook, "accounts.xlsx");
@@ -179,14 +245,14 @@ export function AccountManagement({
         workbook.Sheets[workbook.SheetNames[0]],
         { defval: "" },
       );
-      const requiredHeaders = ["Họ tên", "Username", "Password", "Mã NCC"];
+      const requiredHeaders = ["Họ tên", "Username", "Password", "Mã NCC", "Vai trò"];
       const headers = Object.keys(rows[0] ?? {});
       if (
         requiredHeaders.some((header) => !headers.includes(header)) ||
         headers.some((header) => !requiredHeaders.includes(header))
       ) {
         throw new Error(
-          "Excel phải có đúng 4 cột: Họ tên, Username, Password, Mã NCC",
+          "Excel phải có đúng 5 cột: Họ tên, Username, Password, Mã NCC, Vai trò",
         );
       }
       const payload = rows.map((row) => ({
@@ -194,6 +260,7 @@ export function AccountManagement({
         username: row.Username ?? row.username,
         password: row.Password ?? row.password,
         supplier_code: row["Mã NCC"] ?? row.supplier_code,
+        role: row["Vai trò"] ?? row.role,
       }));
       const result = await postJson<{ created: number }>(
         "/api/accounts/import",
@@ -208,7 +275,7 @@ export function AccountManagement({
     }
   };
 
-  const openEdit = (account: SupplierAccount) => {
+  const openEdit = (account: ManagedAccount) => {
     setEditAccount(account);
     setShowEditPassword(false);
     setError("");
@@ -217,12 +284,14 @@ export function AccountManagement({
       username: account.username,
       password: "",
       supplier_id: account.supplier_id ?? "",
+      account_type: account.account_type,
+      role: account.role,
     });
   };
   const valid =
     form.full_name.trim() &&
     form.username.trim().length >= 3 &&
-    form.supplier_id &&
+    (form.account_type === "staff" || form.supplier_id) &&
     (!form.password || form.password.length >= 8);
   const createValid = Boolean(
     valid && form.password.length >= 8 && form.password === confirmPassword,
@@ -230,7 +299,19 @@ export function AccountManagement({
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap justify-end gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <input className="input-field !w-52 !py-2 text-sm" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm username, tên..." />
+          <select className="input-field !w-auto !py-2 text-sm" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as UserRole | "all")}>
+            <option value="all">Tất cả vai trò</option>
+            {availableRoles.map((role) => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
+          </select>
+          <select className="input-field !w-auto !py-2 text-sm" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "all" | "active" | "disabled")}>
+            <option value="all">Tất cả trạng thái</option><option value="active">Đang hoạt động</option><option value="disabled">Đã vô hiệu hóa</option>
+          </select>
+          <span className="text-xs text-[#888888]">{visibleAccounts.length} tài khoản</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
           className="!border-[#1a7a3e] !px-3 !py-2 !text-sm !text-[#1a7a3e] hover:!bg-[#F0FFF4]"
@@ -244,6 +325,13 @@ export function AccountManagement({
           onClick={() => uploadRef.current?.click()}
         >
           Upload Excel
+        </Button>
+        <Button
+          variant="outline"
+          className="!border-[#5B4B99] !px-3 !py-2 !text-sm !text-[#5B4B99] hover:!bg-[#F4F1FF]"
+          onClick={() => setRoleGuideOpen(true)}
+        >
+          Vai trò & quyền
         </Button>
         <Button
           variant="outline"
@@ -268,6 +356,7 @@ export function AccountManagement({
             if (file) void uploadExcel(file);
           }}
         />
+        </div>
       </div>
       {error && !createOpen && (
         <p className="form-error mb-3 whitespace-pre-line text-right">
@@ -284,6 +373,7 @@ export function AccountManagement({
                 <th className="table-header">Họ tên</th>
                 <th className="table-header">Username</th>
                 <th className="table-header">Password</th>
+                <th className="table-header">Vai trò</th>
                 <th className="table-header">Mã NCC</th>
                 <th className="table-header">Tạo lúc</th>
                 <th className="table-header">Trạng thái</th>
@@ -291,7 +381,7 @@ export function AccountManagement({
               </tr>
             </thead>
             <tbody>
-              {accounts.map((account) => (
+              {visibleAccounts.map((account) => (
                 <tr key={account.id} className="border-t border-[#ecdbe8]">
                   <td className="table-cell">
                     {editAccount?.id === account.id ? (
@@ -352,7 +442,7 @@ export function AccountManagement({
                       <button
                         type="button"
                         className="text-[#80417A] underline"
-                        onClick={() => reveal.mutate(account.id)}
+                        onClick={() => reveal.mutate(account)}
                       >
                         <Icon name="eye" />
                       </button>
@@ -366,8 +456,15 @@ export function AccountManagement({
                       </span>
                     )}
                   </td>
+                  <td className="table-cell">
+                    {editAccount?.id === account.id && account.account_type === "staff" ? (
+                      <select className="input-field !py-1 text-sm" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as AccountForm["role"] })}>
+                        <option value="admin">Quản trị viên</option><option value="warehouse_reviewer">Nhân sự xác nhận booking</option><option value="warehouse_receiver">Nhân sự nhận hàng</option><option value="manager">Quản lý</option>
+                      </select>
+                    ) : ROLE_LABELS[account.role]}
+                  </td>
                   <td className="table-cell font-mono">
-                    {editAccount?.id === account.id ? (
+                    {editAccount?.id === account.id && account.account_type === "supplier" ? (
                       <select
                         className="input-field !py-1 text-sm"
                         value={form.supplier_id}
@@ -384,6 +481,13 @@ export function AccountManagement({
                     ) : (
                       (account.supplier_code_requested ?? "—")
                     )}
+                  </td>
+                  <td className="hidden">
+                    {editAccount?.id === account.id && account.account_type === "staff" ? (
+                      <select className="input-field !py-1 text-sm" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as AccountForm["role"] })}>
+                        <option value="admin">Quản trị viên</option><option value="warehouse_reviewer">Nhân sự xác nhận booking</option><option value="warehouse_receiver">Nhân sự nhận hàng</option><option value="manager">Quản lý</option>
+                      </select>
+                    ) : ROLE_LABELS[account.role]}
                   </td>
                   <td className="table-cell">
                     {formatDateTimeDisplay(account.created_at)}
@@ -444,7 +548,7 @@ export function AccountManagement({
                         }
                         aria-label={`${account.status === "disabled" ? "Enable" : "Disable"} ${account.username}`}
                         className="rounded p-2 text-[#A06B00] hover:bg-[#FFF8E1]"
-                        onClick={() => toggle.mutate(account.id)}
+                        onClick={() => toggle.mutate(account)}
                       >
                         <Icon
                           name={
@@ -463,7 +567,7 @@ export function AccountManagement({
                               `Xóa tài khoản "${account.username}"? Hành động này không thể hoàn tác.`,
                             )
                           )
-                            remove.mutate(account.id);
+                            remove.mutate(account);
                         }}
                       >
                         <Icon name="delete" />
@@ -472,10 +576,10 @@ export function AccountManagement({
                   </td>
                 </tr>
               ))}
-              {accounts.length === 0 && (
+              {visibleAccounts.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="table-cell py-8 text-center text-[#888888]"
                   >
                     Không có dữ liệu
@@ -504,6 +608,22 @@ export function AccountManagement({
             create.mutate();
           }}
         >
+          <select
+            className="input-field"
+            value={form.account_type}
+            onChange={(event) => {
+              const account_type = event.target.value as AccountForm["account_type"];
+              setForm({ ...form, account_type, role: account_type === "supplier" ? "supplier" : "manager", supplier_id: account_type === "supplier" ? form.supplier_id : "" });
+            }}
+          >
+            <option value="supplier">Tài khoản nhà cung cấp</option>
+            <option value="staff">Tài khoản nhân sự</option>
+          </select>
+          {form.account_type === "staff" && (
+            <select className="input-field" value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as AccountForm["role"] })}>
+              <option value="admin">Quản trị viên</option><option value="warehouse_reviewer">Nhân sự xác nhận booking</option><option value="warehouse_receiver">Nhân sự nhận hàng</option><option value="manager">Quản lý</option>
+            </select>
+          )}
           <input
             tabIndex={-1}
             aria-hidden="true"
@@ -570,7 +690,7 @@ export function AccountManagement({
           {confirmPassword && form.password !== confirmPassword && (
             <p className="form-error">Mật khẩu xác nhận không khớp</p>
           )}
-          <select
+          {form.account_type === "supplier" && <select
             name="account-supplier"
             autoComplete="off"
             className="input-field"
@@ -583,7 +703,7 @@ export function AccountManagement({
                 [{supplier.code}] {supplier.name}
               </option>
             ))}
-          </select>
+          </select>}
           {error && <p className="form-error">{error}</p>}
           <Button
             type="submit"
@@ -594,6 +714,27 @@ export function AccountManagement({
             Tạo tài khoản
           </Button>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={roleGuideOpen}
+        onClose={() => setRoleGuideOpen(false)}
+        title="Vai trò và quyền hạn"
+        size="lg"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-[#665B67]">
+            Quyền hiển thị dưới đây khớp với phân quyền hiện tại của hệ thống.
+          </p>
+          {ROLE_GUIDE.map(({ role, permissions }) => (
+            <section key={role} className="rounded-lg border border-[#ecdbe8] p-4">
+              <h3 className="font-bold text-[#514253]">{ROLE_LABELS[role]}</h3>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[#665B67]">
+                {permissions.map((permission) => <li key={permission}>{permission}</li>)}
+              </ul>
+            </section>
+          ))}
+        </div>
       </Modal>
     </>
   );

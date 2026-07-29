@@ -127,8 +127,8 @@ function ReportChartPopover({
       {details.length === 0 ? (
         <p className="py-3 text-center text-[#888888]">Không có booking</p>
       ) : (
-        <div className="max-h-[58vh] w-fit max-w-full overflow-auto rounded-lg border border-[#ecdbe8]">
-          <table className="w-max border-collapse text-left">
+        <div className="max-h-[58vh] w-full overflow-auto rounded-lg border border-[#ecdbe8]">
+          <table className="w-full table-auto border-collapse text-left">
             <thead className="sticky top-0 bg-[#f8f1f8] text-[10px] uppercase tracking-wide text-[#6b2e65]">
               <tr>
                 <th className="px-1.5 py-1.5 font-semibold">Mã NCC</th>

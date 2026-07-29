@@ -3,8 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { LinkBtn } from "@/shared/components/LinkBtn";
 import { ActionIconButton } from "@/shared/components/ActionIconButton";
-import { postJson } from "@/shared/lib/apiClient";
-import { supabase } from "@/shared/lib/supabase";
+import { getJson, postJson } from "@/shared/lib/apiClient";
 import type { Supplier } from "@/shared/types/domain";
 import { TEXT_SIZE } from "@/shared/constants/textSizes";
 
@@ -31,14 +30,7 @@ export function SupplierTable({
 
   const { data: suppliers = [] } = useQuery({
     queryKey: [queryKey],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("suppliers")
-        .select("id, code, name, active")
-        .order("code");
-      if (error) throw error;
-      return data as Supplier[];
-    },
+    queryFn: async () => (await getJson<{ suppliers: Supplier[] }>("/api/admin-resources/suppliers")).suppliers,
   });
 
   const addMutation = useMutation({
@@ -241,7 +233,7 @@ export function SupplierTable({
                   {s.active ? (
                     <span className="status-confirmed">Hoạt động</span>
                   ) : (
-                    <span className="status-rejected">Ngừng</span>
+                    <span className="status-rejected">Vô hiệu hóa</span>
                   )}
                 </td>
                 <td className="table-cell">
@@ -401,7 +393,7 @@ export function SupplierTable({
                 {supplier.active ? (
                   <span className="status-confirmed">Hoạt động</span>
                 ) : (
-                  <span className="status-rejected">Ngừng</span>
+                  <span className="status-rejected">Vô hiệu hóa</span>
                 )}
               </div>
               {canManage &&

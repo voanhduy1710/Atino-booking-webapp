@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { LinkBtn } from "@/shared/components/LinkBtn";
 import { ActionIconButton } from "@/shared/components/ActionIconButton";
-import { postJson } from "@/shared/lib/apiClient";
-import { supabase } from "@/shared/lib/supabase";
+import { getJson, postJson } from "@/shared/lib/apiClient";
 import type { Warehouse } from "@/shared/types/domain";
 import { TEXT_SIZE } from "@/shared/constants/textSizes";
 
@@ -28,14 +27,7 @@ export function WarehouseTable({
 
   const { data: warehouses = [] } = useQuery({
     queryKey: [queryKey],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("warehouses")
-        .select("id, code, name, active")
-        .order("code");
-      if (error) throw error;
-      return data as Warehouse[];
-    },
+    queryFn: async () => (await getJson<{ warehouses: Warehouse[] }>("/api/admin-resources/warehouses")).warehouses,
   });
 
   const addMutation = useMutation({
@@ -147,7 +139,7 @@ export function WarehouseTable({
                   {w.active ? (
                     <span className="status-confirmed">Hoạt động</span>
                   ) : (
-                    <span className="status-rejected">Ngừng</span>
+                    <span className="status-rejected">Vô hiệu hóa</span>
                   )}
                 </td>
                 <td className="table-cell">
@@ -302,7 +294,7 @@ export function WarehouseTable({
                 {warehouse.active ? (
                   <span className="status-confirmed">Hoạt động</span>
                 ) : (
-                  <span className="status-rejected">Ngừng</span>
+                  <span className="status-rejected">Vô hiệu hóa</span>
                 )}
               </div>
               {canManage &&

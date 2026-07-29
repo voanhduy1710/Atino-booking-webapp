@@ -46,27 +46,29 @@ export function Navbar({
 
       {/* Center tabs (optional) */}
       {tabs && tabs.length > 0 && (
-        <div className="flex min-w-0 flex-1 items-stretch h-full gap-0 overflow-x-auto mx-1 sm:mx-4 md:absolute md:left-1/2 md:w-auto md:max-w-[calc(100%-24rem)] md:-translate-x-1/2 md:flex-none md:mx-0">
-          {tabs.map((tab) => {
-            const cls = `shrink-0 px-3 sm:px-4 text-sm transition-colors h-full flex items-center ${activeTab === tab.id
-              ? 'bg-[#9F27C7] text-white font-bold'
-              : 'text-[#514253] font-bold hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
-              }`
-            return tab.href ? (
-              <Link key={tab.id} id={`nav-tab-${tab.id}`} to={tab.href} className={cls}>
-                {tab.label}
-              </Link>
-            ) : (
-              <button
-                key={tab.id}
-                id={`nav-tab-${tab.id}`}
-                onClick={() => onTabChange?.(tab.id)}
-                className={cls}
-              >
-                {tab.label}
-              </button>
-            )
-          })}
+        <div className="flex h-full min-w-0 flex-1 items-stretch justify-center mx-2 overflow-hidden sm:mx-4">
+          <div className="scrollbar-none flex h-full max-w-full items-stretch overflow-x-auto scroll-smooth">
+            {tabs.map((tab) => {
+              const cls = `flex h-full shrink-0 items-center justify-center whitespace-nowrap px-3 text-center text-xs font-bold transition-colors sm:px-4 sm:text-sm ${activeTab === tab.id
+                ? 'bg-[#9F27C7] text-white'
+                : 'text-[#514253] hover:bg-[#f1ebf4] hover:text-[#9F27C7]'
+                }`
+              return tab.href ? (
+                <Link key={tab.id} id={`nav-tab-${tab.id}`} to={tab.href} className={cls}>
+                  {tab.label}
+                </Link>
+              ) : (
+                <button
+                  key={tab.id}
+                  id={`nav-tab-${tab.id}`}
+                  onClick={() => onTabChange?.(tab.id)}
+                  className={cls}
+                >
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 

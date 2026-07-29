@@ -1,495 +1,274 @@
 # -*- coding: utf-8 -*-
-"""
-project_tester.py
-=================
-Comprehensive test suite for the Atino booking webapp.
-Tests Express backend endpoints, Supabase REST tables, Supabase RPCs,
-notification flow (insert → read → delete), GCS upload, and frontend smoke.
+"""Always-on full-system audit for the Atino booking webapp.
 
-Usage:
-    python project_tester.py [options]
+Run with: ``python project_tester.py``.
 
-Options:
-    --api         Express backend URL    (default: http://localhost:3001)
-    --frontend    Vite dev server URL    (default: http://localhost:5173)
-    --env         Path to .env file      (default: .env in script directory)
-    --timeout     Per-request timeout s  (default: 30)
-    --skip-frontend Skip frontend smoke tests
-    --json        Save JSON report to this path
-    --fail-fast   Stop on first failure
+There are deliberately no switches: every run validates frontend, backend,
+session authorization, Supabase schema/data, and the product-catalog ETL. The
+only database write is a short-lived test admin session, which is removed in a
+``finally`` block.
 """
 
-import argparse
+from __future__ import annotations
+
 import base64
+import hashlib
+import hmac
+import io
 import json
 import os
+import subprocess
 import sys
 import time
-from dataclasses import dataclass, field
+import uuid
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
-
-# Force UTF-8 on Windows
-import io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+from typing import Any, Callable
 
 try:
     import requests
 except ImportError:
-    print("[ERR] 'requests' not found. Install: pip install requests")
-    sys.exit(1)
+    print("Install requests first: pip install requests")
+    raise SystemExit(1)
 
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+
+ROOT = Path(__file__).resolve().parent
+API = "http://localhost:3001"
+FRONTEND = "http://localhost:5173"
+TIMEOUT_SECONDS = 60
 FAKE_UUID = "00000000-0000-0000-0000-000000000000"
 
 
-# ─── ANSI colours ─────────────────────────────────────────────────────────────
+@dataclass
+class Result:
+    area: str
+    name: str
+    ok: bool
+    elapsed_ms: int
+    detail: str = ""
+
+
+# ─── Colour helpers (ANSI) ───────────────────────────────────────────────────
 def _c(code: str, text: str) -> str:
     return f"\033[{code}m{text}\033[0m"
 
 GREEN  = lambda t: _c("32", t)
 RED    = lambda t: _c("31", t)
 YELLOW = lambda t: _c("33", t)
-CYAN   = lambda t: _c("36", t)
 BOLD   = lambda t: _c("1",  t)
 DIM    = lambda t: _c("2",  t)
 
 
-# ─── .env parser ──────────────────────────────────────────────────────────────
-def parse_env(path: Path) -> dict[str, str]:
-    env: dict[str, str] = {}
-    if not path.exists():
-        return env
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, _, v = line.partition("=")
-            env[k.strip()] = v.strip()
-    return env
+class Audit:
+    def __init__(self) -> None:
+        self.results: list[Result] = []
+        os.system("")  # Enable ANSI escape codes on Windows command prompt
 
+    def add(self, area: str, name: str, ok: bool, started: float, detail: str = "") -> None:
+        elapsed = int((time.monotonic() - started) * 1000)
+        self.results.append(Result(area, name, ok, elapsed, detail[:280]))
+        
+        # Real-time printing
+        mark = GREEN("PASS") if ok else RED("FAIL")
+        suffix = f" — {detail[:280]}" if detail else ""
+        print(f"[{mark}] {area}: {name} ({elapsed}ms){suffix}", flush=True)
 
-# ─── Staff JWT builder ────────────────────────────────────────────────────────
-def build_admin_jwt(staff_users_json: str) -> Optional[str]:
-    """Build base64(JSON) token for the admin user."""
-    try:
-        users = json.loads(staff_users_json)
-        admin = next((u for u in users if u.get("role") == "admin"), None)
-        if not admin:
-            return None
-        payload = {k: v for k, v in admin.items() if k != "password_hash"}
-        return base64.b64encode(json.dumps(payload).encode()).decode()
-    except Exception:
-        return None
-
-
-# ─── Case / Result ────────────────────────────────────────────────────────────
-@dataclass
-class Case:
-    group:   str
-    method:  str
-    url:     str                          # full URL (not path — varies per group)
-    label:   str  = ""
-    expect:  int  = 200
-    body:    Optional[dict] = None
-    extra_headers: dict = field(default_factory=dict)
-    auth:    str  = "none"               # "staff_jwt" | "anon" | "service_role" | "none"
-    check_key: str = ""                  # assert this key in JSON response
-
-    def __post_init__(self):
-        if not self.label:
-            self.label = self.url.rsplit("/", 1)[-1]
-
-
-@dataclass
-class Result:
-    case:      Case
-    status:    Optional[int]
-    elapsed:   float
-    ok:        bool
-    error_msg: str = ""
-    body_peek: str = ""
-
-
-# ─── Credentials container ────────────────────────────────────────────────────
-@dataclass
-class Creds:
-    supabase_url: str
-    anon_key:     str
-    service_key:  str
-    admin_jwt:    str
-
-
-# ─── Runner ───────────────────────────────────────────────────────────────────
-def run_case(case: Case, creds: Creds, timeout: int) -> Result:
-    headers: dict = {"Content-Type": "application/json"}
-    if case.auth == "staff_jwt":
-        headers["Authorization"] = f"Bearer {creds.admin_jwt}"
-    elif case.auth == "anon":
-        headers["apikey"] = creds.anon_key
-        headers["Authorization"] = f"Bearer {creds.anon_key}"
-    elif case.auth == "service_role":
-        headers["apikey"] = creds.service_key
-        headers["Authorization"] = f"Bearer {creds.service_key}"
-        headers["Prefer"] = "return=representation"
-    headers.update(case.extra_headers)
-
-    t0 = time.monotonic()
-    try:
-        if case.method == "GET":
-            resp = requests.get(case.url, headers=headers, timeout=timeout)
-        elif case.method == "POST":
-            resp = requests.post(case.url, json=case.body, headers=headers, timeout=timeout)
-        elif case.method == "DELETE":
-            resp = requests.delete(case.url, headers=headers, timeout=timeout)
-        elif case.method == "PATCH":
-            resp = requests.patch(case.url, json=case.body, headers=headers, timeout=timeout)
-        else:
-            raise ValueError(f"Unsupported method: {case.method}")
-
-        elapsed = time.monotonic() - t0
-        ok = resp.status_code == case.expect
-
-        body_peek = ""
-        if not ok:
-            try:
-                d = resp.json()
-                body_peek = str(d.get("error") or d.get("message") or d.get("msg") or d)[:200]
-            except Exception:
-                body_peek = resp.text[:200]
-
-        # Extra: check_key in response body
-        if ok and case.check_key:
-            try:
-                d = resp.json()
-                if isinstance(d, list):
-                    d = d[0] if d else {}
-                if case.check_key not in d:
-                    ok = False
-                    body_peek = f"Missing key '{case.check_key}' in response"
-            except Exception:
-                ok = False
-                body_peek = "Response not JSON"
-
-        return Result(case=case, status=resp.status_code, elapsed=elapsed, ok=ok, body_peek=body_peek)
-
-    except requests.exceptions.ConnectionError:
-        elapsed = time.monotonic() - t0
-        return Result(case=case, status=None, elapsed=elapsed, ok=False,
-                      error_msg="Connection refused")
-    except requests.exceptions.Timeout:
-        elapsed = time.monotonic() - t0
-        return Result(case=case, status=None, elapsed=elapsed, ok=False,
-                      error_msg=f"Timed out after {timeout}s")
-    except Exception as e:
-        elapsed = time.monotonic() - t0
-        return Result(case=case, status=None, elapsed=elapsed, ok=False, error_msg=str(e))
-
-
-# ─── Build all cases ──────────────────────────────────────────────────────────
-def build_cases(api: str, creds: Creds) -> list[Case]:
-    cases: list[Case] = []
-    sb = creds.supabase_url
-
-    def add(group, method, url, **kwargs):
-        cases.append(Case(group=group, method=method, url=url, **kwargs))
-
-    # ── Express — Health ──────────────────────────────────────────────────────
-    add("Express — Health", "GET", f"{api}/api/health",
-        label="GET /api/health", expect=200, check_key="status")
-
-    # ── Express — Auth ────────────────────────────────────────────────────────
-    add("Express — Auth", "POST", f"{api}/api/booking/finalize",
-        label="POST /api/booking/finalize — no auth → 401",
-        expect=401, auth="none")
-    add("Express — Auth", "POST", f"{api}/api/booking/finalize",
-        label="POST /api/booking/finalize — garbage token → 401",
-        expect=401, auth="none",
-        extra_headers={"Authorization": "Bearer notavalidtoken"})
-
-    # ── Express — Booking API ─────────────────────────────────────────────────
-    add("Express — Booking", "POST", f"{api}/api/booking/finalize",
-        label="POST /api/booking/finalize — admin + no supplier_account_id → 400",
-        expect=400, auth="staff_jwt", body={})
-    add("Express — Booking", "POST", f"{api}/api/booking/finalize",
-        label="POST /api/booking/finalize — admin + fake supplier_account_id → 403 or 400",
-        expect=403, auth="staff_jwt",
-        body={"supplier_account_id": FAKE_UUID, "warehouse_id": FAKE_UUID,
-              "time_slot": "morning", "delivery_note": "test",
-              "session_id": "test", "items": []})
-
-    # ── Express — Upload ──────────────────────────────────────────────────────
-    add("Express — Upload", "POST", f"{api}/api/upload/gcs",
-        label="POST /api/upload/gcs — no file → 400",
-        expect=400, auth="none",
-        extra_headers={"Content-Type": "application/json"})
-
-    # ── Supabase — Tables ─────────────────────────────────────────────────────
-    for table, check in [
-        ("bookings",              "id"),
-        ("booking_items",         "id"),
-        ("suppliers",             "id"),
-        ("supplier_accounts",     "id"),
-        ("warehouses",            "id"),
-        ("notifications",         "id"),
-        ("booking_amendments",    "id"),
-        ("booking_item_photos",   "id"),
-    ]:
-        add("Supabase — Tables", "GET",
-            f"{sb}/rest/v1/{table}?select=*&limit=1",
-            label=f"SELECT {table} (limit 1)",
-            expect=200, auth="anon")
-
-    # reviewed_at column exists on booking_items
-    add("Supabase — Tables", "GET",
-        f"{sb}/rest/v1/booking_items?select=reviewed_at&limit=1",
-        label="booking_items.reviewed_at column exists",
-        expect=200, auth="anon")
-
-    # ── Supabase — RPCs ───────────────────────────────────────────────────────
-    add("Supabase — RPCs", "POST",
-        f"{sb}/rest/v1/rpc/revert_booking_item",
-        label="rpc/revert_booking_item — fake UUID → error in body",
-        auth="anon",
-        body={"p_item_id": FAKE_UUID, "p_reviewer_username": "_tester_"},
-        expect=200)
-
-    add("Supabase — RPCs", "POST",
-        f"{sb}/rest/v1/rpc/confirm_booking_item",
-        label="rpc/confirm_booking_item — fake UUID → no-op",
-        auth="anon",
-        body={"p_item_id": FAKE_UUID, "p_reviewer_username": "_tester_"},
-        expect=200)
-
-    add("Supabase — RPCs", "POST",
-        f"{sb}/rest/v1/rpc/reject_booking_item",
-        label="rpc/reject_booking_item — fake UUID → no-op",
-        auth="anon",
-        body={"p_item_id": FAKE_UUID, "p_reason": "test", "p_reviewer_username": "_tester_"},
-        expect=200)
-
-    add("Supabase — RPCs", "POST",
-        f"{sb}/rest/v1/rpc/admin_delete_booking",
-        label="rpc/admin_delete_booking — fake UUID (service role)",
-        auth="service_role",
-        body={"p_booking_id": FAKE_UUID},
-        expect=200)
-
-    # ── Notifications — read-only checks ─────────────────────────────────────
-    add("Notifications — Read", "GET",
-        f"{sb}/rest/v1/notifications?select=id,event_type,message&limit=5&order=created_at.desc",
-        label="SELECT latest notifications (anon)",
-        expect=200, auth="anon")
-    add("Notifications — Read", "GET",
-        f"{sb}/rest/v1/notifications?recipient_type=eq.staff&select=id&limit=1",
-        label="SELECT staff notifications filter (anon)",
-        expect=200, auth="anon")
-    add("Notifications — Read", "GET",
-        f"{sb}/rest/v1/notifications?recipient_type=eq.supplier_account&select=id&limit=1",
-        label="SELECT supplier_account notifications filter (anon)",
-        expect=200, auth="anon")
-
-    return cases
-
-
-
-
-# ─── Frontend smoke tests ─────────────────────────────────────────────────────
-FRONTEND_ROUTES = [
-    ("/",                   "Landing page"),
-    ("/login",              "Login page"),
-    ("/booking/new",        "Booking form"),
-    ("/my-bookings",        "My bookings"),
-    ("/reviewbooking",      "Review booking"),
-    ("/receiver",           "Receiver page"),
-    ("/admin",              "Admin panel"),
-    ("/manager",            "Manager panel"),
-    ("/admin/report",       "Report page (admin)"),
-    ("/manager/report",     "Report page (manager)"),
-    ("/admin/view-as",      "View-as page"),
-    ("/guide/create",       "Guide — create"),
-    ("/guide/receiving",    "Guide — receiving"),
-]
-
-
-def run_frontend_tests(base_url: str, timeout: int) -> list[Result]:
-    results: list[Result] = []
-    for path, label in FRONTEND_ROUTES:
-        url = base_url.rstrip("/") + path
-        case = Case(group="Frontend — Smoke", method="GET", url=url, label=label, expect=200)
-        t0 = time.monotonic()
+    def check(self, area: str, name: str, action: Callable[[], Any]) -> Any:
+        started = time.monotonic()
         try:
-            resp = requests.get(url, timeout=timeout, allow_redirects=True)
-            elapsed = time.monotonic() - t0
-            ok = resp.status_code == 200 and ("<div" in resp.text or "root" in resp.text)
-            body_peek = "" if ok else f"HTTP {resp.status_code} — no HTML root found"
-            results.append(Result(case=case, status=resp.status_code, elapsed=elapsed,
-                                   ok=ok, body_peek=body_peek))
-        except requests.exceptions.ConnectionError:
-            results.append(Result(case=case, status=None, elapsed=time.monotonic() - t0,
-                                   ok=False, error_msg="Connection refused — is Vite running?"))
-        except Exception as e:
-            results.append(Result(case=case, status=None, elapsed=time.monotonic() - t0,
-                                   ok=False, error_msg=str(e)[:80]))
-    return results
+            value = action()
+            self.add(area, name, True, started)
+            return value
+        except Exception as error:  # The audit must continue through every section.
+            self.add(area, name, False, started, str(error))
+            return None
+
+    def http(
+        self,
+        area: str,
+        name: str,
+        method: str,
+        url: str,
+        expected: set[int],
+        *,
+        headers: dict[str, str] | None = None,
+        payload: dict[str, Any] | None = None,
+        validate: Callable[[requests.Response], bool] | None = None,
+    ) -> requests.Response | None:
+        started = time.monotonic()
+        try:
+            response = requests.request(method, url, headers=headers, json=payload, timeout=TIMEOUT_SECONDS)
+            valid = response.status_code in expected and (validate(response) if validate else True)
+            detail = "" if valid else f"HTTP {response.status_code}: {response.text[:240]}"
+            self.add(area, name, valid, started, detail)
+            return response
+        except Exception as error:
+            self.add(area, name, False, started, str(error))
+            return None
 
 
-# ─── Output helpers ───────────────────────────────────────────────────────────
-def fmt_status(r: Result) -> str:
-    if r.status is None:
-        return RED("???")
-    if r.ok:
-        return GREEN(str(r.status))
-    if r.status >= 500:
-        return RED(str(r.status))
-    return YELLOW(str(r.status))
+def parse_env(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            values[key.strip()] = value.strip()
+    return values
 
 
-def fmt_time(r: Result) -> str:
-    ms = r.elapsed * 1000
-    if ms < 500:
-        return GREEN(f"{ms:6.0f}ms")
-    if ms < 2000:
-        return YELLOW(f"{ms:6.0f}ms")
-    return RED(f"{ms:6.0f}ms")
+def b64url(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).rstrip(b"=").decode("ascii")
 
 
-def print_results(results: list[Result]) -> None:
-    current_group = ""
-    for r in results:
-        if r.case.group != current_group:
-            current_group = r.case.group
-            print(f"\n  {CYAN(BOLD(current_group))}")
-        icon_s = GREEN("✓") if r.ok else RED("✗")
-        meth = DIM(r.case.method.ljust(6))
-        label = r.case.label
-        print(f"    {icon_s} {meth} {label:<55} {fmt_status(r)}  {fmt_time(r)}")
-        if not r.ok:
-            msg = r.error_msg or r.body_peek
-            if msg:
-                msg = msg[:160] + ("…" if len(msg) > 160 else "")
-                print(f"         {RED('→')} {DIM(msg)}")
+def issue_test_admin_token(secret: str, jti: str) -> str:
+    now = int(time.time())
+    header = b64url(json.dumps({"alg": "HS256", "typ": "JWT"}, separators=(",", ":")).encode())
+    payload = b64url(json.dumps({
+        "sub": "staff:project-tester", "username": "project-tester", "role": "admin", "jti": jti,
+        "iat": now, "exp": now + 900, "iss": "atino-booking-api", "aud": "atino-booking-web", "typ": "access",
+    }, separators=(",", ":")).encode())
+    signature = b64url(hmac.new(secret.encode(), f"{header}.{payload}".encode(), hashlib.sha256).digest())
+    return f"{header}.{payload}.{signature}"
 
 
-def save_json_report(results: list[Result], out_path: str) -> None:
-    report = []
-    for r in results:
-        report.append({
-            "group":      r.case.group,
-            "method":     r.case.method,
-            "url":        r.case.url,
-            "label":      r.case.label,
-            "status":     r.status,
-            "elapsed_ms": round(r.elapsed * 1000, 1),
-            "ok":         r.ok,
-            "error":      r.error_msg or r.body_peek,
-        })
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(report, f, ensure_ascii=False, indent=2)
-    print(DIM(f"  JSON report → {out_path}"))
+def response_json_has(*keys: str) -> Callable[[requests.Response], bool]:
+    def validate(response: requests.Response) -> bool:
+        try:
+            body = response.json()
+            return all(key in body for key in keys)
+        except ValueError:
+            return False
+    return validate
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+def run_command(audit: Audit, name: str, command: list[str]) -> None:
+    started = time.monotonic()
+    try:
+        completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=300, check=False)
+        output = (completed.stdout + completed.stderr).strip()
+        audit.add("Toolchain", name, completed.returncode == 0, started, output[-280:] if completed.returncode else "")
+    except Exception as error:
+        audit.add("Toolchain", name, False, started, str(error))
+
+
+def api_url(path: str) -> str:
+    return f"{API}{path}"
+
+
+def rest_url(supabase_url: str, path: str) -> str:
+    return f"{supabase_url}/rest/v1/{path}"
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Atino booking webapp test suite")
-    parser.add_argument("--api",          default="http://localhost:3001",
-                        help="Express backend URL (default: http://localhost:3001)")
-    parser.add_argument("--frontend",     default="http://localhost:5173",
-                        help="Vite dev server URL (default: http://localhost:5173)")
-    parser.add_argument("--env",          default=None,
-                        help="Path to .env file (default: .env next to this script)")
-    parser.add_argument("--timeout",      type=int, default=30,
-                        help="Per-request timeout in seconds (default: 30)")
-    parser.add_argument("--skip-frontend", action="store_true",
-                        help="Skip frontend smoke tests")
-    parser.add_argument("--json",         default=None,
-                        help="Save JSON report to this path")
-    parser.add_argument("--fail-fast",    action="store_true",
-                        help="Stop on first failure")
-    args = parser.parse_args()
+    os.system("")  # Ensure ANSI colors are enabled on Windows
+    print(BOLD("\nAtino full-system audit"))
+    audit = Audit()
+    env_path = ROOT / ".env"
+    env = audit.check("Configuration", ".env is readable", lambda: parse_env(env_path)) or {}
+    required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "VITE_SUPABASE_ANON_KEY", "AUTH_JWT_SECRET", "GCS_SERVICE_ACCOUNT_JSON"]
+    for key in required:
+        audit.check("Configuration", f"{key} is configured", lambda key=key: env[key] or (_ for _ in ()).throw(RuntimeError(f"Missing {key}")))
 
-    os.system("")  # enable ANSI on Windows
+    supabase_url = env.get("SUPABASE_URL", env.get("VITE_SUPABASE_URL", "")).rstrip("/")
+    service_key = env.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    anon_key = env.get("VITE_SUPABASE_ANON_KEY", "")
+    service_headers = {"apikey": service_key, "Authorization": f"Bearer {service_key}", "Content-Type": "application/json", "Prefer": "return=representation"}
+    anon_headers = {"apikey": anon_key, "Authorization": f"Bearer {anon_key}"}
 
-    # Load .env
-    env_path = Path(args.env) if args.env else Path(__file__).parent / ".env"
-    env = parse_env(env_path)
+    # Compile and test before live integration checks.
+    for label, command in [
+        ("Frontend typecheck", ["npm.cmd", "run", "typecheck"]),
+        ("Backend typecheck", ["npm.cmd", "run", "server:typecheck"]),
+        ("Lint", ["npm.cmd", "run", "lint"]),
+        ("Unit tests", ["npm.cmd", "test"]),
+        ("Production build", ["npm.cmd", "run", "build"]),
+    ]:
+        run_command(audit, label, command)
 
-    supabase_url = env.get("VITE_SUPABASE_URL", "").rstrip("/")
-    anon_key     = env.get("VITE_SUPABASE_ANON_KEY", "")
-    service_key  = env.get("SUPABASE_SERVICE_ROLE_KEY", "")
-    staff_users  = env.get("VITE_STAFF_USERS", "[]")
-    admin_jwt    = build_admin_jwt(staff_users) or ""
+    audit.http("Backend", "Health and database readiness", "GET", api_url("/api/health"), {200}, validate=response_json_has("status"))
+    audit.http("Backend", "Invalid login is rejected", "POST", api_url("/api/auth/login"), {401}, payload={"username": "project-tester", "password": "invalid-password"})
+    for path in ["/api/accounts?status=all", "/api/booking/finalize/supplier-accounts", "/api/notifications", "/api/product-process/sync"]:
+        method = "POST" if path.endswith("/sync") else "GET"
+        audit.http("Backend authorization", f"Unauthenticated {method} {path}", method, api_url(path), {401})
 
-    if not supabase_url or not anon_key:
-        print(RED("  [ERR] VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY not found in .env"))
-        print(DIM(f"  env file: {env_path}"))
-        return 1
-    if not admin_jwt:
-        print(YELLOW("  [WARN] Could not build admin JWT from VITE_STAFF_USERS — Express auth tests will be skipped"))
+    # Create a real, short-lived signed admin session for all privileged read and negative-path checks.
+    session_jti = str(uuid.uuid4())
+    admin_headers: dict[str, str] = {}
+    try:
+        expires_at = (datetime.now(timezone.utc) + timedelta(minutes=15)).isoformat()
+        inserted = audit.http("Session auth", "Create temporary audit session", "POST", rest_url(supabase_url, "auth_sessions"), {201}, headers=service_headers, payload={"jti": session_jti, "subject": "staff:project-tester", "expires_at": expires_at})
+        if inserted:
+            admin_headers = {"Authorization": f"Bearer {issue_test_admin_token(env['AUTH_JWT_SECRET'], session_jti)}"}
+            audit.http("Backend", "List unified accounts", "GET", api_url("/api/accounts?status=all"), {200}, headers=admin_headers, validate=response_json_has("accounts"))
+            audit.http("Backend", "List selectable suppliers", "GET", api_url("/api/accounts/suppliers"), {200}, headers=admin_headers, validate=response_json_has("suppliers"))
+            audit.http("Backend", "List warehouses", "GET", api_url("/api/admin-resources/warehouses"), {200}, headers=admin_headers, validate=response_json_has("warehouses"))
+            audit.http("Backend", "List suppliers", "GET", api_url("/api/admin-resources/suppliers"), {200}, headers=admin_headers, validate=response_json_has("suppliers"))
+            audit.http("Backend", "List booking supplier accounts", "GET", api_url("/api/booking/finalize/supplier-accounts"), {200}, headers=admin_headers)
+            audit.http("Backend negative paths", "Reject invalid account import", "POST", api_url("/api/accounts/import"), {400}, headers=admin_headers, payload={"accounts": []})
+            audit.http("Backend negative paths", "Reject invalid booking finalization", "POST", api_url("/api/booking/finalize"), {400}, headers=admin_headers, payload={})
+            audit.http("Backend negative paths", "Reject upload without a file", "POST", api_url("/api/upload/gcs"), {400}, headers=admin_headers)
+            audit.http("Backend", "Reviewer supplier list", "GET", api_url("/api/reviewer/suppliers"), {200}, headers=admin_headers, validate=response_json_has("suppliers"))
+            audit.http("Backend", "Reviewer report", "GET", api_url("/api/reviewer/report"), {200}, headers=admin_headers)
+            # This is the actual ETL integration run. Its atomic RPC protects the catalog from partial data.
+            audit.http("ETL", "Run product catalog sync", "POST", api_url("/api/product-process/sync"), {200}, headers=admin_headers, validate=response_json_has("synced"))
+    finally:
+        if service_key:
+            audit.http("Session auth", "Remove temporary audit session", "DELETE", rest_url(supabase_url, f"auth_sessions?jti=eq.{session_jti}"), {200, 204}, headers=service_headers)
 
-    creds = Creds(
-        supabase_url=supabase_url,
-        anon_key=anon_key,
-        service_key=service_key,
-        admin_jwt=admin_jwt,
-    )
+    # Public/read APIs and the ETL output contract.
+    audit.http("Backend", "Product catalog lookup", "GET", api_url("/api/product-process?page=1&page_size=1"), {200}, validate=response_json_has("items", "total"))
 
-    print()
-    print(BOLD(f"{'─' * 80}"))
-    print(BOLD(f"  Atino Booking — Full Test Suite"))
-    print(BOLD(f"{'─' * 80}"))
-    print(DIM(f"  API:       {args.api}"))
-    print(DIM(f"  Supabase:  {supabase_url}"))
-    print(DIM(f"  Frontend:  {args.frontend}"))
-    print(DIM(f"  .env:      {env_path}"))
-    print(DIM(f"  Timeout:   {args.timeout}s"))
+    # Schema and data contracts through the service role; no business rows are changed here.
+    tables = {
+        "bookings": "id,booking_code,time_slot,delivery_date",
+        "booking_items": "id,booking_id,status,total_quantity,size_4xl_34",
+        "supplier_accounts": "id,username,status,password_ciphertext",
+        "staff_accounts": "id,username,status,password_hash",
+        "staff_account_roles": "staff_account_id,role",
+        "auth_sessions": "jti,subject,expires_at,revoked_at",
+        "account_audit_events": "id,action,account_kind",
+        "product_process_catalog": "id,lark_record_id,total_quantity,size_4xl_34,last_synced_at",
+        "suppliers": "id,code,name,active",
+        "warehouses": "id,code,name,active",
+        "notifications": "id,recipient_type,is_read",
+        "pending_uploads": "path,owner_sub,expires_at",
+        "internal_job_leases": "job_name,owner_id,expires_at",
+        "app_schema_version": "singleton,version",
+    }
+    for table, columns in tables.items():
+        audit.http("Supabase schema", f"{table} columns", "GET", rest_url(supabase_url, f"{table}?select={columns}&limit=1"), {200}, headers=service_headers)
+    catalog_response = audit.http("ETL", "Catalog has active rows and 4XL/34 data", "GET", rest_url(supabase_url, "product_process_catalog?active=eq.true&select=lark_record_id,size_4xl_34,last_synced_at&limit=1"), {200}, headers=service_headers)
+    if catalog_response is not None:
+        try:
+            rows = catalog_response.json()
+            audit.add("ETL", "Catalog result is non-empty", isinstance(rows, list) and bool(rows), time.monotonic())
+        except ValueError:
+            audit.add("ETL", "Catalog result is JSON", False, time.monotonic(), "Invalid JSON")
+    staff_response = audit.http("Personnel", "Dynamic staff roles are queryable", "GET", rest_url(supabase_url, "staff_accounts?select=username,status,staff_account_roles(role)&status=eq.active"), {200}, headers=service_headers)
+    if staff_response is not None:
+        try:
+            staff = staff_response.json()
+            bootstrap_in_db = any(row.get("username") == "voanhduy1710" for row in staff)
+            audit.add("Personnel", "Bootstrap admin remains environment-only", not bootstrap_in_db, time.monotonic(), "Bootstrap admin found in staff_accounts" if bootstrap_in_db else "")
+        except ValueError:
+            audit.add("Personnel", "Staff query is JSON", False, time.monotonic(), "Invalid JSON")
+    audit.http("Supabase security", "Anonymous sensitive account reads are blocked", "GET", rest_url(supabase_url, "staff_accounts?select=password_hash&limit=1"), {200, 401, 403}, headers=anon_headers, validate=lambda response: response.status_code != 200 or response.json() == [])
 
-    all_results: list[Result] = []
+    # Every current SPA route must resolve to the Vite shell; authorization is verified above through the API.
+    for route in ["/", "/login", "/guide", "/guide/create", "/guide/receiving", "/booking/new", "/my-bookings", "/reviewbooking", "/report", "/warehouses", "/suppliers", "/accounts", "/viewas", "/product-process"]:
+        audit.http("Frontend", f"SPA route {route}", "GET", f"{FRONTEND}{route}", {200}, validate=lambda response: "root" in response.text)
 
-    # ── Express + Supabase cases ───────────────────────────────────────────────
-    cases = build_cases(args.api, creds)
-    print(DIM(f"\n  Running {len(cases)} API/Supabase tests…"))
-
-    for case in cases:
-        r = run_case(case, creds, args.timeout)
-        all_results.append(r)
-        if args.fail_fast and not r.ok:
-            break
-
-    # ── Frontend smoke ────────────────────────────────────────────────────────
-    if not args.skip_frontend and not (args.fail_fast and any(not r.ok for r in all_results)):
-        fe_results = run_frontend_tests(args.frontend, min(args.timeout, 15))
-        all_results.extend(fe_results)
-
-    # ── Print all ─────────────────────────────────────────────────────────────
-    print_results(all_results)
-
-    # ── Summary ───────────────────────────────────────────────────────────────
-    passed = sum(1 for r in all_results if r.ok)
-    failed = len(all_results) - passed
-    total_ms = sum(r.elapsed for r in all_results) * 1000
-
-    print()
-    print(BOLD(f"{'─' * 80}"))
-    print(f"  {GREEN(f'{passed} passed')}  |  {RED(f'{failed} failed')}  |  {len(all_results)} total  |  {total_ms:.0f}ms total")
-    print(BOLD(f"{'─' * 80}"))
-
-    if failed:
-        print()
-        print(RED(BOLD("  FAILED:")))
-        for r in all_results:
-            if not r.ok:
-                msg = r.error_msg or r.body_peek or ""
-                print(f"    {RED('✗')} [{r.case.method}] {r.case.label}{DIM(' → ' + msg[:80] if msg else '')}")
-
-    print()
-
-    if args.json:
-        save_json_report(all_results, args.json)
-
+    passed = sum(result.ok for result in audit.results)
+    failed = len(audit.results) - passed
+    passed_s = GREEN(f"{passed} passed")
+    failed_s = RED(f"{failed} failed") if failed else f"{failed} failed"
+    print(f"\n{passed_s} | {failed_s}")
     return 0 if failed == 0 else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

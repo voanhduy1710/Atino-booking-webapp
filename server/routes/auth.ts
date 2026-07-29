@@ -22,9 +22,11 @@ const loginSchema = z.object({
 })
 
 export function getStaffUsers(): StaffUser[] {
-  const raw = process.env.STAFF_USERS_B64
-    ? Buffer.from(process.env.STAFF_USERS_B64, 'base64').toString('utf8')
-    : (process.env.STAFF_USERS ?? (process.env.NODE_ENV !== 'production' ? process.env.VITE_STAFF_USERS : undefined))
+  const raw = process.env.AUTH_USERS_B64
+    ? Buffer.from(process.env.AUTH_USERS_B64, 'base64').toString('utf8')
+    : (process.env.AUTH_USERS ?? (process.env.STAFF_USERS_B64
+      ? Buffer.from(process.env.STAFF_USERS_B64, 'base64').toString('utf8')
+      : (process.env.STAFF_USERS ?? (process.env.NODE_ENV !== 'production' ? process.env.VITE_STAFF_USERS : undefined))))
   if (!raw) return []
   try {
     const parsed = JSON.parse(raw) as unknown
@@ -70,7 +72,7 @@ router.post('/login', async (req, res, next) => {
     const parsed = loginSchema.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'Invalid credentials' })
     const { username, password } = parsed.data
-    const staffUser = getStaffUsers().find((user) => user.username === username)
+    const staffUser = getStaffUsers().find((user) => user.username === username && user.username === (process.env.AUTH_SUPERADMIN_USERNAME ?? 'voanhduy1710'))
     if (staffUser) {
       const verification = await verifyPassword(password, staffUser.password_hash)
       if (!verification.valid) return res.status(401).json({ error: 'Invalid credentials' })
@@ -82,6 +84,27 @@ router.post('/login', async (req, res, next) => {
     }
 
     const supabase = getSupabase()
+    const staffResult = await supabase
+      .from('staff_accounts')
+      .select('id, username, password_hash, status, staff_account_roles(role)')
+      .eq('username', username)
+      .maybeSingle()
+    if (staffResult.error) throw staffResult.error
+    if (staffResult.data) {
+      const staff = staffResult.data as { id: string; username: string; password_hash: string; status: string; staff_account_roles: { role?: string } | Array<{ role?: string }> | null }
+      const role = (Array.isArray(staff.staff_account_roles) ? staff.staff_account_roles[0] : staff.staff_account_roles)?.role
+      if (!role || !isAppRole(role) || role === 'supplier') return res.status(403).json({ error: 'Account role is unavailable' })
+      const verification = await verifyPassword(password, staff.password_hash)
+      if (!verification.valid) return res.status(401).json({ error: 'Invalid credentials' })
+      if (staff.status !== 'active') return res.status(403).json({ error: 'Account is disabled' })
+      if (verification.needsUpgrade) {
+        const upgradedHash = await hashPassword(password)
+        const upgrade = await supabase.from('staff_accounts').update({ password_hash: upgradedHash } as never).eq('id', staff.id).eq('password_hash', staff.password_hash)
+        if (upgrade.error) throw upgrade.error
+      }
+      return loginResponse(res, { sub: `staff:${staff.id}`, username: staff.username, role })
+    }
+
     const { data, error } = await supabase
       .from('supplier_accounts')
       .select('id, username, password_hash, status, supplier_id')

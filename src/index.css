@@ -278,3 +278,13 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #9f27c7;
 }
+
+/* Hide scrollbar utility for a clean switcher interface */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

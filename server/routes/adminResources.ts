@@ -7,6 +7,32 @@ const router = Router();
 
 router.use(requireAuth([...CAPABILITY_ROLES.manageResources]));
 
+router.get("/warehouses", async (_req, res, next) => {
+  try {
+    const { data, error } = await getSupabase()
+      .from("warehouses")
+      .select("id, code, name, active")
+      .order("code");
+    if (error) throw error;
+    res.json({ warehouses: data ?? [] });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/suppliers", async (_req, res, next) => {
+  try {
+    const { data, error } = await getSupabase()
+      .from("suppliers")
+      .select("id, code, name, active")
+      .order("code");
+    if (error) throw error;
+    res.json({ suppliers: data ?? [] });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post("/warehouses", async (req, res, next) => {
   try {
     const code = String(req.body?.code ?? "")
