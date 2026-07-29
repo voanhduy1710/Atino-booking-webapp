@@ -13,6 +13,7 @@ $REPO_NAME    = "atino-docker"
 $IMAGE_NAME   = "atino-booking-webapp"
 $IMAGE_BASE   = "$GCP_REGION-docker.pkg.dev/$GCP_PROJECT/$REPO_NAME/$IMAGE_NAME"
 $KEEP_IMAGES  = 3
+$DEPLOYMENT_VERSION = [DateTime]::UtcNow.ToString('yyyyMMddHHmmss')
 
 Write-Host ""
 Write-Host "======================================================" -ForegroundColor DarkGray
@@ -109,7 +110,7 @@ if (-not $NHANH_APP_ID -or -not $NHANH_BUSINESS_ID -or -not $NHANH_ACCESS_TOKEN)
 Write-Host "      Enforcing private GCS bucket access..." -ForegroundColor Cyan
 gcloud storage buckets update "gs://$GCS_BUCKET" `
     --project $GCP_PROJECT `
-    --public-access-prevention=enforced `
+    --public-access-prevention `
     --uniform-bucket-level-access `
     --quiet
 if ($LASTEXITCODE -ne 0) {
@@ -131,7 +132,7 @@ VITE_SUPABASE_ANON_KEY=$($envVars["VITE_SUPABASE_ANON_KEY"])
 
 gcloud builds submit `
     --project $GCP_PROJECT `
-    --tag "${IMAGE_BASE}:latest" `
+    --tag "${IMAGE_BASE}:$DEPLOYMENT_VERSION" `
     .
 
 $buildExitCode = $LASTEXITCODE
@@ -147,7 +148,7 @@ if ($buildExitCode -ne 0) {
 gcloud run deploy $SERVICE_NAME `
     --project $GCP_PROJECT `
     --region $GCP_REGION `
-    --image "${IMAGE_BASE}:latest" `
+    --image "${IMAGE_BASE}:$DEPLOYMENT_VERSION" `
     --platform managed `
     --allow-unauthenticated `
     --memory 512Mi `
@@ -157,10 +158,21 @@ gcloud run deploy $SERVICE_NAME `
     --timeout 60s `
     --port 8080 `
     --quiet `
-    --set-env-vars "DEPLOYMENT_VERSION=$([DateTime]::UtcNow.ToString('yyyyMMddHHmmss')),SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY,STAFF_USERS_B64=$STAFF_USERS_B64,AUTH_JWT_SECRET=$AUTH_JWT_SECRET,GCS_SERVICE_ACCOUNT_JSON_B64=$GCS_JSON_B64,LARK_APP_ID=$LARK_APP_ID,LARK_APP_SECRET=$LARK_APP_SECRET,NHANH_APP_ID=$NHANH_APP_ID,NHANH_BUSINESS_ID=$NHANH_BUSINESS_ID,NHANH_ACCESS_TOKEN=$NHANH_ACCESS_TOKEN,NHANH_PRODUCT_APP_ID=$NHANH_PRODUCT_APP_ID,NHANH_PRODUCT_BUSINESS_ID=$NHANH_PRODUCT_BUSINESS_ID,NHANH_PRODUCT_ACCESS_TOKEN=$NHANH_PRODUCT_ACCESS_TOKEN"
+    --set-env-vars "DEPLOYMENT_VERSION=$DEPLOYMENT_VERSION,SUPABASE_URL=$SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY,STAFF_USERS_B64=$STAFF_USERS_B64,AUTH_JWT_SECRET=$AUTH_JWT_SECRET,GCS_SERVICE_ACCOUNT_JSON_B64=$GCS_JSON_B64,LARK_APP_ID=$LARK_APP_ID,LARK_APP_SECRET=$LARK_APP_SECRET,NHANH_APP_ID=$NHANH_APP_ID,NHANH_BUSINESS_ID=$NHANH_BUSINESS_ID,NHANH_ACCESS_TOKEN=$NHANH_ACCESS_TOKEN,NHANH_PRODUCT_APP_ID=$NHANH_PRODUCT_APP_ID,NHANH_PRODUCT_BUSINESS_ID=$NHANH_PRODUCT_BUSINESS_ID,NHANH_PRODUCT_ACCESS_TOKEN=$NHANH_PRODUCT_ACCESS_TOKEN"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Cloud Run deploy failed." -ForegroundColor Red
+    exit 1
+}
+
+gcloud run services update-traffic $SERVICE_NAME `
+    --project $GCP_PROJECT `
+    --region $GCP_REGION `
+    --to-latest `
+    --update-tags "candidate=LATEST" `
+    --quiet
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERROR] Could not route traffic to the latest Cloud Run revision." -ForegroundColor Red
     exit 1
 }
 
