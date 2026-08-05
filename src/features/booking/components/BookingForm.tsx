@@ -459,6 +459,38 @@ export function BookingForm() {
                 </div>
               </div>
 
+              {/* Khung giờ */}
+              <div className="grid grid-cols-1 gap-4 items-center sm:grid-cols-3">
+                <label className="form-label col-span-1">
+                  Khung giờ giao hàng <span className="text-[#CC0000]">*</span>
+                </label>
+                <div className="col-span-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    {BOOKING_TIME_SLOTS.map((slot) => (
+                      <label
+                        key={slot}
+                        className={`flex items-center justify-center gap-2 border rounded p-3 cursor-pointer text-sm font-medium transition-colors ${
+                          watch("time_slot") === slot
+                            ? "bg-[#80417A] text-white border-[#80417A]"
+                            : "border-[#ecdbe8] hover:border-[#80417A]"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          value={slot}
+                          className="sr-only"
+                          {...register("time_slot")}
+                        />
+                        {TIME_SLOT_LABELS[slot]}
+                      </label>
+                    ))}
+                  </div>
+                  {errors.time_slot?.message && (
+                    <p className="form-error mt-1">{errors.time_slot.message}</p>
+                  )}
+                </div>
+              </div>
+
               {/* Số lượng đơn hàng */}
               <div className="grid grid-cols-1 gap-4 items-center sm:grid-cols-3">
                 <label className="form-label col-span-1">
@@ -570,36 +602,6 @@ export function BookingForm() {
             </div>
 
             <div className="px-6 py-5 space-y-4">
-              {/* Khung giờ */}
-              <div>
-                <label className="form-label">
-                  Khung giờ giao hàng <span className="text-[#CC0000]">*</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                  {BOOKING_TIME_SLOTS.map((slot) => (
-                    <label
-                      key={slot}
-                      className={`flex items-center justify-center gap-2 border rounded p-3 cursor-pointer text-sm font-medium transition-colors ${
-                        watch("time_slot") === slot
-                          ? "bg-[#80417A] text-white border-[#80417A]"
-                          : "border-[#ecdbe8] hover:border-[#80417A]"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        value={slot}
-                        className="sr-only"
-                        {...register("time_slot")}
-                      />
-                      {TIME_SLOT_LABELS[slot]}
-                    </label>
-                  ))}
-                </div>
-                {errors.time_slot?.message && (
-                  <p className="form-error mt-1">{errors.time_slot.message}</p>
-                )}
-              </div>
-
               {/* Ghi chú */}
               <div>
                 <label htmlFor="ghi-chu" className="form-label">

@@ -11,17 +11,17 @@ export interface DecodedToken {
 const SESSION_KEY = 'atino_session_profile'
 
 export function saveSession(user: DecodedToken): void {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(user))
+  localStorage.setItem(SESSION_KEY, JSON.stringify(user))
 }
 
 export function removeSession(): void {
-  sessionStorage.removeItem(SESSION_KEY)
+  localStorage.removeItem(SESSION_KEY)
   localStorage.removeItem('atino_jwt')
 }
 
 function readSession(): DecodedToken | null {
   try {
-    const value = sessionStorage.getItem(SESSION_KEY)
+    const value = localStorage.getItem(SESSION_KEY)
     if (!value) return null
     const decoded = JSON.parse(value) as DecodedToken
     return decoded.role ? decoded : null

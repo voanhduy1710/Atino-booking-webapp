@@ -8,7 +8,7 @@ import { authenticatedUser } from '../lib/httpAuth.js'
 import { isAppRole, type AppRole } from '../config/capabilities.js'
 
 const router = Router()
-const SESSION_TTL_SECONDS = 8 * 60 * 60
+const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60
 
 interface StaffUser {
   username: string
