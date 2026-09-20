@@ -154,6 +154,14 @@ NHANH_ACCESS_TOKEN=your_nhanh_access_token
 | `npm run test:e2e` | Execute Playwright end-to-end tests |
 | `npm run build` | Compile TypeScript and build production bundle into `dist/` |
 
+### PowerShell Helper Scripts
+
+For Windows developers, automated PowerShell workflows are provided in the repository root:
+
+- `.\deploy_local.ps1`: Kills conflicting port processes, installs dependencies (if missing), validates environment, and launches both frontend (port 5173) and Express backend (port 3001) in a single terminal.
+- `.\clean_restart.ps1`: Forcefully terminates lingering Node processes, clears dev ports (5173, 5174, 3001), clears the Vite cache, and restarts a fresh local development environment.
+- `.\deploy.ps1`: Complete production deployment pipeline that runs typechecks, linting, tests, builds the production frontend, builds the Docker image to Google Cloud Artifact Registry, and deploys to Google Cloud Run.
+
 ---
 
 ## Security & Best Practices
