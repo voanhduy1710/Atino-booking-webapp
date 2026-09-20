@@ -50,6 +50,10 @@ mcp.json
 .codex/
 .gemini/
 .agents/
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
 .code-review-graph/
 
 # Scratch & prompt typer files
@@ -59,4 +63,3 @@ Z_*
 # Debug test artifacts
 debug/raw_data*.json
 debug/test_*.ps1
-
