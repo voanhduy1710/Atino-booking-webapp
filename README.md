@@ -1,18 +1,10 @@
 # Atino Booking Webapp
 
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
-[![React](https://img.shields.io/badge/React-18-blue.svg)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue.svg)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC.svg)](https://tailwindcss.com/)
-[![Supabase](https://img.shields.io/badge/Database-Supabase%20Postgres-3ECF8E.svg)](https://supabase.com/)
-[![Express](https://img.shields.io/badge/Backend-Express%205-lightgrey.svg)](https://expressjs.com/)
-[![Tests](https://img.shields.io/badge/Tests-Vitest%20Passed-brightgreen.svg)](https://vitest.dev/)
-
 An enterprise delivery booking and warehouse intake management web platform built for Atino distribution logistics. The application coordinates suppliers (NCC), warehouse reviewers, on-site receivers, and operations management in real time.
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
 ### 1. Supplier Portal (Nhà Cung Cấp)
 - **Account Registration & Approval**: Self-service registration with automated admin verification and role assignment.
@@ -38,7 +30,7 @@ An enterprise delivery booking and warehouse intake management web platform buil
 
 ---
 
-## 🏗️ Architecture & Integrations
+## Architecture & Integrations
 
 ```
 ┌────────────────────────────────────────────────────────┐
@@ -68,7 +60,7 @@ An enterprise delivery booking and warehouse intake management web platform buil
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 Atino-booking-webapp/
@@ -100,11 +92,11 @@ Atino-booking-webapp/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- [Node.js](https://nodejs.org/) (v18 or higher)
-- [npm](https://www.npmjs.com/) (v9 or higher)
+- Node.js (v18 or higher)
+- npm (v9 or higher)
 - Supabase project credentials
 - Google Cloud Storage service account (for file uploads)
 
@@ -150,7 +142,7 @@ NHANH_ACCESS_TOKEN=your_nhanh_access_token
 
 ---
 
-## 💻 Development & Scripts
+## Development & Scripts
 
 | Command | Description |
 | :--- | :--- |
@@ -164,7 +156,7 @@ NHANH_ACCESS_TOKEN=your_nhanh_access_token
 
 ---
 
-## 🔒 Security & Best Practices
+## Security & Best Practices
 
 - **Never Commit Secrets**: Live `.env` files, personal MCP configs, and service account keys are strictly excluded via `.gitignore`.
 - **Database Isolation**: Browser clients interact with database tables strictly through Row Level Security (RLS) policies and backend API endpoints.
@@ -173,6 +165,6 @@ NHANH_ACCESS_TOKEN=your_nhanh_access_token
 
 ---
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
