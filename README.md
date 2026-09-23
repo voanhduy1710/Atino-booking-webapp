@@ -1,81 +1,116 @@
-# [Atino Booking Webapp](https://giacong.atino.vn)
+# [Atino Booking Webapp](https://giacong.atino.vn/)
 
-An enterprise delivery booking and warehouse intake management web platform built for Atino distribution logistics. The application coordinates suppliers (NCC), warehouse reviewers, on-site receivers, and operations management in real time.
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38B2AC.svg)](https://tailwindcss.com/)
+[![Express](https://img.shields.io/badge/Express-5-black.svg)](https://expressjs.com/)
+[![Supabase](https://img.shields.io/badge/Database-Supabase%20Postgres-3ECF8E.svg)](https://supabase.com/)
+[![Google Cloud](https://img.shields.io/badge/Storage-Google%20Cloud%20Storage-4285F4.svg)](https://cloud.google.com/storage)
+[![Tests](https://img.shields.io/badge/Tests-Vitest%20Passed-brightgreen.svg)](https://vitest.dev/)
+
+An enterprise delivery booking and warehouse intake management web platform built for Atino distribution logistics, coordinating suppliers (NCC), warehouse reviewers, on-site receivers, and operations management in real time.
 
 ---
 
-## Key Features
+## Features
 
-- **Smart Booking & Capacity Engine**:
-  - **Daily Intake Limit (Max 20,000 items/day)**: Real-time warehouse capacity tracking prevents overload with atomic database locking (`0 / 20.000` live capacity indicator).
-  - **17:30 ICT Cutoff Logic**: Bookings submitted before 17:30 (GMT+7) qualify for N+1 delivery; submissions after 17:30 automatically advance the earliest delivery window to N+2.
-  - **Scheduled Shift Slots**: Standardized dock arrival windows for balanced throughput: Morning (`08:00 – 11:30`) and Afternoon (`13:30 – 17:00`).
-  - **Line Item & Size Matrix**: Multi-size breakdown (S/28 through 4XL/34) with strict sum validation against total quantities.
-  - **Phased Rounds & Document Rules**: Multi-round delivery tracking (Lần 1–10) with mandatory VAT invoice upload on Round 1 and delivery slips on all bookings.
-- **Fast-Track Gate Intake**: Instant QR driver passes and camera-based QR scanner for physical count verification and timestamped intake receipts.
-- **Warehouse Review & Item Verification**: Granular line-item approvals (`Đã xác nhận`, `Trả hàng`, `Đang chờ xác nhận`) and live intake status tracking.
-- **Operations & Master Data**: Multi-role RBAC (Supplier, Reviewer, Receiver, Admin), warehouse configuration, and one-click Excel (`.xlsx`) reporting.
+- **Supplier Delivery Booking** (PO line-items, size matrix & round tracking)
+- **Smart Warehouse Capacity Engine** (20,000 items/day ceiling & 17:30 cutoff logic)
+- **Gate Intake & QR Scanner** (Camera check-in & physical count reconciliation)
+- **Warehouse Intake Verification** (Granular line-item approval workflows)
+- **Digital Document Archive** (VAT invoice & delivery slip uploads to GCS)
+- **Role-Based Access Control** (Supplier, Reviewer, Receiver, Admin)
+- **ERP & Platform Integrations** (Nhanh.vn sync, Lark alerts & Supabase RLS)
+- **Operations & Reporting** (Volume analytics & one-click Excel exports)
 
 ---
 
 ## Preview
 
-### 1. Landing Portal & Access Gateway
-Central hub for delivery registration, operational guidelines, and account authentication.
-
 ![Landing Portal](public/Preview_1.png)
-
-### 2. Delivery Registration & Daily Capacity Checker
-Live capacity tracker (20,000 daily ceiling), shift slot selector, size breakdown, and document upload.
 
 ![Delivery Registration](public/Preview_2.png)
 
-### 3. Supplier Step-by-Step Delivery Guide
-Guided standard operating procedure (SOP) for suppliers from account login to QR pass issuance.
-
 ![Supplier Guide](public/Preview_3.png)
-
-### 4. Warehouse Intake Verification & Approval Queue
-Operational review board for line-item inspection, quantity reconciliation, and status approval.
 
 ![Warehouse Review](public/Preview_4.png)
 
 ---
 
-## Architecture & Integrations
+## Quick Start
 
-```
-┌────────────────────────────────────────────────────────┐
-│                   React 18 Frontend                    │
-│     Vite • Tailwind CSS • TanStack Query • Zod         │
-└───────────────────────────▲────────────────────────────┘
-                            │ (HTTP / JSON API)
-┌───────────────────────────▼────────────────────────────┐
-│                  Express 5 API Server                  │
-│       TypeScript • Session Auth • Service Layer        │
-└───────┬───────────────────┬───────────────────┬────────┘
-        │                   │                   │
-        ▼                   ▼                   ▼
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│   Supabase   │    │ Google Cloud │    │   Nhanh.vn   │
-│  PostgreSQL  │    │   Storage    │    │   Open API   │
-│ (RLS + RPCs) │    │  (GCS Media) │    │  (ETL Sync)  │
-└──────────────┘    └──────────────┘    └──────────────┘
+### 1. Prerequisites
+- [Node.js](https://nodejs.org/) (v18.0 or higher recommended)
+- `npm` or `pnpm`
+- Supabase project credentials
+- Google Cloud Storage service account (for document uploads)
+
+### 2. Clone and Install Dependencies
+```bash
+git clone https://github.com/voanhduy1710/Atino-booking-webapp.git
+cd Atino-booking-webapp
+npm install
 ```
 
-- **Frontend**: Single Page Application powered by React 18, React Router v7, React Hook Form, and Tailwind CSS.
-- **Backend API**: Express 5 application serving API endpoints and production static assets from a unified container.
-- **Database**: Supabase PostgreSQL with strict Row Level Security (RLS) policies, foreign-key constraints, and atomic RPC functions.
-- **Storage**: Google Cloud Storage bucket with private access enforcement and signed media URL generation.
-- **ERP Integration**: Synchronizes purchase catalog, drafts, and product attributes from Nhanh.vn.
-- **Notifications**: Automated dispatch alerts via Lark / Feishu Open Platform.
+### 3. Configure Environment Variables
+Copy the example environment file and fill in your project credentials:
+```bash
+cp .env.example .env
+```
+
+### 4. Run Locally
+Start the development servers:
+```bash
+# Start Vite frontend dev server (http://localhost:5173)
+npm run dev
+
+# Start Express backend API (http://localhost:3001)
+npm run server:dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+---
+
+## PowerShell Helper Scripts
+
+For Windows developers, automated PowerShell workflows are provided in the repository root:
+
+- **`.\deploy_local.ps1`**: Kills conflicting port processes, installs dependencies (if missing), validates environment, and launches both frontend (port 5173) and Express backend (port 3001) in a single terminal.
+- **`.\clean_restart.ps1`**: Forcefully terminates lingering Node processes, clears dev ports (5173, 5174, 3001), clears the Vite cache, and restarts a fresh local development environment.
+- **`.\deploy.ps1`**: Complete production deployment pipeline that runs typechecks, linting, tests, builds the production frontend, builds the Docker image to Google Cloud Artifact Registry, and deploys to Google Cloud Run.
+
+---
+
+## Testing & Code Quality
+
+```bash
+# Run unit tests via Vitest
+npm test
+
+# Run tests in interactive watch mode
+npm run test:watch
+
+# Run Playwright end-to-end tests
+npm run test:e2e
+
+# Run fast linter checks
+npm run lint
+
+# Check TypeScript types across frontend and backend
+npm run typecheck
+
+# Build production bundle
+npm run build
+```
 
 ---
 
 ## Project Structure
 
-```
+```text
 Atino-booking-webapp/
+├── public/                     # Static brand assets and preview images
 ├── server/                     # Express backend source code
 │   ├── config/                 # Capabilities & storage configuration
 │   ├── etl/                    # Nhanh product ETL synchronization scripts
@@ -96,95 +131,9 @@ Atino-booking-webapp/
 │   │   └── warehouse/          # Reviewer & receiver workflows
 │   └── shared/                 # Shared UI components, hooks, utilities, and types
 ├── supabase/                   # Supabase migrations and database schema
-├── public/                     # Static brand assets and SVGs
 ├── Dockerfile                  # Production container definition
 ├── deploy.ps1                  # Production deployment script (Google Cloud Run)
-└── clean_restart.ps1           # Local developer environment reset script
+├── deploy_local.ps1            # Local dual-server launcher script
+├── clean_restart.ps1           # Developer environment reset script
+└── package.json                # Project metadata and dependencies
 ```
-
----
-
-## Getting Started
-
-### Prerequisites
-- Node.js (v18 or higher)
-- npm (v9 or higher)
-- Supabase project credentials
-- Google Cloud Storage service account (for file uploads)
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/voanhduy1710/Atino-booking-webapp.git
-cd Atino-booking-webapp
-```
-
-### 2. Install Dependencies
-```bash
-npm install
-```
-
-### 3. Environment Configuration
-Copy the provided `.env.example` template:
-```bash
-cp .env.example .env
-```
-
-Fill in the required variables in `.env`:
-```env
-# Client-Side (Vite)
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# Server-Side
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-AUTH_JWT_SECRET=your_secure_random_32_character_secret
-
-# Google Cloud Storage (JSON key string)
-GCS_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
-GCS_BUCKET=your-media-bucket-name
-
-# Third-party Integrations
-LARK_APP_ID=your_lark_app_id
-LARK_APP_SECRET=your_lark_app_secret
-NHANH_APP_ID=your_nhanh_app_id
-NHANH_BUSINESS_ID=your_nhanh_business_id
-NHANH_ACCESS_TOKEN=your_nhanh_access_token
-```
-
----
-
-## Development & Scripts
-
-| Command | Description |
-| :--- | :--- |
-| `npm run dev` | Start Vite frontend dev server on `http://localhost:5173` |
-| `npm run server:dev` | Start Express backend API with file watching on `http://localhost:3001` |
-| `npm run typecheck` | Run TypeScript type checks across frontend and backend |
-| `npm run test` | Run Vitest unit and integration test suite |
-| `npm run test:watch` | Run tests in interactive watch mode |
-| `npm run test:e2e` | Execute Playwright end-to-end tests |
-| `npm run build` | Compile TypeScript and build production bundle into `dist/` |
-
-### PowerShell Helper Scripts
-
-For Windows developers, automated PowerShell workflows are provided in the repository root:
-
-- `.\deploy_local.ps1`: Kills conflicting port processes, installs dependencies (if missing), validates environment, and launches both frontend (port 5173) and Express backend (port 3001) in a single terminal.
-- `.\clean_restart.ps1`: Forcefully terminates lingering Node processes, clears dev ports (5173, 5174, 3001), clears the Vite cache, and restarts a fresh local development environment.
-- `.\deploy.ps1`: Complete production deployment pipeline that runs typechecks, linting, tests, builds the production frontend, builds the Docker image to Google Cloud Artifact Registry, and deploys to Google Cloud Run.
-
----
-
-## Security & Best Practices
-
-- **Never Commit Secrets**: Live `.env` files, personal MCP configs, and service account keys are strictly excluded via `.gitignore`.
-- **Database Isolation**: Browser clients interact with database tables strictly through Row Level Security (RLS) policies and backend API endpoints.
-- **Sanitized Uploads**: Media uploads validate MIME types and file size limits before generating private Google Cloud Storage paths.
-- **Session Tokens**: Authentication tokens are signed using standard JWT algorithms with role verification middleware.
-
----
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
