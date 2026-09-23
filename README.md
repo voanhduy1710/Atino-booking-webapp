@@ -1,4 +1,4 @@
-# Atino Booking Webapp
+# [Atino Booking Webapp](https://giacong.atino.vn)
 
 An enterprise delivery booking and warehouse intake management web platform built for Atino distribution logistics. The application coordinates suppliers (NCC), warehouse reviewers, on-site receivers, and operations management in real time.
 
@@ -6,27 +6,39 @@ An enterprise delivery booking and warehouse intake management web platform buil
 
 ## Key Features
 
-### 1. Supplier Portal (Nhà Cung Cấp)
-- **Account Registration & Approval**: Self-service registration with automated admin verification and role assignment.
-- **Dynamic Delivery Booking**: Schedule delivery dates adhering to business capacity limits (minimum lead times, daily quantity ceilings).
-- **PO & Product Line Item Entry**: Direct itemized booking with process codes, sizes, colors, and quantity counts.
-- **Document & Proof Upload**: Secure upload of delivery slips (Phiếu giao hàng) and VAT invoices (Hóa đơn VAT) directly to Google Cloud Storage.
-- **Booking Confirmation & QR Pass**: System-generated booking token and QR code pass for driver check-in on delivery day.
+- **Smart Booking & Capacity Engine**:
+  - **Daily Intake Limit (Max 20,000 items/day)**: Real-time warehouse capacity tracking prevents overload with atomic database locking (`0 / 20.000` live capacity indicator).
+  - **17:30 ICT Cutoff Logic**: Bookings submitted before 17:30 (GMT+7) qualify for N+1 delivery; submissions after 17:30 automatically advance the earliest delivery window to N+2.
+  - **Scheduled Shift Slots**: Standardized dock arrival windows for balanced throughput: Morning (`08:00 – 11:30`) and Afternoon (`13:30 – 17:00`).
+  - **Line Item & Size Matrix**: Multi-size breakdown (S/28 through 4XL/34) with strict sum validation against total quantities.
+  - **Phased Rounds & Document Rules**: Multi-round delivery tracking (Lần 1–10) with mandatory VAT invoice upload on Round 1 and delivery slips on all bookings.
+- **Fast-Track Gate Intake**: Instant QR driver passes and camera-based QR scanner for physical count verification and timestamped intake receipts.
+- **Warehouse Review & Item Verification**: Granular line-item approvals (`Đã xác nhận`, `Trả hàng`, `Đang chờ xác nhận`) and live intake status tracking.
+- **Operations & Master Data**: Multi-role RBAC (Supplier, Reviewer, Receiver, Admin), warehouse configuration, and one-click Excel (`.xlsx`) reporting.
 
-### 2. Warehouse Reviewer Portal
-- **Real-Time Intake Review**: Live queue of upcoming delivery bookings.
-- **Line-Item Verification**: Approve, reject, or request quantity amendments on individual PO lines.
-- **Status Workflows**: Transition bookings seamlessly across statuses (`PENDING`, `APPROVED`, `PARTIAL_APPROVED`, `CANCELLED`).
+---
 
-### 3. Warehouse Receiver Portal
-- **Camera QR Scanner & Manual Lookup**: High-speed QR scanner for incoming trucks and delivery drivers at the gate.
-- **Physical Count Reconciliation**: Compare physical carton/unit counts against approved PO numbers.
-- **Instant Intake Recording**: Mark bookings as received with timestamped staff signatures.
+## Preview
 
-### 4. Admin & Operations Management
-- **Role-Based Access Control**: Granular routes and capability access for Admin, Manager, Reviewer, Receiver, and Supplier.
-- **Master Data Management**: Manage active warehouse facilities, suppliers, and staff permissions.
-- **Operational Reports & Exports**: Aggregated volume charts, date range filtering, and one-click Microsoft Excel (`.xlsx`) reporting.
+### 1. Landing Portal & Access Gateway
+Central hub for delivery registration, operational guidelines, and account authentication.
+
+![Landing Portal](public/Preview_1.png)
+
+### 2. Delivery Registration & Daily Capacity Checker
+Live capacity tracker (20,000 daily ceiling), shift slot selector, size breakdown, and document upload.
+
+![Delivery Registration](public/Preview_2.png)
+
+### 3. Supplier Step-by-Step Delivery Guide
+Guided standard operating procedure (SOP) for suppliers from account login to QR pass issuance.
+
+![Supplier Guide](public/Preview_3.png)
+
+### 4. Warehouse Intake Verification & Approval Queue
+Operational review board for line-item inspection, quantity reconciliation, and status approval.
+
+![Warehouse Review](public/Preview_4.png)
 
 ---
 
